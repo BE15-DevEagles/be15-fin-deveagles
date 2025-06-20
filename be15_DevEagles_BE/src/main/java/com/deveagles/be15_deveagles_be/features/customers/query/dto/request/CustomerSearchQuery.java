@@ -1,12 +1,10 @@
-package com.deveagles.be15_deveagles_be.features.customers.query.dto;
-
-import com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Customer;
+package com.deveagles.be15_deveagles_be.features.customers.query.dto.request;
 
 public record CustomerSearchQuery(
     Long shopId,
     String keyword, // 이름 또는 전화번호로 검색
     Long customerGradeId,
-    Customer.Gender gender,
+    String gender, // M 또는 F
     Boolean marketingConsent,
     Boolean notificationConsent,
     Boolean includeDeleted,

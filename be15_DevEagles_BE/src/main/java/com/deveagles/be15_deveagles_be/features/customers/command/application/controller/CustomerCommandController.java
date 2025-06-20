@@ -3,7 +3,7 @@ package com.deveagles.be15_deveagles_be.features.customers.command.application.c
 import com.deveagles.be15_deveagles_be.common.dto.ApiResponse;
 import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.request.CreateCustomerRequest;
 import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.request.UpdateCustomerRequest;
-import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.response.CustomerResponse;
+import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.response.CustomerCommandResponse;
 import com.deveagles.be15_deveagles_be.features.customers.command.application.service.CustomerCommandService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -42,7 +42,7 @@ public class CustomerCommandController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "201",
         description = "고객 생성 성공",
-        content = @Content(schema = @Schema(implementation = CustomerResponse.class))),
+        content = @Content(schema = @Schema(implementation = CustomerCommandResponse.class))),
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "400",
         description = "잘못된 요청 데이터"),
@@ -51,7 +51,7 @@ public class CustomerCommandController {
         description = "중복된 전화번호")
   })
   @PostMapping
-  public ResponseEntity<ApiResponse<CustomerResponse>> createCustomer(
+  public ResponseEntity<ApiResponse<CustomerCommandResponse>> createCustomer(
       @Parameter(description = "고객 생성 정보", required = true) @Valid @RequestBody
           CreateCustomerRequest request) {
     log.info(
@@ -60,7 +60,7 @@ public class CustomerCommandController {
         request.phoneNumber(),
         request.shopId());
 
-    CustomerResponse response = customerCommandService.createCustomer(request);
+    CustomerCommandResponse response = customerCommandService.createCustomer(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
   }
 
@@ -69,7 +69,7 @@ public class CustomerCommandController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "200",
         description = "고객 정보 수정 성공",
-        content = @Content(schema = @Schema(implementation = CustomerResponse.class))),
+        content = @Content(schema = @Schema(implementation = CustomerCommandResponse.class))),
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "404",
         description = "고객을 찾을 수 없음"),
@@ -78,7 +78,7 @@ public class CustomerCommandController {
         description = "잘못된 요청 데이터")
   })
   @PutMapping("/{customerId}")
-  public ResponseEntity<ApiResponse<CustomerResponse>> updateCustomer(
+  public ResponseEntity<ApiResponse<CustomerCommandResponse>> updateCustomer(
       @Parameter(description = "고객 ID", required = true) @PathVariable Long customerId,
       @Parameter(description = "고객 수정 정보", required = true) @Valid @RequestBody
           UpdateCustomerRequest request) {
@@ -94,7 +94,7 @@ public class CustomerCommandController {
             request.gender(),
             request.channelId());
 
-    CustomerResponse response = customerCommandService.updateCustomer(updatedRequest);
+    CustomerCommandResponse response = customerCommandService.updateCustomer(updatedRequest);
     return ResponseEntity.ok(ApiResponse.success(response));
   }
 
@@ -125,19 +125,19 @@ public class CustomerCommandController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "200",
         description = "마케팅 동의 상태 변경 성공",
-        content = @Content(schema = @Schema(implementation = CustomerResponse.class))),
+        content = @Content(schema = @Schema(implementation = CustomerCommandResponse.class))),
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "404",
         description = "고객을 찾을 수 없음")
   })
   @PatchMapping("/{customerId}/marketing-consent")
-  public ResponseEntity<ApiResponse<CustomerResponse>> updateMarketingConsent(
+  public ResponseEntity<ApiResponse<CustomerCommandResponse>> updateMarketingConsent(
       @Parameter(description = "고객 ID", required = true) @PathVariable Long customerId,
       @Parameter(description = "매장 ID", required = true) @RequestParam Long shopId,
       @Parameter(description = "마케팅 동의 여부", required = true) @RequestParam Boolean consent) {
     log.info("마케팅 동의 변경 요청 - 고객ID: {}, 매장ID: {}, 동의: {}", customerId, shopId, consent);
 
-    CustomerResponse response =
+    CustomerCommandResponse response =
         customerCommandService.updateMarketingConsent(customerId, shopId, consent);
     return ResponseEntity.ok(ApiResponse.success(response));
   }
@@ -147,19 +147,19 @@ public class CustomerCommandController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "200",
         description = "알림 동의 상태 변경 성공",
-        content = @Content(schema = @Schema(implementation = CustomerResponse.class))),
+        content = @Content(schema = @Schema(implementation = CustomerCommandResponse.class))),
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "404",
         description = "고객을 찾을 수 없음")
   })
   @PatchMapping("/{customerId}/notification-consent")
-  public ResponseEntity<ApiResponse<CustomerResponse>> updateNotificationConsent(
+  public ResponseEntity<ApiResponse<CustomerCommandResponse>> updateNotificationConsent(
       @Parameter(description = "고객 ID", required = true) @PathVariable Long customerId,
       @Parameter(description = "매장 ID", required = true) @RequestParam Long shopId,
       @Parameter(description = "알림 동의 여부", required = true) @RequestParam Boolean consent) {
     log.info("알림 동의 변경 요청 - 고객ID: {}, 매장ID: {}, 동의: {}", customerId, shopId, consent);
 
-    CustomerResponse response =
+    CustomerCommandResponse response =
         customerCommandService.updateNotificationConsent(customerId, shopId, consent);
     return ResponseEntity.ok(ApiResponse.success(response));
   }
@@ -169,19 +169,19 @@ public class CustomerCommandController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "200",
         description = "방문 추가 성공",
-        content = @Content(schema = @Schema(implementation = CustomerResponse.class))),
+        content = @Content(schema = @Schema(implementation = CustomerCommandResponse.class))),
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "404",
         description = "고객을 찾을 수 없음")
   })
   @PatchMapping("/{customerId}/visit")
-  public ResponseEntity<ApiResponse<CustomerResponse>> addVisit(
+  public ResponseEntity<ApiResponse<CustomerCommandResponse>> addVisit(
       @Parameter(description = "고객 ID", required = true) @PathVariable Long customerId,
       @Parameter(description = "매장 ID", required = true) @RequestParam Long shopId,
       @Parameter(description = "매출액", required = true) @RequestParam Integer revenue) {
     log.info("방문 추가 요청 - 고객ID: {}, 매장ID: {}, 매출: {}", customerId, shopId, revenue);
 
-    CustomerResponse response = customerCommandService.addVisit(customerId, shopId, revenue);
+    CustomerCommandResponse response = customerCommandService.addVisit(customerId, shopId, revenue);
     return ResponseEntity.ok(ApiResponse.success(response));
   }
 
@@ -190,18 +190,18 @@ public class CustomerCommandController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "200",
         description = "노쇼 추가 성공",
-        content = @Content(schema = @Schema(implementation = CustomerResponse.class))),
+        content = @Content(schema = @Schema(implementation = CustomerCommandResponse.class))),
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "404",
         description = "고객을 찾을 수 없음")
   })
   @PatchMapping("/{customerId}/noshow")
-  public ResponseEntity<ApiResponse<CustomerResponse>> addNoshow(
+  public ResponseEntity<ApiResponse<CustomerCommandResponse>> addNoshow(
       @Parameter(description = "고객 ID", required = true) @PathVariable Long customerId,
       @Parameter(description = "매장 ID", required = true) @RequestParam Long shopId) {
     log.info("노쇼 추가 요청 - 고객ID: {}, 매장ID: {}", customerId, shopId);
 
-    CustomerResponse response = customerCommandService.addNoshow(customerId, shopId);
+    CustomerCommandResponse response = customerCommandService.addNoshow(customerId, shopId);
     return ResponseEntity.ok(ApiResponse.success(response));
   }
 }

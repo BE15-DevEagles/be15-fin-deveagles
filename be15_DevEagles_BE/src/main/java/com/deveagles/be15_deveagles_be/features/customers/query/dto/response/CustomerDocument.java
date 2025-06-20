@@ -31,6 +31,9 @@ public class CustomerDocument {
   @Field(type = FieldType.Long)
   private Long customerGradeId;
 
+  @Field(type = FieldType.Text)
+  private String customerGradeName;
+
   @Field(type = FieldType.Keyword)
   private String gender;
 
@@ -39,12 +42,13 @@ public class CustomerDocument {
 
   public static CustomerDocument from(Customer customer) {
     return CustomerDocument.builder()
-        .id(customer.getShopId() + "_" + customer.getId()) // shopId_customerId 형태로 unique ID 생성
+        .id(customer.getShopId() + "_" + customer.getId())
         .customerId(customer.getId())
         .shopId(customer.getShopId())
         .customerName(customer.getCustomerName())
         .phoneNumber(customer.getPhoneNumber())
         .customerGradeId(customer.getCustomerGradeId())
+        .customerGradeName(null) // 조인 정보가 필요하므로 별도 처리 필요
         .gender(customer.getGender() != null ? customer.getGender().name() : null)
         .deletedAt(customer.getDeletedAt())
         .build();

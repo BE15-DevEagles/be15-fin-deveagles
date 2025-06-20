@@ -1,4 +1,4 @@
-package com.deveagles.be15_deveagles_be.features.customers.command.application.dto.response;
+package com.deveagles.be15_deveagles_be.features.customers.query.dto.response;
 
 import com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Customer;
 import java.time.LocalDate;

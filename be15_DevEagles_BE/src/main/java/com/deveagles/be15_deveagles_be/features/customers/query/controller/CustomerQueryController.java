@@ -5,12 +5,12 @@ import com.deveagles.be15_deveagles_be.common.dto.PagedResponse;
 import com.deveagles.be15_deveagles_be.common.dto.PagedResult;
 import com.deveagles.be15_deveagles_be.common.exception.BusinessException;
 import com.deveagles.be15_deveagles_be.common.exception.ErrorCode;
-import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.response.CustomerResponse;
-import com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Customer;
-import com.deveagles.be15_deveagles_be.features.customers.query.dto.CustomerSearchQuery;
+import com.deveagles.be15_deveagles_be.features.customers.query.dto.request.CustomerSearchQuery;
+import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerDetailResponse;
+import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerListResponse;
+import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerResponse;
 import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerSearchResult;
 import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerQueryService;
-import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerSearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -20,6 +20,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,31 +39,32 @@ import org.springframework.web.bind.annotation.RestController;
 public class CustomerQueryController {
 
   private final CustomerQueryService customerQueryService;
-  private final CustomerSearchService customerSearchService;
 
-  @Operation(summary = "고객 상세 조회", description = "고객 ID로 특정 고객의 상세 정보를 조회합니다.")
+  @Operation(
+      summary = "고객 상세 조회",
+      description = "고객 ID로 고객의 상세 정보를 조회합니다. 등급명, 유입경로명, 태그 정보 등을 포함합니다.")
   @ApiResponses({
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "200",
         description = "고객 조회 성공",
-        content = @Content(schema = @Schema(implementation = CustomerResponse.class))),
+        content = @Content(schema = @Schema(implementation = CustomerDetailResponse.class))),
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "404",
         description = "고객을 찾을 수 없음")
   })
   @GetMapping("/{customerId}")
-  public ResponseEntity<ApiResponse<CustomerResponse>> getCustomerById(
+  public ResponseEntity<ApiResponse<CustomerDetailResponse>> getCustomerDetail(
       @Parameter(description = "고객 ID", required = true, example = "1") @PathVariable
           Long customerId,
       @Parameter(description = "매장 ID", required = true, example = "1") @RequestParam Long shopId) {
     log.info("고객 상세 조회 요청 - 고객ID: {}, 매장ID: {}", customerId, shopId);
 
-    CustomerResponse customer =
+    CustomerDetailResponse response =
         customerQueryService
-            .getCustomerById(customerId, shopId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND));
-
-    return ResponseEntity.ok(ApiResponse.success(customer));
+            .getCustomerDetail(customerId, shopId)
+            .orElseThrow(
+                () -> new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND, "고객을 찾을 수 없습니다."));
+    return ResponseEntity.ok(ApiResponse.success(response));
   }
 
   @Operation(summary = "전화번호로 고객 조회", description = "전화번호로 고객을 조회합니다.")
@@ -89,7 +92,10 @@ public class CustomerQueryController {
     return ResponseEntity.ok(ApiResponse.success(customer));
   }
 
-  @Operation(summary = "매장별 고객 목록 조회", description = "매장 ID로 고객 목록을 조회합니다. 삭제되지 않은 고객만 조회됩니다.")
+  @Operation(
+      summary = "매장별 고객 목록 조회",
+      description =
+          "매장 ID로 상세한 고객 목록을 조회합니다. 고객명, 연락처, 담당자, 메모, 방문횟수, 실매출액, 최근방문일, 태그, 등급, 생일 정보를 포함합니다.")
   @ApiResponses({
     @io.swagger.v3.oas.annotations.responses.ApiResponse(
         responseCode = "200",
@@ -99,12 +105,35 @@ public class CustomerQueryController {
         description = "잘못된 요청 파라미터")
   })
   @GetMapping("/shop/{shopId}")
-  public ResponseEntity<ApiResponse<List<CustomerResponse>>> getCustomersByShopId(
+  public ResponseEntity<ApiResponse<List<CustomerListResponse>>> getCustomersByShopId(
       @Parameter(description = "매장 ID", required = true, example = "1") @PathVariable Long shopId) {
     log.info("매장별 고객 목록 조회 요청 - 매장ID: {}", shopId);
 
-    List<CustomerResponse> customers = customerQueryService.getCustomersByShopId(shopId);
+    List<CustomerListResponse> customers = customerQueryService.getCustomerList(shopId);
     return ResponseEntity.ok(ApiResponse.success(customers));
+  }
+
+  @Operation(summary = "매장별 고객 목록 조회 (페이징)", description = "매장 ID로 상세한 고객 목록을 페이징으로 조회합니다.")
+  @ApiResponses({
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "고객 목록 조회 성공")
+  })
+  @GetMapping("/shop/{shopId}/paged")
+  public ResponseEntity<ApiResponse<PagedResponse<CustomerListResponse>>> getCustomersByShopIdPaged(
+      @Parameter(description = "매장 ID", required = true, example = "1") @PathVariable Long shopId,
+      @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") @RequestParam(defaultValue = "0")
+          int page,
+      @Parameter(description = "페이지 크기", example = "20") @RequestParam(defaultValue = "20")
+          int size) {
+    log.info("매장별 고객 목록 페이징 조회 요청 - 매장ID: {}, 페이지: {}, 크기: {}", shopId, page, size);
+
+    Pageable pageable = Pageable.ofSize(size).withPage(page);
+    Page<CustomerListResponse> customerPage =
+        customerQueryService.getCustomerListPaged(shopId, pageable);
+    PagedResponse<CustomerListResponse> response =
+        PagedResponse.from(PagedResult.from(customerPage));
+    return ResponseEntity.ok(ApiResponse.success(response));
   }
 
   @Operation(summary = "고객 통합 검색", description = "다양한 조건으로 고객을 검색하고 페이징 결과를 반환합니다.")
@@ -123,7 +152,7 @@ public class CustomerQueryController {
       @Parameter(description = "고객 등급 ID", example = "1") @RequestParam(required = false)
           Long customerGradeId,
       @Parameter(description = "성별 (M/F)", example = "M") @RequestParam(required = false)
-          Customer.Gender gender,
+          String gender,
       @Parameter(description = "마케팅 동의 여부", example = "true") @RequestParam(required = false)
           Boolean marketingConsent,
       @Parameter(description = "알림 동의 여부", example = "true") @RequestParam(required = false)
@@ -163,7 +192,7 @@ public class CustomerQueryController {
             sortBy,
             sortDirection);
 
-    PagedResult<CustomerSearchResult> pagedResult = customerSearchService.advancedSearch(query);
+    PagedResult<CustomerSearchResult> pagedResult = customerQueryService.advancedSearch(query);
     PagedResponse<CustomerSearchResult> response = PagedResponse.from(pagedResult);
 
     return ResponseEntity.ok(ApiResponse.success(response));

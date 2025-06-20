@@ -7,7 +7,7 @@ public record CustomerSearchResult(
     String customerName,
     String phoneNumber,
     Long customerGradeId,
-    String customerGradeName, // 조인해서 가져올 예정
+    String customerGradeName,
     Customer.Gender gender) {
 
   public static CustomerSearchResult from(CustomerDocument document) {
@@ -16,17 +16,18 @@ public record CustomerSearchResult(
         document.getCustomerName(),
         document.getPhoneNumber(),
         document.getCustomerGradeId(),
-        null, // 필요시 추후 조인으로 처리
+        document.getCustomerGradeName(),
         document.getGender() != null ? Customer.Gender.valueOf(document.getGender()) : null);
   }
 
-  public static CustomerSearchResult from(Customer customer) {
+  public static CustomerSearchResult of(
+      Long customerId,
+      String customerName,
+      String phoneNumber,
+      Long customerGradeId,
+      String customerGradeName,
+      Customer.Gender gender) {
     return new CustomerSearchResult(
-        customer.getId(),
-        customer.getCustomerName(),
-        customer.getPhoneNumber(),
-        customer.getCustomerGradeId(),
-        null, // 필요시 추후 조인으로 처리
-        customer.getGender());
+        customerId, customerName, phoneNumber, customerGradeId, customerGradeName, gender);
   }
 }

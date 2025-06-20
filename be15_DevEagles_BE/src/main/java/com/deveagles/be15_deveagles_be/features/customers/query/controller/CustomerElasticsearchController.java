@@ -1,7 +1,8 @@
 package com.deveagles.be15_deveagles_be.features.customers.query.controller;
 
 import com.deveagles.be15_deveagles_be.common.dto.ApiResponse;
-import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerSearchService;
+import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerSearchResult;
+import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -26,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class CustomerElasticsearchController {
 
-  private final CustomerSearchService customerSearchService;
+  private final CustomerQueryService customerQueryService;
 
   @Operation(summary = "개별 고객 엘라스틱서치 동기화", description = "특정 고객의 데이터를 엘라스틱서치에 동기화합니다.")
   @ApiResponses({
@@ -44,7 +45,7 @@ public class CustomerElasticsearchController {
     log.info("고객 엘라스틱서치 동기화 요청 - 고객ID: {}", customerId);
 
     try {
-      customerSearchService.syncCustomerToElasticsearch(customerId);
+      customerQueryService.syncCustomerToElasticsearch(customerId);
       return ResponseEntity.ok(ApiResponse.success("고객 데이터가 성공적으로 동기화되었습니다."));
     } catch (Exception e) {
       log.error("고객 동기화 실패 - 고객ID: {}, 오류: {}", customerId, e.getMessage());
@@ -67,7 +68,7 @@ public class CustomerElasticsearchController {
     log.info("매장별 고객 재인덱싱 요청 - 매장ID: {}", shopId);
 
     try {
-      customerSearchService.reindexAllCustomers(shopId);
+      customerQueryService.reindexAllCustomers(shopId);
       return ResponseEntity.ok(ApiResponse.success("매장의 모든 고객 데이터가 성공적으로 재인덱싱되었습니다."));
     } catch (Exception e) {
       log.error("매장 재인덱싱 실패 - 매장ID: {}, 오류: {}", shopId, e.getMessage());
@@ -89,7 +90,7 @@ public class CustomerElasticsearchController {
     log.info("자동완성 검색 요청 - 키워드: {}, 매장ID: {}", prefix, shopId);
 
     try {
-      List<String> suggestions = customerSearchService.autocomplete(prefix, shopId);
+      List<String> suggestions = customerQueryService.autocomplete(prefix, shopId);
       return ResponseEntity.ok(ApiResponse.success(suggestions));
     } catch (Exception e) {
       log.error("자동완성 검색 실패 - 키워드: {}, 매장ID: {}, 오류: {}", prefix, shopId, e.getMessage());
@@ -111,7 +112,7 @@ public class CustomerElasticsearchController {
     log.info("키워드별 고객 수 조회 요청 - 키워드: {}, 매장ID: {}", keyword, shopId);
 
     try {
-      long count = customerSearchService.countByKeyword(keyword, shopId);
+      long count = customerQueryService.countByKeyword(keyword, shopId);
       return ResponseEntity.ok(ApiResponse.success(count));
     } catch (Exception e) {
       log.error("키워드별 고객 수 조회 실패 - 키워드: {}, 매장ID: {}, 오류: {}", keyword, shopId, e.getMessage());
@@ -126,23 +127,14 @@ public class CustomerElasticsearchController {
         description = "키워드 검색 성공")
   })
   @GetMapping("/search")
-  public ResponseEntity<
-          ApiResponse<
-              List<
-                  com.deveagles.be15_deveagles_be.features.customers.query.dto.response
-                      .CustomerSearchResult>>>
-      searchByKeyword(
-          @Parameter(description = "검색 키워드", required = true, example = "홍길동") @RequestParam
-              String keyword,
-          @Parameter(description = "매장 ID", required = true, example = "1") @RequestParam
-              Long shopId) {
+  public ResponseEntity<ApiResponse<List<CustomerSearchResult>>> searchByKeyword(
+      @Parameter(description = "검색 키워드", required = true, example = "홍길동") @RequestParam
+          String keyword,
+      @Parameter(description = "매장 ID", required = true, example = "1") @RequestParam Long shopId) {
     log.info("키워드 검색 요청 - 키워드: {}, 매장ID: {}", keyword, shopId);
 
     try {
-      List<
-              com.deveagles.be15_deveagles_be.features.customers.query.dto.response
-                  .CustomerSearchResult>
-          results = customerSearchService.searchByKeyword(keyword, shopId);
+      List<CustomerSearchResult> results = customerQueryService.searchByKeyword(keyword, shopId);
       return ResponseEntity.ok(ApiResponse.success(results));
     } catch (Exception e) {
       log.error("키워드 검색 실패 - 키워드: {}, 매장ID: {}, 오류: {}", keyword, shopId, e.getMessage());
@@ -161,7 +153,7 @@ public class CustomerElasticsearchController {
     log.info("엘라스틱서치 헬스체크 요청");
 
     try {
-      customerSearchService.autocomplete("test", 1L);
+      customerQueryService.autocomplete("test", 1L);
       return ResponseEntity.ok(ApiResponse.success("엘라스틱서치가 정상적으로 작동 중입니다."));
     } catch (Exception e) {
       log.error("엘라스틱서치 헬스체크 실패: {}", e.getMessage());

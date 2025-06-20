@@ -2,21 +2,21 @@ package com.deveagles.be15_deveagles_be.features.customers.command.application.s
 
 import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.request.CreateCustomerRequest;
 import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.request.UpdateCustomerRequest;
-import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.response.CustomerResponse;
+import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.response.CustomerCommandResponse;
 
 public interface CustomerCommandService {
 
-  CustomerResponse createCustomer(CreateCustomerRequest request);
+  CustomerCommandResponse createCustomer(CreateCustomerRequest request);
 
-  CustomerResponse updateCustomer(UpdateCustomerRequest request);
+  CustomerCommandResponse updateCustomer(UpdateCustomerRequest request);
 
   void deleteCustomer(Long customerId, Long shopId);
 
-  CustomerResponse updateMarketingConsent(Long customerId, Long shopId, Boolean consent);
+  CustomerCommandResponse updateMarketingConsent(Long customerId, Long shopId, Boolean consent);
 
-  CustomerResponse updateNotificationConsent(Long customerId, Long shopId, Boolean consent);
+  CustomerCommandResponse updateNotificationConsent(Long customerId, Long shopId, Boolean consent);
 
-  CustomerResponse addVisit(Long customerId, Long shopId, Integer revenue);
+  CustomerCommandResponse addVisit(Long customerId, Long shopId, Integer revenue);
 
-  CustomerResponse addNoshow(Long customerId, Long shopId);
+  CustomerCommandResponse addNoshow(Long customerId, Long shopId);
 }
