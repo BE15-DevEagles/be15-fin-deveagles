@@ -1,11 +1,20 @@
 <template>
-  <div class="designer-list">
-    <DesignerCard
-      v-for="(designer, index) in designers"
-      :key="index"
-      :name="designer.name"
-      :image="designer.image"
-    />
+  <div class="designer-list-page">
+    <h1 class="page-title">
+      <img src="@/images/suri/team_logo-cutout.png" class="logo-img" alt="로고" />
+      예약할 디자이너를 선택해주세요
+    </h1>
+
+    <div class="designer-list-wrapper">
+      <div class="designer-list">
+        <DesignerCard
+          v-for="(designer, index) in designers"
+          :key="index"
+          :name="designer.name"
+          :image="designer.image"
+        />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -29,10 +38,43 @@
 </script>
 
 <style scoped>
-  .designer-list {
+  .designer-list-page {
+    padding: 32px 40px;
+    background-color: var(--color-gray-50);
+    min-height: 100vh;
+    box-sizing: border-box;
+  }
+
+  .page-title {
+    font-size: 40px;
+    font-weight: bold;
+    margin-bottom: 30px;
+    color: var(--color-text-primary);
+    text-align: left;
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 24px;
+    align-items: center;
+    gap: 12px;
+    padding-left: 30px;
+  }
+
+  .logo-img {
+    height: 60px;
+    width: auto;
+  }
+
+  .designer-list-wrapper {
+    background-color: var(--color-neutral-white);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    padding: 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .designer-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px 32px;
+    justify-items: center;
   }
 </style>

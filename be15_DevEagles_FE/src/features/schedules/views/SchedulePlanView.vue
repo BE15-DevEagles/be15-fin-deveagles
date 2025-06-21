@@ -35,7 +35,9 @@
           placeholder="직원 이름"
           style="width: 160px"
         />
-        <BaseButton type="primary" class="fix-button-height"> 일정 등록 </BaseButton>
+        <BaseButton type="primary" class="fix-button-height" @click="isRegistModalOpen = true">
+          일정 등록
+        </BaseButton>
       </div>
     </div>
 
@@ -67,12 +69,20 @@
       @page-change="handlePageChange"
     />
 
-    <!-- ✅ 모달 추가 -->
+    <!-- 일정 상세 모달 -->
     <PlanDetailModal
       v-if="isModalOpen"
       :model-value="isModalOpen"
       :reservation="selectedSchedule"
       @update:model-value="closeModal"
+    />
+
+    <!-- 일정 등록 모달 -->
+    <ScheduleRegistModal
+      v-if="isRegistModalOpen"
+      :model-value="isRegistModalOpen"
+      :default-tab="'plan'"
+      @update:model-value="isRegistModalOpen = false"
     />
   </div>
 </template>
@@ -83,7 +93,8 @@
   import BaseTable from '@/components/common/BaseTable.vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BasePagination from '@/components/common/Pagination.vue';
-  import PlanDetailModal from '@/features/schedules/components/PlanDetailModal.vue'; // ✅ 모달 import
+  import PlanDetailModal from '@/features/schedules/components/PlanDetailModal.vue';
+  import ScheduleRegistModal from '@/features/schedules/components/ScheduleRegistModal.vue'; // 등록 모달
 
   const selectedType = ref('');
   const selectedStaff = ref('');
@@ -216,6 +227,8 @@
     isModalOpen.value = false;
     selectedSchedule.value = null;
   };
+
+  const isRegistModalOpen = ref(false);
 </script>
 
 <style scoped>

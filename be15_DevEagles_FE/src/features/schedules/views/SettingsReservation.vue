@@ -112,7 +112,6 @@
     }
   };
 
-  // ⛑ 유효성 검사 및 저장
   const saveSettings = () => {
     if (activeDays.value.length === 0) {
       alert('최소 하나 이상의 요일을 선택해야 합니다.');
@@ -170,17 +169,17 @@
 
   .day-button {
     padding: 6px 12px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--color-gray-300);
     border-radius: 6px;
-    background: #f9f9f9;
+    background: var(--color-neutral-white);
     cursor: pointer;
     min-width: 40px;
   }
 
   .day-button.active {
-    background-color: var(--color-primary-main, #2563eb);
-    color: white;
-    border-color: var(--color-primary-main, #2563eb);
+    background-color: var(--color-primary-main);
+    color: var(--color-neutral-white);
+    border-color: var(--color-primary-main);
   }
 
   .time-range {
@@ -190,7 +189,7 @@
   }
 
   .disabled-text {
-    color: #888;
+    color: var(--color-gray-500);
     font-size: 14px;
   }
 

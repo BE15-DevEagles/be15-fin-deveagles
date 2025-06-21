@@ -39,7 +39,10 @@
           style="width: 160px"
         />
 
-        <BaseButton type="primary" class="fix-button-height"> 휴무 등록 </BaseButton>
+        <!-- ✅ 휴무 등록 버튼 클릭 시 모달 오픈 + leave 탭으로 -->
+        <BaseButton type="primary" class="fix-button-height" @click="openLeaveModal">
+          휴무 등록
+        </BaseButton>
       </div>
     </div>
 
@@ -75,11 +78,19 @@
       @page-change="handlePageChange"
     />
 
+    <!-- 상세 모달 -->
     <LeaveDetailModal
       v-if="isModalOpen"
       :model-value="isModalOpen"
       :reservation="selectedLeave"
       @update:model-value="closeModal"
+    />
+
+    <!-- ✅ 등록 모달 -->
+    <ScheduleRegistModal
+      v-if="isRegistModalOpen"
+      v-model="isRegistModalOpen"
+      :default-tab="'leave'"
     />
   </div>
 </template>
@@ -91,6 +102,7 @@
   import BaseButton from '@/components/common/BaseButton.vue';
   import BasePagination from '@/components/common/Pagination.vue';
   import LeaveDetailModal from '@/features/schedules/components/LeaveDetailModal.vue';
+  import ScheduleRegistModal from '@/features/schedules/components/ScheduleRegistModal.vue'; // ✅ 모달 import
 
   const selectedType = ref('');
   const selectedStaff = ref('');
@@ -128,7 +140,7 @@
       .map(item => ({
         ...item,
         typeLabel: item.type === 'regular_leave' ? '정기' : '단기',
-        start: item.date, // 모달에 넘길 필드 형식 맞춤
+        start: item.date,
       }))
       .filter(
         item =>
@@ -179,12 +191,11 @@
     selectedIds.value = [];
   };
 
-  // 🔽 모달 관련 상태 및 핸들러
+  // 상세 모달
   const isModalOpen = ref(false);
   const selectedLeave = ref(null);
 
   const handleRowClick = (row, event) => {
-    console.log('✅ row clicked:', row);
     if (event?.target?.type === 'checkbox') return;
     selectedLeave.value = row;
     isModalOpen.value = true;
@@ -193,6 +204,13 @@
   const closeModal = () => {
     isModalOpen.value = false;
     selectedLeave.value = null;
+  };
+
+  // ✅ 등록 모달 상태
+  const isRegistModalOpen = ref(false);
+
+  const openLeaveModal = () => {
+    isRegistModalOpen.value = true;
   };
 </script>
 

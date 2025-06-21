@@ -42,9 +42,20 @@
       },
     },
     emits: ['update:modelValue'],
+    mounted() {
+      window.addEventListener('keydown', this.handleEsc);
+    },
+    beforeUnmount() {
+      window.removeEventListener('keydown', this.handleEsc);
+    },
     methods: {
       closeModal() {
         this.$emit('update:modelValue', false);
+      },
+      handleEsc(event) {
+        if (event.key === 'Escape') {
+          this.closeModal();
+        }
       },
     },
   };

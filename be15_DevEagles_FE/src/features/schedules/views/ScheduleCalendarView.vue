@@ -32,9 +32,9 @@
         스케줄 등록
       </button>
     </div>
-
-    <ScheduleCalendar :schedules="calendarEvents" @click-schedule="handleClickSchedule" />
-
+    <div class="calendar-wrapper">
+      <ScheduleCalendar :schedules="calendarEvents" @click-schedule="handleClickSchedule" />
+    </div>
     <ReservationDetailModal
       v-if="modalType === 'reservation'"
       v-model="isModalOpen"
@@ -51,10 +51,7 @@
       :reservation="selectedReservation"
     />
 
-    <ScheduleRegistModal
-      v-if="handleClickScheduleRegist"
-      @close="handleClickScheduleRegist = false"
-    />
+    <ScheduleRegistModal v-if="handleClickScheduleRegist" v-model="handleClickScheduleRegist" />
   </div>
 </template>
 
@@ -68,8 +65,8 @@
 
   const staffColors = {
     최민수: 'var(--color-primary-main)',
-    이채은: '#60bafa',
-    김민지: '#f4e0ab',
+    김민지: 'var(--color-success-200)',
+    이채은: 'var(--color-secondary-100)',
   };
 
   const searchText = ref('');
@@ -91,6 +88,11 @@
       status: '예약 확정',
       note: '첫 방문 고객',
       memo: '고객 요청사항 없음',
+      date: '2025-06-17',
+      startTime: '10:00',
+      endTime: '11:00',
+      timeRange: '오전 10:00 - 오전 11:00',
+      duration: '01:00',
     },
     {
       id: 2,
@@ -117,6 +119,7 @@
       status: '',
       memo: '사전 공지 완료',
       repeat: 'none',
+      date: '2025-06-19',
     },
   ]);
 
@@ -149,8 +152,8 @@
         start: item.start,
         end: item.end,
         allDay: isAllDay,
-        backgroundColor: staffColors[item.staff] || '#d1d5db',
-        textColor: '#111',
+        backgroundColor: staffColors[item.staff] || 'var(--color-gray-300)',
+        textColor: 'var(--color-text-primary)',
         type: item.type,
         status: item.status,
         staff: item.staff,
@@ -163,8 +166,14 @@
 </script>
 
 <style scoped>
+  .calendar-wrapper {
+    background-color: var(--color-neutral-white);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
   .container {
-    padding: 24px;
+    padding: 14px;
   }
   .page-header {
     margin-bottom: 32px;

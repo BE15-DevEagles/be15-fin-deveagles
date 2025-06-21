@@ -1,11 +1,13 @@
 <template>
-  <div class="overlay">
+  <div class="overlay" @click.self="close">
     <div class="modal-panel">
+      <!-- 헤더 -->
       <div class="modal-header">
         <h1>스케줄 등록</h1>
-        <button class="close-btn" @click="$emit('close')">&times;</button>
+        <button class="close-btn" @click="close">&times;</button>
       </div>
 
+      <!-- 바디 -->
       <div class="modal-body">
         <div class="left-detail">
           <div class="tab-buttons">
@@ -19,8 +21,9 @@
         </div>
       </div>
 
+      <!-- 푸터 -->
       <div class="modal-footer">
-        <BaseButton outline @click="$emit('close')">등록 취소</BaseButton>
+        <BaseButton outline @click="close">등록 취소</BaseButton>
         <BaseButton @click="submit">등록</BaseButton>
       </div>
     </div>
@@ -28,13 +31,20 @@
 </template>
 
 <script setup>
-  import { ref, computed } from 'vue';
+  import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import ReservationForm from './ReservationForm.vue';
   import PlanForm from './PlanForm.vue';
   import LeaveForm from './LeaveForm.vue';
 
-  const tab = ref('reservation');
+  const props = defineProps({
+    modelValue: { type: Boolean, required: true },
+    defaultTab: { type: String, default: 'reservation' }, // 'reservation', 'plan', 'leave'
+  });
+
+  const emit = defineEmits(['update:modelValue']);
+
+  const tab = ref(props.defaultTab);
 
   const currentTabComponent = computed(() => {
     switch (tab.value) {
@@ -50,6 +60,17 @@
   const submit = () => {
     alert(`${tab.value} 등록 로직 실행`);
   };
+
+  const close = () => {
+    emit('update:modelValue', false);
+  };
+
+  const handleEsc = e => {
+    if (e.key === 'Escape') close();
+  };
+
+  onMounted(() => window.addEventListener('keydown', handleEsc));
+  onBeforeUnmount(() => window.removeEventListener('keydown', handleEsc));
 </script>
 
 <style scoped>
@@ -103,18 +124,6 @@
 
   .left-detail {
     flex: 1;
-  }
-
-  .right-box {
-    width: 200px;
-    padding: 12px;
-    border-left: 1px solid var(--color-gray-200);
-  }
-
-  .right-box p {
-    margin-bottom: 16px;
-    font-weight: 500;
-    color: var(--color-gray-700);
   }
 
   .modal-footer {

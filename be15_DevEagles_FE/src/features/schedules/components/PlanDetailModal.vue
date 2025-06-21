@@ -1,5 +1,5 @@
 <template>
-  <div v-if="modelValue" class="overlay">
+  <div v-if="modelValue" class="overlay" @click.self="close">
     <div class="modal-panel">
       <div class="modal-header">
         <div>
@@ -31,7 +31,7 @@
           <div class="row">
             <label>제목</label>
             <span v-if="!isEditMode">{{ reservation.title }}</span>
-            <input v-else v-model="edited.title" />
+            <BaseForm v-else v-model="edited.title" type="text" />
           </div>
 
           <div class="row row-select">
@@ -55,20 +55,44 @@
             <label>날짜</label>
             <div class="date-inline">
               <template v-if="isEditMode">
-                <input v-model="edited.date" type="date" />
-                <input
-                  v-if="!edited.allDay"
-                  v-model="edited.timeRange"
-                  type="text"
-                  placeholder="오후 01:00 - 오후 04:00"
+                <PrimeDatePicker
+                  v-model="edited.date"
+                  :clearable="false"
+                  :show-time="false"
+                  :show-button-bar="true"
+                  :style="{ width: '200px' }"
                 />
-                <input type="text" :value="edited.duration" readonly class="duration-input" />
+                <PrimeDatePicker
+                  v-model="edited.startTime"
+                  :clearable="false"
+                  :show-time="true"
+                  :time-only="true"
+                  hour-format="24"
+                  placeholder="시작 시간"
+                  :style="{ width: '140px' }"
+                />
+                <PrimeDatePicker
+                  v-model="edited.endTime"
+                  :clearable="false"
+                  :show-time="true"
+                  :time-only="true"
+                  hour-format="24"
+                  placeholder="종료 시간"
+                  :style="{ width: '140px' }"
+                />
+                <span>소요 시간 : </span>
+                <input
+                  type="text"
+                  :value="edited.duration"
+                  readonly
+                  class="duration-input"
+                  style="width: 100px"
+                />
                 <label class="all-day-checkbox">
                   <input v-model="edited.allDay" type="checkbox" @change="handleAllDayToggle" />
                   <span>종일</span>
                 </label>
               </template>
-
               <template v-else>
                 <span>{{ reservation.date }}</span>
                 <span v-if="!reservation.allDay">{{ reservation.timeRange }}</span>
@@ -104,7 +128,6 @@
                   }}
                 </span>
               </template>
-
               <template v-else>
                 <span>
                   {{
@@ -126,7 +149,7 @@
           <div class="row">
             <label>메모</label>
             <span v-if="!isEditMode">{{ reservation.memo }}</span>
-            <textarea v-else v-model="edited.memo" />
+            <BaseForm v-else v-model="edited.memo" type="textarea" rows="3" />
           </div>
         </div>
       </div>
@@ -151,19 +174,29 @@
 </template>
 
 <script setup>
-  import { ref, defineProps, defineEmits, watch, computed } from 'vue';
+  import {
+    ref,
+    defineProps,
+    defineEmits,
+    computed,
+    onMounted,
+    onBeforeUnmount,
+    watchEffect,
+  } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
+  import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
 
   const props = defineProps({
-    modelValue: { type: Boolean, required: true },
-    reservation: { type: Object, default: () => ({}) },
+    modelValue: Boolean,
+    reservation: Object,
   });
   const emit = defineEmits(['update:modelValue']);
 
   const isEditMode = ref(false);
   const showMenu = ref(false);
   const edited = ref({});
+  const backup = ref({});
 
   const close = () => {
     emit('update:modelValue', false);
@@ -172,32 +205,35 @@
     edited.value = {};
   };
 
-  watch(
-    () => props.modelValue,
-    newVal => {
-      if (newVal) {
-        isEditMode.value = false;
-        showMenu.value = false;
-        edited.value = {};
-      }
-    }
-  );
-
-  const toggleMenu = () => {
-    showMenu.value = !showMenu.value;
-  };
-
+  const toggleMenu = () => (showMenu.value = !showMenu.value);
   const handleEdit = () => {
     isEditMode.value = true;
     showMenu.value = false;
-    edited.value = { ...props.reservation };
+    const { date, timeRange, duration, ...rest } = props.reservation;
+    const [startStr, endStr] = (timeRange || '').split(' - ').map(str => str.trim());
 
-    const isAllDay = edited.value.timeRange === '00:00 - 23:59';
-    edited.value.allDay = isAllDay;
-    edited.value.repeat = edited.value.repeat || 'none';
+    const toTime = str => {
+      if (!str) return null;
+      const [period, time] = str.split(' ');
+      let [h, m] = time.split(':').map(Number);
+      if (period === '오후' && h !== 12) h += 12;
+      if (period === '오전' && h === 12) h = 0;
+      const d = new Date(date);
+      d.setHours(h, m, 0, 0);
+      return d;
+    };
 
-    prevTimeRange.value = edited.value.timeRange || '';
-    prevDuration.value = edited.value.duration || '';
+    edited.value = {
+      ...rest,
+      date: new Date(date),
+      startTime: toTime(startStr),
+      endTime: toTime(endStr),
+      duration,
+      timeRange,
+      allDay: timeRange === '00:00 - 23:59',
+      repeat: props.reservation.repeat || 'none',
+    };
+    backup.value = JSON.parse(JSON.stringify(edited.value));
   };
 
   const handleDelete = () => {
@@ -212,26 +248,62 @@
     isEditMode.value = false;
   };
 
-  const prevTimeRange = ref('');
-  const prevDuration = ref('');
-
   const handleAllDayToggle = () => {
     if (edited.value.allDay) {
-      if (!prevTimeRange.value) prevTimeRange.value = edited.value.timeRange;
-      if (!prevDuration.value || prevDuration.value === '하루 종일') {
-        prevDuration.value = edited.value.duration !== '하루 종일' ? edited.value.duration : '';
-      }
-      edited.value.timeRange = '00:00 - 23:59';
-      edited.value.duration = '하루 종일';
+      edited.value.startTime = new Date(edited.value.date);
+      edited.value.startTime.setHours(0, 0, 0);
+      edited.value.endTime = new Date(edited.value.date);
+      edited.value.endTime.setHours(23, 59, 0);
     } else {
-      edited.value.timeRange = prevTimeRange.value || '';
-      edited.value.duration = prevDuration.value || '';
+      edited.value.startTime = new Date(backup.value.startTime);
+      edited.value.endTime = new Date(backup.value.endTime);
     }
   };
 
-  const planTypeLabel = computed(() => {
-    return props.reservation.type === 'regular_event' ? '정기일정' : '일정';
+  watchEffect(() => {
+    if (edited.value.startTime && edited.value.endTime) {
+      const start = new Date(
+        0,
+        0,
+        0,
+        edited.value.startTime.getHours(),
+        edited.value.startTime.getMinutes()
+      );
+      const end = new Date(
+        0,
+        0,
+        0,
+        edited.value.endTime.getHours(),
+        edited.value.endTime.getMinutes()
+      );
+
+      const diffMs = end - start;
+      if (diffMs >= 0) {
+        const totalMinutes = Math.floor(diffMs / (1000 * 60));
+        const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+        const minutes = String(totalMinutes % 60).padStart(2, '0');
+        edited.value.duration = `${hours}:${minutes}`;
+
+        const formatTime = date => {
+          const h = date.getHours();
+          const m = String(date.getMinutes()).padStart(2, '0');
+          const period = h < 12 ? '오전' : '오후';
+          const hour12 = h % 12 || 12;
+          return `${period} ${hour12}:${m}`;
+        };
+
+        edited.value.timeRange = `${formatTime(edited.value.startTime)} - ${formatTime(edited.value.endTime)}`;
+      }
+    }
   });
+
+  const handleEsc = e => e.key === 'Escape' && close();
+  onMounted(() => window.addEventListener('keydown', handleEsc));
+  onBeforeUnmount(() => window.removeEventListener('keydown', handleEsc));
+
+  const planTypeLabel = computed(() =>
+    props.reservation.type === 'regular_event' ? '정기일정' : '일정'
+  );
 </script>
 
 <style scoped>
@@ -241,7 +313,7 @@
     left: 0;
     width: 100%;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.3);
+    background-color: rgba(0, 0, 0, 0.3);
     z-index: 1000;
   }
 
@@ -251,7 +323,7 @@
     left: 240px;
     width: calc(100% - 240px);
     height: 100vh;
-    background: var(--color-neutral-white);
+    background-color: var(--color-neutral-white);
     display: flex;
     flex-direction: column;
     padding: 24px;
@@ -268,6 +340,7 @@
   .modal-header h1 {
     font-size: 20px;
     font-weight: bold;
+    color: var(--color-text-primary);
   }
 
   .close-btn {
@@ -275,6 +348,7 @@
     border: none;
     font-size: 24px;
     cursor: pointer;
+    color: var(--color-text-primary);
   }
 
   .modal-body {
@@ -311,6 +385,8 @@
     width: 100%;
     max-width: 400px;
     box-sizing: border-box;
+    color: var(--color-text-primary);
+    background-color: var(--color-neutral-white);
   }
 
   .row input,
@@ -361,7 +437,7 @@
     position: absolute;
     bottom: 40px;
     right: 0;
-    background: var(--color-neutral-white);
+    background-color: var(--color-neutral-white);
     border: 1px solid var(--color-gray-300);
     border-radius: 6px;
     list-style: none;
@@ -378,7 +454,7 @@
   }
 
   .dropdown-menu li:hover {
-    background: var(--color-gray-100);
+    background-color: var(--color-gray-100);
   }
 
   .type-label {
@@ -411,7 +487,6 @@
   .all-day-checkbox {
     display: flex;
     align-items: center;
-    gap: 4px;
     white-space: nowrap;
     color: var(--color-gray-700);
   }
@@ -435,17 +510,12 @@
     white-space: nowrap;
   }
 
-  .date-inline span {
-    white-space: nowrap;
-    width: auto !important;
-    max-width: none;
-    color: var(--color-gray-800);
-  }
-
+  .date-inline span,
   .repeat-inline span {
     white-space: nowrap;
     width: auto !important;
     max-width: none;
+    color: var(--color-gray-800);
   }
 
   .duration-input {

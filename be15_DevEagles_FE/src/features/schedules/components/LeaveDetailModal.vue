@@ -1,5 +1,5 @@
 <template>
-  <div v-if="modelValue" class="overlay">
+  <div v-if="modelValue" class="overlay" @click.self="close">
     <div class="modal-panel">
       <div class="modal-header">
         <div>
@@ -30,8 +30,15 @@
 
           <div class="row">
             <label>제목</label>
-            <span v-if="!isEditMode">{{ reservation.title }}</span>
-            <input v-else v-model="edited.title" />
+            <div class="form-control-wrapper">
+              <BaseForm
+                v-if="isEditMode"
+                v-model="edited.title"
+                type="text"
+                placeholder="제목 입력"
+              />
+              <span v-else>{{ reservation.title }}</span>
+            </div>
           </div>
 
           <div class="row row-select">
@@ -53,18 +60,31 @@
 
           <div class="row">
             <label>날짜</label>
-            <template v-if="isEditMode">
-              <input v-model="edited.date" type="date" />
-            </template>
-            <template v-else>
-              <span>{{ reservation.start }}</span>
-            </template>
+            <div class="form-control-wrapper">
+              <PrimeDatePicker
+                v-if="isEditMode"
+                v-model="edited.date"
+                :show-time="false"
+                :show-button-bar="true"
+                :clearable="false"
+                hour-format="24"
+                placeholder="날짜를 선택하세요"
+              />
+              <span v-else>{{ reservation.start }}</span>
+            </div>
           </div>
 
           <div class="row">
             <label>메모</label>
-            <span v-if="!isEditMode">{{ reservation.memo }}</span>
-            <textarea v-else v-model="edited.memo" />
+            <div class="form-control-wrapper">
+              <BaseForm
+                v-if="isEditMode"
+                v-model="edited.memo"
+                type="textarea"
+                placeholder="메모 입력"
+              />
+              <span v-else>{{ reservation.memo }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -89,9 +109,10 @@
 </template>
 
 <script setup>
-  import { ref, defineProps, defineEmits, watch, computed } from 'vue';
+  import { ref, defineProps, defineEmits, watch, computed, onMounted, onBeforeUnmount } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
+  import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
 
   const props = defineProps({
     modelValue: { type: Boolean, required: true },
@@ -109,6 +130,19 @@
     showMenu.value = false;
     edited.value = {};
   };
+
+  const handleEsc = e => {
+    if (e.key === 'Escape') {
+      close();
+    }
+  };
+
+  onMounted(() => {
+    window.addEventListener('keydown', handleEsc);
+  });
+  onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleEsc);
+  });
 
   watch(
     () => props.modelValue,
@@ -155,7 +189,7 @@
     left: 0;
     width: 100%;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.3);
+    background-color: rgba(0, 0, 0, 0.3);
     z-index: 1000;
   }
 
@@ -165,7 +199,7 @@
     left: 240px;
     width: calc(100% - 240px);
     height: 100vh;
-    background: var(--color-neutral-white);
+    background-color: var(--color-bg-primary);
     display: flex;
     flex-direction: column;
     padding: 24px;
@@ -181,7 +215,8 @@
 
   .modal-header h1 {
     font-size: 20px;
-    font-weight: bold;
+    font-weight: 700;
+    color: var(--color-text-primary);
   }
 
   .close-btn {
@@ -189,6 +224,7 @@
     border: none;
     font-size: 24px;
     cursor: pointer;
+    color: var(--color-text-primary);
   }
 
   .modal-body {
@@ -209,9 +245,9 @@
 
   .row label {
     width: 100px;
-    font-weight: bold;
-    color: var(--color-gray-800);
+    font-weight: 700;
     padding-top: 6px;
+    color: var(--color-text-secondary);
     line-height: 1.5;
   }
 
@@ -221,16 +257,17 @@
     font-size: 14px;
     line-height: 1.5;
     padding: 6px 8px;
-    vertical-align: middle;
     width: 100%;
     max-width: 400px;
     box-sizing: border-box;
+    color: var(--color-text-primary);
   }
 
   .row input,
   .row textarea {
     border: 1px solid var(--color-gray-300);
     border-radius: 4px;
+    background-color: var(--color-bg-primary);
   }
 
   .row textarea {
@@ -275,7 +312,7 @@
     position: absolute;
     bottom: 40px;
     right: 0;
-    background: var(--color-neutral-white);
+    background-color: var(--color-bg-primary);
     border: 1px solid var(--color-gray-300);
     border-radius: 6px;
     list-style: none;
@@ -292,7 +329,7 @@
   }
 
   .dropdown-menu li:hover {
-    background: var(--color-gray-100);
+    background-color: var(--color-gray-100);
   }
 
   .type-label {
@@ -316,8 +353,8 @@
     padding: 6px 8px;
     border: 1px solid var(--color-gray-300);
     border-radius: 4px;
-    background-color: var(--color-neutral-white);
-    color: var(--color-gray-900);
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
     min-width: 120px;
     height: 32px;
   }
@@ -349,17 +386,10 @@
     white-space: nowrap;
   }
 
-  .date-inline span {
-    white-space: nowrap;
-    width: auto !important;
-    max-width: none;
-    color: var(--color-gray-800);
-  }
-
+  .date-inline span,
   .repeat-inline span {
     white-space: nowrap;
-    width: auto !important;
-    max-width: none;
+    color: var(--color-text-secondary);
   }
 
   .duration-input {
