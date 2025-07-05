@@ -1,5 +1,6 @@
 package com.deveagles.be15_deveagles_be.features.schedules.command.application.service;
 
+import com.deveagles.be15_deveagles_be.common.events.ReservationCreatedEvent;
 import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerIdResponse;
 import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerQueryService;
 import com.deveagles.be15_deveagles_be.features.schedules.command.application.dto.request.CreateReservationRequest;
@@ -11,6 +12,7 @@ import com.deveagles.be15_deveagles_be.features.schedules.command.domain.reposit
 import jakarta.transaction.Transactional;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,6 +22,7 @@ public class ReservationService {
   private final ReservationRepository reservationRepository;
   private final ReservationDetailRepository reservationDetailRepository;
   private final CustomerQueryService customerQueryService;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public Long createReservation(CreateReservationRequest request) {
@@ -34,6 +37,7 @@ public class ReservationService {
       customerId = optionalCustomer.get().id();
       staffMemo = null;
     } else {
+      customerId = null;
       staffMemo = "임시 고객: " + request.customerName() + " / " + request.customerPhone();
     }
 
@@ -61,6 +65,10 @@ public class ReservationService {
               .build();
       reservationDetailRepository.save(detail);
     }
+
+    ReservationCreatedEvent event =
+        new ReservationCreatedEvent(reservation.getShopId(), request.customerName());
+    eventPublisher.publishEvent(event);
 
     return reservation.getReservationId();
   }
