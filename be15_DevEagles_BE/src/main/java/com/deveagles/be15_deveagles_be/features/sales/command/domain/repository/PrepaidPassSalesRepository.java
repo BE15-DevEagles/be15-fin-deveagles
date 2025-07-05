@@ -4,4 +4,6 @@ import com.deveagles.be15_deveagles_be.features.sales.command.domain.aggregate.P
 
 public interface PrepaidPassSalesRepository {
   PrepaidPassSales save(PrepaidPassSales prepaidPassSales);
+
+  void deleteBySalesId(Long salesId);
 }

@@ -5,4 +5,6 @@ import com.deveagles.be15_deveagles_be.features.sales.command.domain.aggregate.P
 public interface PaymentsRepository {
 
   Payments save(Payments payments);
+
+  void deleteBySalesId(Long salesId);
 }

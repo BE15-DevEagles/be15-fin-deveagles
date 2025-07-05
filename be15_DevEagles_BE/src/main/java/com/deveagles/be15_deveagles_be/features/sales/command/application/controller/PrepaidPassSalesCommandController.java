@@ -9,10 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "선불권 매출", description = "선불권 매출 API")
 @RestController
@@ -29,6 +26,15 @@ public class PrepaidPassSalesCommandController {
   public ResponseEntity<ApiResponse<Void>> registerPrepaidPassSales(
       @Validated @RequestBody PrepaidPassSalesRequest request) {
     prepaidPassSalesCommandService.registPrepaidPassSales(request);
+    return ResponseEntity.ok(ApiResponse.success(null));
+  }
+
+  @Operation(summary = "선불권 매출 수정", description = "선불권 매출을 수정합니다.")
+  @PutMapping("/{salesId}")
+  public ResponseEntity<ApiResponse<Void>> updatePrepaidPassSales(
+      @PathVariable Long salesId, @Validated @RequestBody PrepaidPassSalesRequest request) {
+
+    prepaidPassSalesCommandService.updatePrepaidPassSales(salesId, request);
     return ResponseEntity.ok(ApiResponse.success(null));
   }
 }

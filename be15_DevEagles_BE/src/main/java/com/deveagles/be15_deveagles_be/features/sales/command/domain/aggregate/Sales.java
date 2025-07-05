@@ -58,4 +58,27 @@ public class Sales {
 
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
+
+  public void update(
+      Long shopId,
+      Long customerId,
+      Long staffId,
+      Long reservationId,
+      Integer retailPrice,
+      Integer discountRate,
+      Integer discountAmount,
+      Integer totalAmount,
+      String salesMemo,
+      LocalDateTime salesDate) {
+    this.shopId = shopId;
+    this.customerId = customerId;
+    this.staffId = staffId;
+    this.reservationId = reservationId;
+    this.retailPrice = retailPrice;
+    this.discountRate = discountRate;
+    this.discountAmount = discountAmount;
+    this.totalAmount = totalAmount;
+    this.salesMemo = salesMemo;
+    this.salesDate = salesDate;
+  }
 }

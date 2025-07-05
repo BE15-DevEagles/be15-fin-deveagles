@@ -118,6 +118,7 @@ public enum ErrorCode implements ErrorCodeType {
   SALES_SALESDATE_REQUIRED("90003", "매출일시를 입력해수제요.", HttpStatus.BAD_REQUEST),
   SALES_PAYMENTMETHOD_REQUIRED("90004", "결제수단을 입력해주세요.", HttpStatus.BAD_REQUEST),
   SALES_PAYMENTSAMOUNT_REQUIRED("90005", "결제금액을 입력해주세요.", HttpStatus.BAD_REQUEST),
+  SALES_NOT_FOUND("90006", "매출을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
   ;
 
   private final String code;

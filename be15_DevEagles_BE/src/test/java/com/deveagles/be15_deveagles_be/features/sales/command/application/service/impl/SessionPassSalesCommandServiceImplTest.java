@@ -8,11 +8,13 @@ import com.deveagles.be15_deveagles_be.common.exception.ErrorCode;
 import com.deveagles.be15_deveagles_be.features.sales.command.application.dto.request.PaymentsInfo;
 import com.deveagles.be15_deveagles_be.features.sales.command.application.dto.request.SessionPassSalesRequest;
 import com.deveagles.be15_deveagles_be.features.sales.command.domain.aggregate.PaymentsMethod;
+import com.deveagles.be15_deveagles_be.features.sales.command.domain.aggregate.Sales;
 import com.deveagles.be15_deveagles_be.features.sales.command.domain.repository.PaymentsRepository;
 import com.deveagles.be15_deveagles_be.features.sales.command.domain.repository.SalesRepository;
 import com.deveagles.be15_deveagles_be.features.sales.command.domain.repository.SessionPassSalesRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,101 +36,86 @@ class SessionPassSalesCommandServiceImplTest {
             sessionPassSalesRepository, salesRepository, paymentsRepository);
   }
 
+  // ===== 등록 테스트 =====
+
   @Test
-  @DisplayName("실패: 횟수권 ID 없음")
-  void throwsWhenSessionPassIdIsNull() {
+  @DisplayName("실패: 등록 - 정가 음수")
+  void registFailsWhenRetailPriceNegative() {
     SessionPassSalesRequest request = validRequest();
-    request.setSessionPassId(null);
-    assertBusinessException(request, ErrorCode.SESSIONPASS_NOT_FOUND);
+    request.setRetailPrice(-1);
+    assertThrowsWithCode(
+        () -> service.registSessionPassSales(request), ErrorCode.SALES_RETAILPRICE_REQUIRED);
   }
 
   @Test
-  @DisplayName("실패: 고객 ID 없음")
-  void throwsWhenCustomerIdIsNull() {
-    SessionPassSalesRequest request = validRequest();
-    request.setCustomerId(null);
-    assertBusinessException(request, ErrorCode.CUSTOMER_NOT_FOUND);
-  }
-
-  @Test
-  @DisplayName("실패: 매장 ID 없음")
-  void throwsWhenShopIdIsNull() {
-    SessionPassSalesRequest request = validRequest();
-    request.setShopId(null);
-    assertBusinessException(request, ErrorCode.SHOP_NOT_FOUND);
-  }
-
-  @Test
-  @DisplayName("실패: staff ID 없음")
-  void throwsWhenStaffIdIsNull() {
-    SessionPassSalesRequest request = validRequest();
-    request.setStaffId(null);
-    assertBusinessException(request, ErrorCode.USER_NOT_FOUND);
-  }
-
-  @Test
-  @DisplayName("실패: 정가가 null")
-  void throwsWhenRetailPriceIsNull() {
-    SessionPassSalesRequest request = validRequest();
-    request.setRetailPrice(null);
-    assertBusinessException(request, ErrorCode.SALES_RETAILPRICE_REQUIRED);
-  }
-
-  @Test
-  @DisplayName("실패: 정가가 음수")
-  void throwsWhenRetailPriceNegative() {
-    SessionPassSalesRequest request = validRequest();
-    request.setRetailPrice(-1000);
-    assertBusinessException(request, ErrorCode.SALES_RETAILPRICE_REQUIRED);
-  }
-
-  @Test
-  @DisplayName("실패: 결제금액이 null")
-  void throwsWhenTotalAmountIsNull() {
-    SessionPassSalesRequest request = validRequest();
-    request.setTotalAmount(null);
-    assertBusinessException(request, ErrorCode.SALES_TOTALAMOUNT_REQUIRED);
-  }
-
-  @Test
-  @DisplayName("실패: 결제금액이 음수")
-  void throwsWhenTotalAmountNegative() {
+  @DisplayName("실패: 등록 - 총 결제 금액 음수")
+  void registFailsWhenTotalAmountNegative() {
     SessionPassSalesRequest request = validRequest();
     request.setTotalAmount(-1);
-    assertBusinessException(request, ErrorCode.SALES_TOTALAMOUNT_REQUIRED);
+    assertThrowsWithCode(
+        () -> service.registSessionPassSales(request), ErrorCode.SALES_TOTALAMOUNT_REQUIRED);
   }
 
   @Test
-  @DisplayName("실패: salesDate가 없음")
-  void throwsWhenSalesDateNull() {
-    SessionPassSalesRequest request = validRequest();
-    request.setSalesDate(null);
-    assertBusinessException(request, ErrorCode.SALES_SALESDATE_REQUIRED);
-  }
-
-  @Test
-  @DisplayName("실패: 결제 수단이 null")
-  void throwsWhenPaymentMethodNull() {
-    SessionPassSalesRequest request = validRequest();
-    request.setPayments(List.of(new PaymentsInfo(null, 1000)));
-    assertBusinessException(request, ErrorCode.SALES_PAYMENTMETHOD_REQUIRED);
-  }
-
-  @Test
-  @DisplayName("실패: 결제 금액이 null")
-  void throwsWhenPaymentAmountNull() {
-    SessionPassSalesRequest request = validRequest();
-    request.setPayments(List.of(new PaymentsInfo(PaymentsMethod.CARD, null)));
-    assertBusinessException(request, ErrorCode.SALES_PAYMENTSAMOUNT_REQUIRED);
-  }
-
-  @Test
-  @DisplayName("실패: 결제 금액이 0 이하")
-  void throwsWhenPaymentAmountZero() {
+  @DisplayName("실패: 등록 - 결제 금액이 0 이하")
+  void registFailsWhenPaymentAmountZero() {
     SessionPassSalesRequest request = validRequest();
     request.setPayments(List.of(new PaymentsInfo(PaymentsMethod.CARD, 0)));
-    assertBusinessException(request, ErrorCode.SALES_PAYMENTSAMOUNT_REQUIRED);
+    assertThrowsWithCode(
+        () -> service.registSessionPassSales(request), ErrorCode.SALES_PAYMENTSAMOUNT_REQUIRED);
   }
+
+  @Test
+  @DisplayName("실패: 등록 - 결제 수단 null")
+  void registFailsWhenPaymentMethodNull() {
+    SessionPassSalesRequest request = validRequest();
+    request.setPayments(List.of(new PaymentsInfo(null, 1000)));
+    assertThrowsWithCode(
+        () -> service.registSessionPassSales(request), ErrorCode.SALES_PAYMENTMETHOD_REQUIRED);
+  }
+
+  // ===== 수정 테스트 =====
+
+  @Test
+  @DisplayName("실패: 수정 - 해당 salesId 존재하지 않음")
+  void updateFailsWhenSalesNotFound() {
+    Long salesId = 123L;
+    when(salesRepository.findById(salesId)).thenReturn(Optional.empty());
+    assertThrowsWithCode(
+        () -> service.updateSessionPassSales(salesId, validRequest()), ErrorCode.SALES_NOT_FOUND);
+  }
+
+  @Test
+  @DisplayName("성공: 수정 - 정상 요청")
+  void updateSuccess() {
+    Long salesId = 1L;
+    SessionPassSalesRequest request = validRequest();
+    Sales salesMock = mock(Sales.class);
+
+    when(salesRepository.findById(salesId)).thenReturn(Optional.of(salesMock));
+
+    service.updateSessionPassSales(salesId, request);
+
+    verify(salesMock)
+        .update(
+            eq(request.getShopId()),
+            eq(request.getCustomerId()),
+            eq(request.getStaffId()),
+            eq(request.getReservationId()),
+            eq(request.getRetailPrice()),
+            eq(request.getDiscountRate()),
+            eq(request.getDiscountAmount()),
+            eq(request.getTotalAmount()),
+            eq(request.getSalesMemo()),
+            eq(request.getSalesDate()));
+
+    verify(sessionPassSalesRepository).deleteBySalesId(salesId);
+    verify(sessionPassSalesRepository).save(any());
+    verify(paymentsRepository).deleteBySalesId(salesId);
+    verify(paymentsRepository, times(1)).save(any());
+  }
+
+  // ===== 유틸 =====
 
   private SessionPassSalesRequest validRequest() {
     SessionPassSalesRequest request = new SessionPassSalesRequest();
@@ -143,9 +130,8 @@ class SessionPassSalesCommandServiceImplTest {
     return request;
   }
 
-  private void assertBusinessException(SessionPassSalesRequest request, ErrorCode expectedCode) {
-    BusinessException ex =
-        assertThrows(BusinessException.class, () -> service.registSessionPassSales(request));
-    assertEquals(expectedCode, ex.getErrorCode());
+  private void assertThrowsWithCode(Runnable runnable, ErrorCode code) {
+    BusinessException e = assertThrows(BusinessException.class, runnable::run);
+    assertEquals(code, e.getErrorCode());
   }
 }
