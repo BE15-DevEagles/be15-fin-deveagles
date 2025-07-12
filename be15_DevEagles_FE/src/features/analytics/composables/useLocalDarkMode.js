@@ -1,6 +1,6 @@
 import { ref, nextTick } from 'vue';
 
-// 전역 상태 (analytics 페이지 내에서만 공유)
+// 전역 상태 (analytics 페이지 내에서만 상태 공유)
 const isDarkMode = ref(false);
 const isTransitioning = ref(false);
 

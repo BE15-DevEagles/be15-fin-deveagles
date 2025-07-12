@@ -117,7 +117,7 @@
         <!-- 우측 -->
         <div class="form-right">
           <div class="search-row">
-            <BaseForm type="text" placeholder="고객명 또는 연락처 검색" />
+            <BaseForm v-model="customerSearch" type="text" placeholder="고객명 또는 연락처 검색" />
           </div>
 
           <div class="total-price-section">
@@ -183,7 +183,7 @@
 </template>
 
 <script setup>
-  import { ref, computed } from 'vue';
+  import { ref, computed, watch, onMounted } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
@@ -195,6 +195,10 @@
   const toastRef = ref(null); // ✅ Toast ref 등록
 
   const date = ref(new Date().toISOString().substring(0, 10));
+  const props = defineProps({
+    selectedCustomer: { type: Object, default: null }, // 선택된 고객 정보
+  });
+
   const time = ref(new Date().toTimeString().substring(0, 5));
   const selectedProducts = ref([]);
   const memo = ref('');
@@ -203,6 +207,7 @@
   const selectedMethods = ref([]);
   const paymentAmounts = ref({});
 
+  const customerSearch = ref('');
   const discountRates = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
   const discountRateOptions = discountRates.map(rate => ({ value: rate, text: `${rate}%` }));
 
@@ -307,3 +312,10 @@
 
   const formatPrice = val => val?.toLocaleString('ko-KR') + '원';
 </script>
+
+  // 선택된 고객 정보가 있으면 검색 필드에 자동 입력
+  watch(() => props.selectedCustomer, (newCustomer) => {
+    if (newCustomer) {
+      customerSearch.value = `${newCustomer.customerName} (${newCustomer.phoneNumber})`;
+    }
+  }, { immediate: true });

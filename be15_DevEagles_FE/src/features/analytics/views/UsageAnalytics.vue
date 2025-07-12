@@ -10,40 +10,63 @@
     <div class="analytics-header">
       <div class="analytics-header-content">
         <div>
-          <h1 class="analytics-page-title">예약율 통계</h1>
+          <h1 class="analytics-page-title">고객 이용 통계</h1>
         </div>
 
         <!-- 필터 섹션 -->
         <div class="analytics-filters">
-          <div class="analytics-filter-group">
-            <select
-              v-model="filters.period"
-              class="analytics-filter-select"
-              @change="updateFilters({ period: $event.target.value })"
-            >
-              <option value="7d">최근 7일</option>
-              <option value="30d">최근 30일</option>
-              <option value="90d">최근 90일</option>
-              <option value="1y">최근 1년</option>
-            </select>
-          </div>
+          <div class="analytics-filter-row">
+            <!-- 날짜 범위 선택 -->
+            <div class="analytics-filter-group">
+              <label class="analytics-filter-label">시작일</label>
+              <div class="date-input-wrapper">
+                <input
+                  ref="startDateInput"
+                  v-model="filters.dateRange.start"
+                  type="date"
+                  class="analytics-filter-select"
+                  @change="
+                    updateFilters({
+                      dateRange: { ...filters.dateRange, start: $event.target.value },
+                    })
+                  "
+                />
+                <div class="date-input-icon" @click="$refs.startDateInput.showPicker()"></div>
+              </div>
+            </div>
 
-          <div class="analytics-filter-group">
-            <select
-              v-model="filters.viewType"
-              class="analytics-filter-select"
-              @change="updateFilters({ viewType: $event.target.value })"
-            >
-              <option value="hourly">시간대별</option>
-              <option value="daily">일별</option>
-              <option value="weekly">주별</option>
-              <option value="monthly">월별</option>
-            </select>
-          </div>
+            <div class="analytics-filter-group">
+              <label class="analytics-filter-label">종료일</label>
+              <div class="date-input-wrapper">
+                <input
+                  ref="endDateInput"
+                  v-model="filters.dateRange.end"
+                  type="date"
+                  class="analytics-filter-select"
+                  :min="filters.dateRange.start"
+                  @change="
+                    updateFilters({ dateRange: { ...filters.dateRange, end: $event.target.value } })
+                  "
+                />
+                <div class="date-input-icon" @click="$refs.endDateInput.showPicker()"></div>
+              </div>
+            </div>
 
-          <!-- 다크모드 토글 스위치 -->
-          <div class="analytics-filter-group">
-            <LocalDarkModeToggle />
+            <!-- 다크모드 토글 스위치 -->
+            <div class="analytics-filter-group">
+              <LocalDarkModeToggle />
+            </div>
+
+            <!-- 새로고침 버튼 -->
+            <div class="analytics-filter-group">
+              <button
+                class="analytics-filter-reset-btn"
+                :disabled="loading"
+                @click="loadUsageData(true)"
+              >
+                {{ loading ? '로딩 중...' : '새로고침' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -55,17 +78,13 @@
         icon="📊"
         label="전체 예약율"
         :value="usageData.overallUtilization + '%'"
-        :trend="formatPercentage(usageData.utilizationGrowth)"
-        trend-type="positive"
         variant="primary"
       />
 
       <StatCard
         icon="⏰"
-        label="평균 이용시간"
+        label="타임슬롯 기준"
         :value="usageData.averageUsageTime + '분'"
-        trend="+12.3%"
-        trend-type="positive"
         variant="success"
       />
 
@@ -73,8 +92,6 @@
         icon="👥"
         label="직원 가동률"
         :value="usageData.staffUtilization + '%'"
-        trend="+5.7%"
-        trend-type="positive"
         variant="info"
       />
 
@@ -82,117 +99,122 @@
         icon="🏆"
         label="피크 시간 예약율"
         :value="usageData.peakHourUtilization + '%'"
-        trend="-1.2%"
-        trend-type="negative"
         variant="warning"
       />
     </div>
 
+    <!-- 에러 표시 -->
+    <div v-if="error && !loading" class="analytics-error">
+      <div class="analytics-error-icon">⚠️</div>
+      <div class="analytics-error-message">{{ error }}</div>
+      <button class="analytics-filter-reset-btn" @click="loadUsageData(true)">다시 시도</button>
+    </div>
+
     <!-- 차트 그리드 -->
-    <div class="chart-grid">
-      <!-- 시간대별 예약율 -->
-      <div class="chart-container chart-full-width">
-        <div class="chart-header">
-          <h3 class="chart-title">시간대별 예약율 분석</h3>
-          <p class="chart-subtitle">일일 운영시간 동안의 예약율 패턴</p>
-        </div>
-        <BaseChart
-          v-if="!loading && usageData.hourlyUsage.length > 0"
-          :option="getHourlyUsageChartOption"
-          :loading="loading"
-          :is-dark-mode="isDarkMode"
-          height="320px"
-          @click="onChartClick"
-        />
-        <div v-else-if="loading" class="analytics-loading">
-          <div class="analytics-loading-spinner"></div>
-          <span class="analytics-loading-text">데이터를 불러오는 중...</span>
+    <div v-if="!error" class="dashboard-content">
+      <!-- 시간대별/직원별 차트 그리드 (2열 배치) -->
+      <div class="dashboard-charts-section">
+        <div class="dashboard-charts-grid">
+          <!-- 시간대별 고객 방문건수 -->
+          <div class="dashboard-chart-container">
+            <div class="dashboard-chart-header">
+              <h3 class="dashboard-chart-title">시간대별 고객 방문건수</h3>
+              <p class="dashboard-chart-subtitle">시간대별 남성/여성 고객 방문 현황</p>
+            </div>
+            <BaseChart
+              v-if="!loading && usageData.hourlyUsage.length > 0"
+              :option="getHourlyUsageChartOption(isDarkMode)"
+              :loading="loading"
+              :is-dark-mode="isDarkMode"
+              height="400px"
+              @click="onChartClick"
+            />
+            <div v-else-if="loading" class="dashboard-loading">
+              <div class="dashboard-loading-spinner"></div>
+              <span class="dashboard-loading-text">데이터를 불러오는 중...</span>
+            </div>
+            <div v-else class="dashboard-empty">
+              <div class="dashboard-empty-icon">👥</div>
+              <div class="dashboard-empty-message">시간대별 방문객 데이터가 없습니다</div>
+            </div>
+          </div>
+
+          <!-- 직원별 예약건수 -->
+          <div class="dashboard-chart-container">
+            <div class="dashboard-chart-header">
+              <h3 class="dashboard-chart-title">직원별 예약건수</h3>
+              <p class="dashboard-chart-subtitle">직원별 예약 처리 현황</p>
+            </div>
+            <BaseChart
+              v-if="!loading && usageData.staffUsage.length > 0"
+              :option="getStaffReservationChartOption(isDarkMode)"
+              :loading="loading"
+              :is-dark-mode="isDarkMode"
+              height="400px"
+            />
+            <div v-else-if="loading" class="dashboard-loading">
+              <div class="dashboard-loading-spinner"></div>
+              <span class="dashboard-loading-text">직원별 예약건수 데이터 로딩 중...</span>
+            </div>
+            <div v-else class="dashboard-empty">
+              <div class="dashboard-empty-icon">👨‍💼</div>
+              <div class="dashboard-empty-message">직원별 예약건수 데이터가 없습니다</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 서비스별 예약율 (남성) -->
-      <div class="chart-container">
-        <div class="chart-header">
-          <h3 class="chart-title">서비스별 예약율 (남성)</h3>
-        </div>
-        <BaseChart
-          v-if="!loading && usageData.serviceUsage.length > 0"
-          :option="getServiceUsageChartOption"
-          :loading="loading"
-          :is-dark-mode="isDarkMode"
-          height="350px"
-        />
-        <div v-else-if="loading" class="analytics-loading">
-          <div class="analytics-loading-spinner"></div>
-        </div>
-      </div>
-
-      <!-- 서비스별 예약율 (여성) -->
-      <div class="chart-container">
-        <div class="chart-header">
-          <h3 class="chart-title">서비스별 예약율 (여성)</h3>
-        </div>
-        <BaseChart
-          v-if="!loading && usageData.serviceUsage.length > 0"
-          :option="getServiceUsageChartOptionFemale"
-          :loading="loading"
-          :is-dark-mode="isDarkMode"
-          height="350px"
-        />
-        <div v-else-if="loading" class="analytics-loading">
-          <div class="analytics-loading-spinner"></div>
+      <!-- 일별 고객 방문건수 (성별 구분) -->
+      <div class="dashboard-charts-section">
+        <div class="dashboard-chart-container dashboard-chart-full">
+          <div class="dashboard-chart-header">
+            <h3 class="dashboard-chart-title">일별 고객 방문건수</h3>
+            <p class="dashboard-chart-subtitle">
+              {{ filters.dateRange.start }} ~ {{ filters.dateRange.end }} 기간의 일별 남성/여성 고객
+              방문 현황
+            </p>
+          </div>
+          <BaseChart
+            v-if="!loading && usageData.dailyVisitorData.length > 0"
+            :option="getDailyVisitorChartOption(isDarkMode)"
+            :loading="loading"
+            :is-dark-mode="isDarkMode"
+            height="400px"
+            @click="onChartClick"
+          />
+          <div v-else-if="loading" class="dashboard-loading">
+            <div class="dashboard-loading-spinner"></div>
+            <span class="dashboard-loading-text">일별 방문객 데이터를 불러오는 중...</span>
+          </div>
+          <div v-else class="dashboard-empty">
+            <div class="dashboard-empty-icon">📅</div>
+            <div class="dashboard-empty-message">일별 방문객 데이터가 없습니다</div>
+          </div>
         </div>
       </div>
 
-      <!-- 직원별 가동률 -->
-      <div class="chart-container">
-        <div class="chart-header">
-          <h3 class="chart-title">직원별 가동률</h3>
-        </div>
-        <BaseChart
-          v-if="!loading && usageData.staffUsage.length > 0"
-          :option="getStaffUsageChartOption"
-          :loading="loading"
-          :is-dark-mode="isDarkMode"
-          height="350px"
-        />
-        <div v-else-if="loading" class="analytics-loading">
-          <div class="analytics-loading-spinner"></div>
-        </div>
-      </div>
-
-      <!-- 월별 예약율 추이 -->
-      <div class="chart-container">
-        <div class="chart-header">
-          <h3 class="chart-title">월별 예약율 추이</h3>
-        </div>
-        <BaseChart
-          v-if="!loading && usageData.monthlyUsage.length > 0"
-          :option="getMonthlyUsageChartOption"
-          :loading="loading"
-          :is-dark-mode="isDarkMode"
-          height="350px"
-        />
-        <div v-else-if="loading" class="analytics-loading">
-          <div class="analytics-loading-spinner"></div>
-        </div>
-      </div>
-
-      <!-- 피크 시간 히트맵 -->
-      <div class="chart-container chart-full-width">
-        <div class="chart-header">
-          <h3 class="chart-title">요일별 시간대 예약율 히트맵</h3>
-          <p class="chart-subtitle">요일과 시간대에 따른 예약율 패턴</p>
-        </div>
-        <BaseChart
-          v-if="!loading && usageData.heatmapData.length > 0"
-          :option="getHeatmapChartOption"
-          :loading="loading"
-          :is-dark-mode="isDarkMode"
-          height="280px"
-        />
-        <div v-else-if="loading" class="analytics-loading">
-          <div class="analytics-loading-spinner"></div>
+      <!-- 요일별 시간대 예약율 히트맵 -->
+      <div class="dashboard-charts-section">
+        <div class="dashboard-chart-container dashboard-chart-full">
+          <div class="dashboard-chart-header">
+            <h3 class="dashboard-chart-title">요일별 시간대 예약율 히트맵</h3>
+            <p class="dashboard-chart-subtitle">요일과 시간대에 따른 예약율 패턴 분석</p>
+          </div>
+          <BaseChart
+            v-if="!loading && usageData.heatmapData.length > 0"
+            :option="getHeatmapChartOption(isDarkMode)"
+            :loading="loading"
+            :is-dark-mode="isDarkMode"
+            height="280px"
+          />
+          <div v-else-if="loading" class="dashboard-loading">
+            <div class="dashboard-loading-spinner"></div>
+            <span class="dashboard-loading-text">히트맵 데이터를 불러오는 중...</span>
+          </div>
+          <div v-else class="dashboard-empty">
+            <div class="dashboard-empty-icon">🗓️</div>
+            <div class="dashboard-empty-message">요일별 시간대 예약율 데이터가 없습니다</div>
+          </div>
         </div>
       </div>
     </div>
@@ -227,10 +249,8 @@
         loadUsageData,
         updateFilters,
         getHourlyUsageChartOption,
-        getServiceUsageChartOption,
-        getServiceUsageChartOptionFemale,
-        getStaffUsageChartOption,
-        getMonthlyUsageChartOption,
+        getDailyVisitorChartOption,
+        getStaffReservationChartOption,
         getHeatmapChartOption,
         formatPercentage,
       } = useUsageAnalytics();
@@ -264,10 +284,8 @@
 
         // 차트 옵션
         getHourlyUsageChartOption,
-        getServiceUsageChartOption,
-        getServiceUsageChartOptionFemale,
-        getStaffUsageChartOption,
-        getMonthlyUsageChartOption,
+        getDailyVisitorChartOption,
+        getStaffReservationChartOption,
         getHeatmapChartOption,
 
         // 유틸리티
@@ -278,7 +296,5 @@
 </script>
 
 <style scoped>
-  @import '../styles/charts.css';
   @import '../styles/analytics.css';
-  @import '../styles/usage.css';
 </style>

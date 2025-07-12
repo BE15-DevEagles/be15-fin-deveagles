@@ -169,4 +169,21 @@ export function getPerformanceLogger() {
   return loggerManager.getPerformanceLogger();
 }
 
+// 도메인별 특화 로거들
+export function getViewLogger(componentName) {
+  return loggerManager.getLogger(`VIEW_${componentName}`);
+}
+
+export function getComposableLogger(composableName) {
+  return loggerManager.getLogger(`COMPOSABLE_${composableName}`);
+}
+
+export function getStoreLogger(storeName) {
+  return loggerManager.getLogger(`STORE_${storeName}`);
+}
+
+export function getServiceLogger(serviceName) {
+  return loggerManager.getLogger(`SERVICE_${serviceName}`);
+}
+
 export default LoggerManager;

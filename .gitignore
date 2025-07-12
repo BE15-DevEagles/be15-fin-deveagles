@@ -19,6 +19,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+wget-log
 
 # 패키지, 빌드 아카이브
 *.zip
@@ -234,6 +235,9 @@ out/
 .settings/
 *.launch
 bin/
+
+# Claude Code
+.claude/
 
 # STS (Spring Tool Suite)
 .apt_generated/

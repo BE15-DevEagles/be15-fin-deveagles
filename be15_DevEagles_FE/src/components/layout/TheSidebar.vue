@@ -178,11 +178,11 @@
             <button
               class="nav-link nav-toggle"
               :class="{ active: isCollapsed && isGroupActive('analytics') }"
-              data-tooltip="데이터 분석"
+              data-tooltip="통계"
               @click="toggleGroup('analytics')"
             >
               <BarChartIcon class="nav-icon" />
-              <span v-if="!isCollapsed || isHovered" class="nav-text">데이터 분석</span>
+              <span v-if="!isCollapsed || isHovered" class="nav-text">통계</span>
               <ChevronRightIcon
                 v-if="!isCollapsed || isHovered"
                 class="nav-arrow"
@@ -195,7 +195,9 @@
                 class="nav-sublist"
               >
                 <li>
-                  <router-link to="/analytics/usage" class="nav-sublink">예약율 통계</router-link>
+                  <router-link to="/analytics/usage" class="nav-sublink"
+                    >고객 이용 통계</router-link
+                  >
                 </li>
                 <li>
                   <router-link to="/analytics/sales" class="nav-sublink">매출 통계</router-link>

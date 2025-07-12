@@ -44,14 +44,30 @@ public class MessageServiceAdapter {
         return false;
       }
 
+      // 발송 시간에 따른 발송 타입 결정
+      MessageSendingType sendingType =
+          sendTime != null ? MessageSendingType.RESERVATION : MessageSendingType.IMMEDIATE;
+
+      // 예약 발송인 경우 오늘 날짜의 지정된 시간으로 설정
+      LocalDateTime scheduledTime =
+          sendTime != null
+              ? LocalDateTime.of(LocalDateTime.now().toLocalDate(), sendTime)
+              : LocalDateTime.now();
+
+      log.info(
+          "메시지 발송 설정 - customerId: {}, sendingType: {}, scheduledTime: {}",
+          customerId,
+          sendingType,
+          scheduledTime);
+
       // SMS 요청 생성
       SmsRequest smsRequest =
           new SmsRequest(
               List.of(customerId),
               template.getTemplateContent(),
               MessageType.SMS,
-              MessageSendingType.IMMEDIATE,
-              LocalDateTime.now(),
+              sendingType,
+              scheduledTime,
               tId,
               false,
               null,
@@ -101,14 +117,31 @@ public class MessageServiceAdapter {
         content = content.replace("{{couponCode}}", couponCode);
       }
 
+      // 발송 시간에 따른 발송 타입 결정
+      MessageSendingType sendingType =
+          sendTime != null ? MessageSendingType.RESERVATION : MessageSendingType.IMMEDIATE;
+
+      // 예약 발송인 경우 오늘 날짜의 지정된 시간으로 설정
+      LocalDateTime scheduledTime =
+          sendTime != null
+              ? LocalDateTime.of(LocalDateTime.now().toLocalDate(), sendTime)
+              : LocalDateTime.now();
+
+      log.info(
+          "쿠폰 메시지 발송 설정 - customerId: {}, couponCode: {}, sendingType: {}, scheduledTime: {}",
+          customerId,
+          couponCode,
+          sendingType,
+          scheduledTime);
+
       // SMS 요청 생성
       SmsRequest smsRequest =
           new SmsRequest(
               List.of(customerId),
               content,
               MessageType.SMS,
-              MessageSendingType.IMMEDIATE,
-              LocalDateTime.now(),
+              sendingType,
+              scheduledTime,
               tId,
               false,
               null,

@@ -2,232 +2,118 @@
  * 예약율 분석 ECharts 차트 옵션 설정
  * 예약율 통계용 차트 옵션들을 분리하여 관리
  */
+import {
+  createEmptyChartOption,
+  createTooltipConfig,
+  createLegendConfig,
+  createGridConfig,
+  createAxisConfig,
+  GENDER_COLORS,
+} from './baseChartOptions.js';
 
 /**
- * 시간대별 예약율 차트 옵션
- * @param {Array} hourlyUsageData - 시간대별 예약율 데이터
+ * 시간대별 방문객 성별 차트 옵션 (누적 막대 그래프)
+ * @param {Array} hourlyUsageData - 시간대별 방문객 데이터
+ * @param {boolean} isDarkMode - 다크모드 여부
  * @returns {Object} ECharts 옵션
  */
-export function createHourlyUsageChartOption(hourlyUsageData) {
+export function createHourlyUsageChartOption(hourlyUsageData, isDarkMode = false) {
   if (!hourlyUsageData || hourlyUsageData.length === 0) {
-    return {
-      title: {
-        text: '데이터가 없습니다',
-        left: 'center',
-        top: 'middle',
-        textStyle: {
-          color: '#9CA3AF',
-          fontSize: 14,
-        },
-      },
-    };
+    return createEmptyChartOption('시간대별 방문객 데이터가 없습니다', isDarkMode);
   }
 
   return {
     tooltip: {
-      trigger: 'axis',
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderWidth: 0,
-      borderRadius: 12,
-      textStyle: {
-        color: '#374151',
-        fontSize: 12,
-      },
-      padding: [12, 16],
-      extraCssText: 'box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); backdrop-filter: blur(10px);',
-      axisPointer: {
-        type: 'cross',
-        lineStyle: {
-          color: 'rgba(156, 163, 175, 0.3)',
-          width: 1,
-          type: 'dashed',
+      ...createTooltipConfig(isDarkMode, {
+        trigger: 'axis',
+        axisPointerType: 'shadow',
+        formatter: function (params) {
+          if (!params || params.length === 0) return '';
+          const axisValue = params[0].axisValue;
+          const maleValue = params.find(p => p.seriesName === '남성')?.value || 0;
+          const femaleValue = params.find(p => p.seriesName === '여성')?.value || 0;
+          const total = maleValue + femaleValue;
+
+          return `<div style="font-weight: 600; margin-bottom: 8px;">${axisValue}</div>
+                  <div style="margin-bottom: 4px;">남성: <strong>${maleValue}명</strong></div>
+                  <div style="margin-bottom: 4px;">여성: <strong>${femaleValue}명</strong></div>
+                  <div>총 방문객: <strong>${total}명</strong></div>`;
         },
-      },
-      formatter: function (params) {
-        let result = `<div style="font-weight: 600; margin-bottom: 8px;">${params[0].axisValue}</div>`;
-        let total = 0;
-        params.forEach(param => {
-          total += param.value;
-        });
-        result += `<div style="font-size: 11px; color: #6B7280; margin-bottom: 8px;">총 예약율: ${total}%</div>`;
-        params.forEach(param => {
-          const percentage = ((param.value / total) * 100).toFixed(1);
-          result += `<div style="display: flex; align-items: center; margin-bottom: 4px;">
-            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${param.color}; margin-right: 8px;"></span>
-            <span style="flex: 1;">${param.seriesName}</span>
-            <span style="font-weight: 600; margin-left: 12px;">${param.value}% (${percentage}%)</span>
-          </div>`;
-        });
-        return result;
-      },
+      }),
     },
-    grid: {
+    legend: {
+      ...createLegendConfig(isDarkMode, {
+        data: ['남성', '여성'],
+        top: 20,
+        left: 'center',
+        itemGap: 20,
+        itemWidth: 12,
+        itemHeight: 12,
+      }),
+    },
+    grid: createGridConfig({
       top: 80,
       left: 60,
       right: 50,
       bottom: 60,
-      containLabel: true,
-    },
-    legend: {
-      data: ['남성 고객', '여성 고객'],
-      top: 35,
-      left: 'center',
-      itemGap: 20,
-      textStyle: {
-        color: '#4B5563',
-        fontSize: 11,
-        fontWeight: '500',
-      },
-      itemWidth: 12,
-      itemHeight: 12,
-    },
+    }),
     xAxis: {
-      type: 'category',
-      data: hourlyUsageData.map(item => item.hour),
-      axisLine: {
-        show: false,
-      },
-      axisTick: {
-        show: false,
-      },
-      axisLabel: {
-        color: '#9CA3AF',
-        fontSize: 11,
-        margin: 15,
-      },
+      ...createAxisConfig(isDarkMode, 'category', {
+        data: hourlyUsageData.map(item => item.time || `${item.hour}시`),
+        showAxisLine: false,
+        showAxisTick: false,
+        axisLabel: {
+          margin: 15,
+          interval: 0,
+        },
+      }),
     },
     yAxis: {
-      type: 'value',
-      name: '예약율 (%)',
-      axisLine: {
-        show: false,
-      },
-      axisTick: {
-        show: false,
-      },
-      axisLabel: {
-        color: '#9CA3AF',
-        fontSize: 11,
-        formatter: '{value}%',
-      },
-      splitLine: {
-        lineStyle: {
-          color: '#F3F4F6',
-          type: 'dashed',
-          opacity: 0.5,
+      ...createAxisConfig(isDarkMode, 'value', {
+        name: '방문객 수 (명)',
+        nameTextStyle: {
+          color: isDarkMode ? '#D1D5DB' : '#6B7280',
+          fontSize: 12,
         },
-      },
-      max: 100,
+        axisLabel: {
+          formatter: '{value}명',
+        },
+        showAxisLine: false,
+        showAxisTick: false,
+      }),
     },
     series: [
       {
-        name: '남성 고객',
+        name: '남성',
         type: 'bar',
-        stack: 'gender',
-        data: hourlyUsageData.map(item => item.male),
+        stack: '방문객',
+        data: hourlyUsageData.map(item => item.male || item.maleVisitors || 0),
         itemStyle: {
-          color: '#3B82F6',
+          color: GENDER_COLORS.male,
           borderRadius: [0, 0, 0, 0],
         },
         emphasis: {
-          focus: 'series',
+          itemStyle: {
+            color: '#3730A3',
+            shadowBlur: 10,
+            shadowColor: 'rgba(79, 70, 229, 0.3)',
+          },
         },
       },
       {
-        name: '여성 고객',
+        name: '여성',
         type: 'bar',
-        stack: 'gender',
-        data: hourlyUsageData.map(item => item.female),
+        stack: '방문객',
+        data: hourlyUsageData.map(item => item.female || item.femaleVisitors || 0),
         itemStyle: {
-          color: '#EC4899',
+          color: GENDER_COLORS.female,
           borderRadius: [4, 4, 0, 0],
         },
         emphasis: {
-          focus: 'series',
-        },
-      },
-    ],
-  };
-}
-
-/**
- * 서비스별 예약율 차트 옵션
- * @param {Array} serviceUsageData - 서비스별 예약율 데이터
- * @returns {Object} ECharts 옵션
- */
-export function createServiceUsageChartOption(serviceUsageData) {
-  if (!serviceUsageData || serviceUsageData.length === 0) {
-    return {
-      title: {
-        text: '데이터가 없습니다',
-        left: 'center',
-        top: 'middle',
-        textStyle: {
-          color: '#9CA3AF',
-          fontSize: 14,
-        },
-      },
-    };
-  }
-
-  return {
-    title: {
-      text: '서비스별 예약율 (남성)',
-      left: 'center',
-      top: 20,
-      textStyle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#374151',
-      },
-    },
-    color: ['#3B82F6', '#1D4ED8', '#2563EB', '#1E40AF', '#1E3A8A'],
-    tooltip: {
-      trigger: 'item',
-      formatter: params => {
-        const data = serviceUsageData[params.dataIndex];
-        return `<div style="font-weight: 600; margin-bottom: 8px;">${params.name}</div>
-                <div style="margin-bottom: 4px;">남성 예약율: <strong>${params.value}%</strong></div>
-                <div style="margin-bottom: 4px;">전체 예약율: ${data.utilization}%</div>
-                <div style="margin-bottom: 4px;">사용시간: ${data.usedHours}/${data.totalHours}시간</div>
-                <div>평균 소요: ${data.averageDuration}분</div>`;
-      },
-    },
-    legend: {
-      bottom: '10px',
-      left: 'center',
-      itemGap: 20,
-      textStyle: {
-        fontSize: 12,
-        fontWeight: '500',
-      },
-      itemWidth: 12,
-      itemHeight: 12,
-    },
-    series: [
-      {
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['50%', '55%'],
-        data: serviceUsageData.map(item => ({
-          name: item.name,
-          value: item.male,
-        })),
-        itemStyle: {
-          borderRadius: 8,
-          borderColor: '#fff',
-          borderWidth: 2,
-        },
-        label: {
-          formatter: '{b}\n{d}%',
-          fontSize: 11,
-          fontWeight: 'bold',
-        },
-        emphasis: {
           itemStyle: {
+            color: '#BE185D',
             shadowBlur: 10,
-            shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)',
+            shadowColor: 'rgba(236, 72, 153, 0.3)',
           },
         },
       },
@@ -236,342 +122,88 @@ export function createServiceUsageChartOption(serviceUsageData) {
 }
 
 /**
- * 서비스별 예약율 차트 옵션 (여성)
- * @param {Array} serviceUsageData - 서비스별 예약율 데이터
+ * 직원별 예약건수 차트 옵션
+ * @param {Array} staffReservationData - 직원별 예약건수 데이터
+ * @param {boolean} isDarkMode - 다크모드 여부
  * @returns {Object} ECharts 옵션
  */
-export function createServiceUsageChartOptionFemale(serviceUsageData) {
-  if (!serviceUsageData || serviceUsageData.length === 0) {
-    return {
-      title: {
-        text: '데이터가 없습니다',
-        left: 'center',
-        top: 'middle',
-        textStyle: {
-          color: '#9CA3AF',
-          fontSize: 14,
-        },
-      },
-    };
-  }
-
-  return {
-    title: {
-      text: '서비스별 예약율 (여성)',
-      left: 'center',
-      top: 20,
-      textStyle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#374151',
-      },
-    },
-    color: ['#EC4899', '#DB2777', '#BE185D', '#9D174D', '#831843'],
-    tooltip: {
-      trigger: 'item',
-      formatter: params => {
-        const data = serviceUsageData[params.dataIndex];
-        return `<div style="font-weight: 600; margin-bottom: 8px;">${params.name}</div>
-                <div style="margin-bottom: 4px;">여성 예약율: <strong>${params.value}%</strong></div>
-                <div style="margin-bottom: 4px;">전체 예약율: ${data.utilization}%</div>
-                <div style="margin-bottom: 4px;">사용시간: ${data.usedHours}/${data.totalHours}시간</div>
-                <div>평균 소요: ${data.averageDuration}분</div>`;
-      },
-    },
-    legend: {
-      bottom: '10px',
-      left: 'center',
-      itemGap: 20,
-      textStyle: {
-        fontSize: 12,
-        fontWeight: '500',
-      },
-      itemWidth: 12,
-      itemHeight: 12,
-    },
-    series: [
-      {
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['50%', '55%'],
-        data: serviceUsageData.map(item => ({
-          name: item.name,
-          value: item.female,
-        })),
-        itemStyle: {
-          borderRadius: 8,
-          borderColor: '#fff',
-          borderWidth: 2,
-        },
-        label: {
-          formatter: '{b}\n{d}%',
-          fontSize: 11,
-          fontWeight: 'bold',
-        },
-        emphasis: {
-          itemStyle: {
-            shadowBlur: 10,
-            shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)',
-          },
-        },
-      },
-    ],
-  };
-}
-
-/**
- * 직원별 가동률 차트 옵션
- * @param {Array} staffUsageData - 직원별 가동률 데이터
- * @returns {Object} ECharts 옵션
- */
-export function createStaffUsageChartOption(staffUsageData) {
-  if (!staffUsageData || staffUsageData.length === 0) {
-    return {
-      title: {
-        text: '데이터가 없습니다',
-        left: 'center',
-        top: 'middle',
-        textStyle: {
-          color: '#9CA3AF',
-          fontSize: 14,
-        },
-      },
-    };
+export function createStaffReservationChartOption(staffReservationData, isDarkMode = false) {
+  if (!staffReservationData || staffReservationData.length === 0) {
+    return createEmptyChartOption('직원별 예약건수 데이터가 없습니다', isDarkMode);
   }
 
   return {
     tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'shadow',
-      },
-      formatter: params => {
-        let result = `<div style="font-weight: 600; margin-bottom: 8px;">${params[0].axisValue}</div>`;
-        let total = 0;
-        params.forEach(param => {
-          total += param.value;
-        });
-        const data = staffUsageData[params[0].dataIndex];
-        result += `<div style="font-size: 11px; color: #6B7280; margin-bottom: 8px;">총 가동률: ${total}%</div>`;
-        params.forEach(param => {
-          const percentage = ((param.value / total) * 100).toFixed(1);
-          result += `<div style="display: flex; align-items: center; margin-bottom: 4px;">
-            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${param.color}; margin-right: 8px;"></span>
-            <span style="flex: 1;">${param.seriesName}</span>
-            <span style="font-weight: 600; margin-left: 12px;">${param.value}% (${percentage}%)</span>
-          </div>`;
-        });
-        result += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #E5E7EB;">
-          <div style="margin-bottom: 4px;">전문분야: ${data.speciality}</div>
-          <div style="margin-bottom: 4px;">활동시간: ${data.activeHours}/${data.workingHours}시간</div>
-          <div style="margin-bottom: 4px;">예약건수: ${data.appointments}건</div>
-          <div>평점: ${data.rating}점</div>
-        </div>`;
-        return result;
-      },
+      ...createTooltipConfig(isDarkMode, {
+        trigger: 'axis',
+        axisPointerType: 'shadow',
+        formatter: params => {
+          const data = params[0];
+          return `<div style="font-weight: 600; margin-bottom: 8px;">${data.axisValue}</div>
+                  <div style="margin-bottom: 4px;">예약건수: <strong>${data.value}건</strong></div>`;
+        },
+      }),
     },
-    legend: {
-      data: ['남성 고객', '여성 고객'],
-      top: 25,
-      left: 'center',
-      itemGap: 20,
-      textStyle: {
-        color: '#4B5563',
-        fontSize: 11,
-        fontWeight: '500',
-      },
-      itemWidth: 12,
-      itemHeight: 12,
-    },
-    grid: {
-      top: 70,
+    grid: createGridConfig({
+      top: 40,
       left: 60,
       right: 40,
       bottom: 60,
-      containLabel: true,
-    },
+    }),
     xAxis: {
-      type: 'category',
-      data: staffUsageData.map(item => item.name),
-      axisLine: {
-        lineStyle: { color: '#E5E7EB' },
-      },
-      axisTick: {
-        lineStyle: { color: '#E5E7EB' },
-      },
-      axisLabel: {
-        color: '#6B7280',
-        fontSize: 11,
-      },
+      ...createAxisConfig(isDarkMode, 'category', {
+        data: staffReservationData.map(item => item.staff),
+        showAxisLine: true,
+        showAxisTick: true,
+        axisLabel: {
+          interval: 0,
+          rotate: staffReservationData.length > 6 ? 45 : 0,
+        },
+      }),
     },
     yAxis: {
-      type: 'value',
-      max: 100,
-      axisLine: {
-        show: false,
-      },
-      axisTick: {
-        show: false,
-      },
-      axisLabel: {
-        color: '#6B7280',
-        formatter: '{value}%',
-        fontSize: 11,
-      },
-      splitLine: {
-        lineStyle: {
-          color: '#F3F4F6',
-          type: 'dashed',
+      ...createAxisConfig(isDarkMode, 'value', {
+        name: '예약건수 (건)',
+        nameTextStyle: {
+          color: isDarkMode ? '#D1D5DB' : '#6B7280',
+          fontSize: 12,
         },
-      },
+        axisLabel: {
+          formatter: '{value}건',
+        },
+        showAxisLine: false,
+        showAxisTick: false,
+      }),
     },
     series: [
       {
-        name: '남성 고객',
+        name: '예약건수',
         type: 'bar',
-        stack: 'gender',
-        data: staffUsageData.map(item => item.male),
+        data: staffReservationData.map(item => ({
+          value: item.reservationCount || 0,
+          totalSales: item.totalSales || 0,
+          staffId: item.staffId,
+        })),
         itemStyle: {
-          color: '#3B82F6',
-          borderRadius: [0, 0, 0, 0],
-        },
-        emphasis: {
-          focus: 'series',
-        },
-      },
-      {
-        name: '여성 고객',
-        type: 'bar',
-        stack: 'gender',
-        data: staffUsageData.map(item => item.female),
-        itemStyle: {
-          color: '#EC4899',
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: '#10B981' },
+              { offset: 1, color: '#047857' },
+            ],
+          },
           borderRadius: [6, 6, 0, 0],
         },
         emphasis: {
           focus: 'series',
-        },
-      },
-    ],
-  };
-}
-
-/**
- * 월별 예약율 추이 차트 옵션
- * @param {Array} monthlyUsageData - 월별 예약율 데이터
- * @returns {Object} ECharts 옵션
- */
-export function createMonthlyUsageChartOption(monthlyUsageData) {
-  if (!monthlyUsageData || monthlyUsageData.length === 0) {
-    return {
-      title: {
-        text: '데이터가 없습니다',
-        left: 'center',
-        top: 'middle',
-        textStyle: {
-          color: '#9CA3AF',
-          fontSize: 14,
-        },
-      },
-    };
-  }
-
-  return {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'cross',
-      },
-      formatter: params => {
-        let result = `<div style="font-weight: 600; margin-bottom: 8px;">${params[0].axisValue}</div>`;
-        let total = 0;
-        params.forEach(param => {
-          total += param.value;
-        });
-        result += `<div style="font-size: 11px; color: #6B7280; margin-bottom: 8px;">총 예약율: ${total}%</div>`;
-        params.forEach(param => {
-          const percentage = ((param.value / total) * 100).toFixed(1);
-          result += `<div style="display: flex; align-items: center; margin-bottom: 4px;">
-            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${param.color}; margin-right: 8px;"></span>
-            <span style="flex: 1;">${param.seriesName}</span>
-            <span style="font-weight: 600; margin-left: 12px;">${param.value}% (${percentage}%)</span>
-          </div>`;
-        });
-        return result;
-      },
-    },
-    grid: {
-      top: 80,
-      left: 60,
-      right: 60,
-      bottom: 60,
-      containLabel: true,
-    },
-    legend: {
-      data: ['남성 고객', '여성 고객'],
-      top: 35,
-      left: 'center',
-      itemGap: 20,
-      textStyle: {
-        color: '#4B5563',
-        fontSize: 11,
-        fontWeight: '500',
-      },
-    },
-    xAxis: {
-      type: 'category',
-      data: monthlyUsageData.map(item => item.month),
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: {
-        color: '#9CA3AF',
-        fontSize: 11,
-      },
-    },
-    yAxis: {
-      type: 'value',
-      name: '예약율 (%)',
-      max: 100,
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: {
-        color: '#9CA3AF',
-        formatter: '{value}%',
-        fontSize: 11,
-      },
-      splitLine: {
-        lineStyle: {
-          color: '#F3F4F6',
-          type: 'dashed',
-        },
-      },
-    },
-    series: [
-      {
-        name: '남성 고객',
-        type: 'bar',
-        stack: 'gender',
-        data: monthlyUsageData.map(item => item.male),
-        itemStyle: {
-          color: '#3B82F6',
-          borderRadius: [0, 0, 0, 0],
-        },
-        emphasis: {
-          focus: 'series',
-        },
-      },
-      {
-        name: '여성 고객',
-        type: 'bar',
-        stack: 'gender',
-        data: monthlyUsageData.map(item => item.female),
-        itemStyle: {
-          color: '#EC4899',
-          borderRadius: [4, 4, 0, 0],
-        },
-        emphasis: {
-          focus: 'series',
+          itemStyle: {
+            shadowBlur: 10,
+            shadowColor: 'rgba(16, 185, 129, 0.5)',
+          },
         },
       },
     ],
@@ -581,24 +213,17 @@ export function createMonthlyUsageChartOption(monthlyUsageData) {
 /**
  * 요일별 시간대 히트맵 차트 옵션
  * @param {Array} heatmapData - 히트맵 데이터
+ * @param {Array} hourLabels - 시간 라벨 배열
+ * @param {boolean} isDarkMode - 다크모드 여부
  * @returns {Object} ECharts 옵션
  */
-export function createHeatmapChartOption(heatmapData) {
+export function createHeatmapChartOption(heatmapData, hourLabels = [], isDarkMode = false) {
   if (!heatmapData || heatmapData.length === 0) {
-    return {
-      title: {
-        text: '데이터가 없습니다',
-        left: 'center',
-        top: 'middle',
-        textStyle: {
-          color: '#9CA3AF',
-          fontSize: 14,
-        },
-      },
-    };
+    return createEmptyChartOption('요일별 시간대 예약율 데이터가 없습니다', isDarkMode);
   }
 
-  const hours = [
+  // 기본 시간 라벨 (9시-20시)
+  const defaultHours = [
     '9시',
     '10시',
     '11시',
@@ -612,60 +237,135 @@ export function createHeatmapChartOption(heatmapData) {
     '19시',
     '20시',
   ];
+
+  // 동적 시간 라벨 사용 (데이터가 있으면 사용, 없으면 기본값)
+  const hours = hourLabels && hourLabels.length > 0 ? hourLabels : defaultHours;
   const days = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+
+  // 최대값 계산 (visualMap 범위 설정용)
+  const maxValue = heatmapData.reduce((max, item) => {
+    const value = Array.isArray(item) ? item[2] : item;
+    return Math.max(max, Number(value) || 0);
+  }, 0);
+
+  // visualMap 최대값 설정 - 동적 조정
+  let visualMapMax;
+  if (maxValue <= 100) {
+    visualMapMax = 100;
+  } else if (maxValue <= 200) {
+    visualMapMax = 200;
+  } else if (maxValue <= 300) {
+    visualMapMax = 300;
+  } else {
+    visualMapMax = Math.ceil(maxValue / 100) * 100;
+  }
+
+  // 색상 구간 설정 (다크모드에 따라 조정)
+  const colorStops = isDarkMode
+    ? [
+        '#1F2937', // 0% - 매우 낮음 (다크)
+        '#374151', // 25% - 낮음
+        '#4B5563', // 50% - 보통
+        '#6366F1', // 75% - 높음
+        '#4338CA', // 100% - 매우 높음
+      ]
+    : [
+        '#E8F4FD', // 0% - 매우 낮음
+        '#BFDBFE', // 25% - 낮음
+        '#60A5FA', // 50% - 보통
+        '#3B82F6', // 75% - 높음
+        '#1E40AF', // 100% - 높음
+      ];
+
+  // 100% 초과 시 더 진한 색상 추가
+  if (visualMapMax > 100) {
+    colorStops.push(isDarkMode ? '#312E81' : '#1E3A8A'); // 150% - 매우 높음
+    colorStops.push(isDarkMode ? '#1E1B4B' : '#172554'); // 200% - 최고
+  }
 
   return {
     tooltip: {
-      position: 'top',
-      formatter: params => {
-        const [hourIndex, dayIndex, value] = params.data;
-        return `<div style="font-weight: 600; margin-bottom: 8px;">${days[dayIndex]} ${hours[hourIndex]}</div>
-                <div>예약율: <strong>${value}%</strong></div>`;
-      },
+      ...createTooltipConfig(isDarkMode, {
+        trigger: 'item',
+        position: 'top',
+        formatter: params => {
+          if (!params || !params.data || !Array.isArray(params.data)) {
+            return '데이터 없음';
+          }
+
+          const [hourIndex, dayIndex, value] = params.data;
+          const hour = hours[hourIndex] || '시간 없음';
+          const day = days[dayIndex] || '요일 없음';
+          const rate = typeof value === 'number' ? value.toFixed(1) : '0.0';
+
+          return `<div style="font-weight: 600; margin-bottom: 8px;">${day} ${hour}</div>
+                  <div>예약율: <strong style="color: #3B82F6;">${rate}%</strong></div>`;
+        },
+      }),
     },
     grid: {
-      height: '70%',
+      height: '65%',
       top: '10%',
-      left: '15%',
+      left: '12%',
       right: '10%',
+      bottom: '25%',
     },
     xAxis: {
-      type: 'category',
-      data: hours,
-      splitArea: {
-        show: true,
-      },
-      axisLabel: {
-        color: '#6B7280',
-        fontSize: 10,
-      },
+      ...createAxisConfig(isDarkMode, 'category', {
+        data: hours,
+        showAxisLine: false,
+        showAxisTick: false,
+        axisLabel: {
+          fontSize: 10,
+          margin: 8,
+        },
+        splitArea: {
+          show: true,
+          areaStyle: {
+            color: isDarkMode
+              ? ['rgba(50,50,50,0.1)', 'rgba(100,100,100,0.1)']
+              : ['rgba(250,250,250,0.1)', 'rgba(200,200,200,0.1)'],
+          },
+        },
+      }),
     },
     yAxis: {
-      type: 'category',
-      data: days,
-      splitArea: {
-        show: true,
-      },
-      axisLabel: {
-        color: '#6B7280',
-        fontSize: 11,
-      },
+      ...createAxisConfig(isDarkMode, 'category', {
+        data: days,
+        showAxisLine: false,
+        showAxisTick: false,
+        axisLabel: {
+          fontSize: 11,
+          margin: 8,
+        },
+        splitArea: {
+          show: true,
+          areaStyle: {
+            color: isDarkMode
+              ? ['rgba(50,50,50,0.1)', 'rgba(100,100,100,0.1)']
+              : ['rgba(250,250,250,0.1)', 'rgba(200,200,200,0.1)'],
+          },
+        },
+      }),
     },
     visualMap: {
       min: 0,
-      max: 100,
+      max: visualMapMax,
       calculable: true,
       orient: 'horizontal',
       left: 'center',
-      bottom: '5%',
+      bottom: '8%',
+      itemWidth: 15,
+      itemHeight: 180,
       inRange: {
-        color: ['#E8F4FD', '#3B82F6', '#1E40AF'],
+        color: colorStops,
       },
-      text: ['높음', '낮음'],
+      text: [`${visualMapMax}%`, '0%'],
       textStyle: {
-        color: '#6B7280',
+        color: isDarkMode ? '#D1D5DB' : '#6B7280',
         fontSize: 11,
       },
+      formatter: value => `${value}%`,
     },
     series: [
       {
@@ -673,13 +373,150 @@ export function createHeatmapChartOption(heatmapData) {
         data: heatmapData,
         label: {
           show: true,
-          formatter: '{c}%',
-          fontSize: 10,
+          formatter: params => {
+            const value = params.value && params.value[2];
+            return typeof value === 'number' ? `${value.toFixed(1)}%` : '0%';
+          },
+          fontSize: 9,
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          textShadowColor: 'rgba(0, 0, 0, 0.8)',
+          textShadowBlur: 2,
+        },
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: isDarkMode ? '#1F2937' : '#FFFFFF',
+          borderWidth: 1,
         },
         emphasis: {
           itemStyle: {
+            borderColor: isDarkMode ? '#F3F4F6' : '#374151',
+            borderWidth: 2,
             shadowBlur: 10,
-            shadowColor: 'rgba(0, 0, 0, 0.5)',
+            shadowColor: 'rgba(0, 0, 0, 0.3)',
+          },
+          label: {
+            fontSize: 11,
+            fontWeight: 'bold',
+          },
+        },
+      },
+    ],
+  };
+}
+
+/**
+ * 일별 방문객 성별 차트 옵션 생성 (누적 막대 그래프)
+ * @param {Array} dailyVisitorData - 일별 방문객 데이터
+ * @param {boolean} isDarkMode - 다크모드 여부
+ * @returns {Object} ECharts 옵션
+ */
+export function createDailyVisitorChartOption(dailyVisitorData, isDarkMode = false) {
+  if (!dailyVisitorData || dailyVisitorData.length === 0) {
+    return createEmptyChartOption('일별 방문객 데이터가 없습니다', isDarkMode);
+  }
+
+  return {
+    tooltip: {
+      ...createTooltipConfig(isDarkMode, {
+        trigger: 'axis',
+        axisPointerType: 'shadow',
+        formatter: function (params) {
+          if (!params || params.length === 0) return '';
+          const axisValue = params[0].axisValue;
+          const maleValue = params.find(p => p.seriesName === '남성')?.value || 0;
+          const femaleValue = params.find(p => p.seriesName === '여성')?.value || 0;
+          const total = maleValue + femaleValue;
+
+          return `<div style="font-weight: 600; margin-bottom: 8px;">${axisValue}</div>
+                  <div style="margin-bottom: 4px;">남성: <strong>${maleValue}명</strong></div>
+                  <div style="margin-bottom: 4px;">여성: <strong>${femaleValue}명</strong></div>
+                  <div>총 방문객: <strong>${total}명</strong></div>`;
+        },
+      }),
+    },
+    legend: {
+      ...createLegendConfig(isDarkMode, {
+        data: ['남성', '여성'],
+        top: 20,
+        left: 'center',
+        itemGap: 20,
+        itemWidth: 12,
+        itemHeight: 12,
+      }),
+    },
+    grid: createGridConfig({
+      top: 80,
+      left: 60,
+      right: 50,
+      bottom: 60,
+    }),
+    xAxis: {
+      ...createAxisConfig(isDarkMode, 'category', {
+        data: dailyVisitorData.map(item => {
+          // 날짜 형식을 간단하게 변환 (MM/DD)
+          if (item.displayDate) {
+            const date = new Date(item.date || item.displayDate);
+            if (!isNaN(date.getTime())) {
+              return `${date.getMonth() + 1}/${date.getDate()}`;
+            }
+          }
+          return item.label || item.displayDate;
+        }),
+        showAxisLine: false,
+        showAxisTick: false,
+        axisLabel: {
+          margin: 15,
+          rotate: dailyVisitorData.length > 20 ? 45 : 0,
+        },
+      }),
+    },
+    yAxis: {
+      ...createAxisConfig(isDarkMode, 'value', {
+        name: '방문객 수 (명)',
+        nameTextStyle: {
+          color: isDarkMode ? '#D1D5DB' : '#6B7280',
+          fontSize: 12,
+        },
+        axisLabel: {
+          formatter: '{value}명',
+        },
+        showAxisLine: false,
+        showAxisTick: false,
+      }),
+    },
+    series: [
+      {
+        name: '남성',
+        type: 'bar',
+        stack: '방문객',
+        data: dailyVisitorData.map(item => item.male || item.maleVisitors || 0),
+        itemStyle: {
+          color: GENDER_COLORS.male,
+          borderRadius: [0, 0, 0, 0],
+        },
+        emphasis: {
+          itemStyle: {
+            color: '#3730A3',
+            shadowBlur: 10,
+            shadowColor: 'rgba(79, 70, 229, 0.3)',
+          },
+        },
+      },
+      {
+        name: '여성',
+        type: 'bar',
+        stack: '방문객',
+        data: dailyVisitorData.map(item => item.female || item.femaleVisitors || 0),
+        itemStyle: {
+          color: GENDER_COLORS.female,
+          borderRadius: [4, 4, 0, 0],
+        },
+        emphasis: {
+          itemStyle: {
+            color: '#BE185D',
+            shadowBlur: 10,
+            shadowColor: 'rgba(236, 72, 153, 0.3)',
           },
         },
       },
