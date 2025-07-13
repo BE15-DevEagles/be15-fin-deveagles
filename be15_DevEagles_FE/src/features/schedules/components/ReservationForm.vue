@@ -269,7 +269,7 @@
     background: white;
     border: 1px solid var(--color-gray-300);
     border-radius: 4px;
-    z-index: 10;
+    z-index: 100;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   }
 
