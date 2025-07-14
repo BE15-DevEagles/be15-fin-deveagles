@@ -193,3 +193,6 @@ export const updateRegularLeave = (id, payload) =>
   api.put(`/schedules/regular-leaves/${id}`, payload);
 
 export const switchLeaveType = payload => api.post('/schedules/leaves/switch', payload);
+
+export const updateReservation = (reservationId, payload) =>
+  api.put(`/schedules/reservations/${reservationId}`, payload);

@@ -83,8 +83,8 @@
             <div class="card-left">
               <span class="service-name">({{ item.category }}) {{ item.name }}</span>
               <span class="service-meta"
-                >{{ item.duration }} / {{ item.price.toLocaleString() }} 원</span
-              >
+                >{{ item.duration }} / {{ item.price.toLocaleString() }} 원
+              </span>
             </div>
             <button class="remove-btn" @click="removeService(index)">✕</button>
           </div>
