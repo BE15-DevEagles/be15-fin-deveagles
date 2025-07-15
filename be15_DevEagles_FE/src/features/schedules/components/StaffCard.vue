@@ -1,20 +1,3 @@
-<script setup>
-  import { useRouter } from 'vue-router';
-  import BaseButton from '@/components/common/BaseButton.vue';
-
-  const props = defineProps({
-    id: [String, Number],
-    name: String,
-    image: String,
-  });
-
-  const router = useRouter();
-
-  const onReserveClick = () => {
-    router.push(`/reserve/designer/${props.id}`);
-  };
-</script>
-
 <template>
   <div class="designer-card">
     <div class="tags">
@@ -31,6 +14,23 @@
   </div>
 </template>
 
+<script setup>
+  import { useRouter } from 'vue-router';
+  import BaseButton from '@/components/common/BaseButton.vue';
+
+  const props = defineProps({
+    id: [String, Number],
+    shopId: [String, Number],
+    name: String,
+    image: String,
+  });
+
+  const router = useRouter();
+
+  const onReserveClick = () => {
+    router.push(`/reserve/${props.shopId}/staff/${props.id}`);
+  };
+</script>
 <style scoped>
   .designer-card {
     width: 400px;

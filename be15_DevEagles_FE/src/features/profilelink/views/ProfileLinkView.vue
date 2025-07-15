@@ -31,7 +31,9 @@
   }
 
   function goReservation() {
-    if (shop.value?.reservationUrl) window.open(shop.value.reservationUrl, '_blank');
+    if (reservation_url.value) {
+      window.open(reservation_url.value, '_blank');
+    }
   }
 
   function goMap() {
@@ -42,6 +44,15 @@
       window.open(kakaoMapUrl, '_blank');
     }
   }
+
+  const reservation_url = computed(() => {
+    const currentShopId = authStore.shopId;
+    if (currentShopId) {
+      const baseUrl = import.meta.env.VITE_RESERVE_BASE_URL;
+      return `${baseUrl}/reserve/${currentShopId}/staff`;
+    }
+    return '';
+  });
 
   const profile_url = computed(() => {
     const currentShopId = authStore.shopId;
