@@ -131,7 +131,7 @@
     right: 10px;
     display: flex;
     align-items: flex-end;
-    z-index: 3000;
+    z-index: 1;
   }
 
   .chat-inquiry-button {
