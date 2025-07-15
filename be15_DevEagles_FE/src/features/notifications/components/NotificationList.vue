@@ -1,6 +1,4 @@
-<!-- src/features/notifications/components/NotificationList.vue -->
 <script setup>
-  // ✨ [수정] 자체적인 로직(ref, onMounted, watch 등)을 모두 제거합니다.
   import BasePopover from '@/components/common/BasePopover.vue';
   import { useNotifications } from '@/features/notifications/composables/useNotifications.js';
 
@@ -10,11 +8,8 @@
   });
   const emit = defineEmits(['update:modelValue']);
 
-  // ✨ [수정] 컴포넌트는 더 이상 자체적으로 상태를 관리하거나 API를 호출하지 않습니다.
-  // 중앙 관제실에서 최종 가공된 데이터와 필요한 기능만 가져옵니다.
   const { allNotifications, isLoading, handleMarkAsRead } = useNotifications();
 
-  // 헬퍼 함수들은 그대로 유지합니다.
   const getNotificationDetails = type => {
     switch (type) {
       case 'RESERVATION':
@@ -53,12 +48,10 @@
         </div>
 
         <div class="notification-scroll custom-scrollbar">
-          <!-- ✨ [수정] 중앙 관리되는 isLoading 상태를 사용합니다. -->
           <div v-if="isLoading" class="empty-state">
             <p class="empty-text">알림을 불러오는 중입니다...</p>
           </div>
 
-          <!-- ✨ [수정] 중앙 관리되는 최종 알림 목록(allNotifications)을 사용합니다. -->
           <ul v-else-if="allNotifications.length > 0" class="notification-list">
             <li
               v-for="item in allNotifications"
@@ -91,9 +84,7 @@
   </BasePopover>
 </template>
 
-<!-- 스타일 코드는 변경 없이 그대로 유지됩니다. -->
 <style scoped>
-  /* 이전과 동일한 스타일 코드 */
   .notification-wrapper {
     width: 100%;
     max-width: 340px;
