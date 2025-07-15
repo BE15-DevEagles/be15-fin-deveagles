@@ -167,7 +167,11 @@
   const emit = defineEmits(['close', 'submit']);
 
   const date = ref(props.initialDate);
-  const time = ref(props.initialTime);
+  const time = ref(
+    props.initialTime
+      ? props.initialTime.substring(0, 5)
+      : new Date().toTimeString().substring(0, 5)
+  );
   const memo = ref(props.initialMemo);
 
   const selectedMembership = ref({

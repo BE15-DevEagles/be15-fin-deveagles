@@ -52,6 +52,7 @@ public class SecurityConfig {
                         "/auth/login",
                         "/auth/check-email",
                         "/auth/refresh",
+                        "/auth/verify",
                         "/users",
                         "/users/valid-id",
                         "/users/valid-email",
@@ -64,7 +65,12 @@ public class SecurityConfig {
                         HttpMethod.GET,
                         "/shops/get-industry",
                         "/schedules/reservation/settings",
-                        "/schedules/reservation/settings/{shopId}")
+                        "/schedules/reservation/settings/{shopId}",
+                        "/shops/p/{shopId}",
+                        "/staffs/{staffId}",
+                        "/secondary-items/active",
+                        "/primary-items",
+                        "/schedules/reservations/staff/{staffId}/available-times")
                     .permitAll()
                     .requestMatchers(
                         "/api-docs/**",

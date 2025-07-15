@@ -78,7 +78,7 @@
 
               <div ref="dropdownRef" class="dropdown-wrapper">
                 <BaseButton class="primary" @click="toggleDropdown">매출 수정</BaseButton>
-                <div v-if="dropdownVisible" class="dropdown-menu">
+                <div v-if="dropdownVisible" class="sales-dropdown-menu">
                   <BaseButton class="primary" outline @click="handleAction('refund')"
                     >매출 환불</BaseButton
                   >
@@ -106,12 +106,17 @@
       />
       <ItemSalesEditModal
         v-if="showEditModal"
+        :initial-sales-id="props.salesItem.salesId"
         :initial-items="[selectedItems[0]]"
         :initial-memo="memo"
         :initial-date="date"
         :initial-time="time"
         :initial-customer="selectedItems[0]?.customer"
-        @close="handleEditConfirm"
+        :initial-payments="props.salesItem.payments"
+        :shop-id="props.salesItem.shopId"
+        :customer-id="selectedItems[0]?.customerId"
+        @close="handleEditCancel"
+        @submit="handleEditConfirm"
       />
 
       <!-- ✅ 토스트 컴포넌트 추가 -->
@@ -133,7 +138,6 @@
 
   const props = defineProps({ salesItem: Object });
   const emit = defineEmits(['close']);
-
   const dropdownVisible = ref(false);
   const showDeleteModal = ref(false);
   const showRefundModal = ref(false);
@@ -223,12 +227,15 @@
 
       selectedItems.value = [
         {
+          id: detail.secondaryItemId,
           item: detail.secondaryItemName || '알 수 없음',
           staff: detail.staffName,
           salesTotal: detail.retailPrice,
           discount: detail.discountAmount,
           netSales: detail.totalAmount,
           customer: detail.customerName,
+          customerId: detail.customerId,
+          shopId: detail.shopId,
         },
       ];
     } catch (err) {
@@ -254,19 +261,13 @@
     showEditModal.value = true;
   };
 
-  const handleEditConfirm = () => {
-    toastRef.value?.success('상품 매출이 수정되었습니다.');
-    showEditModal.value = false;
-  };
-
-  const handleDeleteConfirm = () => {
-    toastRef.value?.success('상품 매출이 삭제되었습니다.');
-    showDeleteModal.value = false;
-  };
-
   const handleRefundConfirm = () => {
     toastRef.value?.success('상품 매출이 환불되었습니다.');
     showRefundModal.value = false;
+  };
+
+  const handleEditCancel = () => {
+    showEditModal.value = false;
   };
 
   const formatPrice = val => (val || 0).toLocaleString('ko-KR') + '원';

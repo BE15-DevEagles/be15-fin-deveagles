@@ -8,6 +8,7 @@
     <resultMap id="SessionPassSalesDetailResultMap" type="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.SessionPassSalesDetailResponse">
         <id property="salesId" column="sales_id"/>
         <result property="salesDate" column="sales_date"/>
+        <result property="customerId" column="customer_id"/>
         <result property="customerName" column="customer_name"/>
         <result property="staffName" column="staff_name"/>
         <result property="retailPrice" column="retail_price"/>
@@ -33,6 +34,7 @@
         SELECT
             s.sales_id,
             s.sales_date,
+            s.customer_id,
             c.customer_name,
             st.staff_name,
             s.retail_price,

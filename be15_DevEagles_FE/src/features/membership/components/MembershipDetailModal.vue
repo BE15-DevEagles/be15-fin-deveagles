@@ -88,13 +88,12 @@
 </template>
 
 <script setup>
-  import { ref, onMounted } from 'vue';
+  import { ref, onMounted, onUnmounted } from 'vue';
   import BaseCard from '@/components/common/BaseCard.vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseToast from '@/components/common/BaseToast.vue';
   import MembershipRegistModal from '@/features/membership/components/MembershipRegistModal.vue';
   import MembershipEditModal from '@/features/membership/components/MembershipEditModal.vue';
-
   import { getPrepaidPass, getSessionPass } from '@/features/membership/api/membership'; //
 
   const emit = defineEmits(['close']);
@@ -132,6 +131,7 @@
 
   onMounted(() => {
     fetchMemberships();
+    document.addEventListener('keydown', handleKeydown);
   });
 
   const formatPrice = val => `${val.toLocaleString('ko-KR')} 원`;
@@ -160,7 +160,14 @@
     closeRegistModal();
     fetchMemberships(); // 등록 후 목록 다시 불러오기
   };
-
+  const handleKeydown = event => {
+    if (event.key === 'Escape') {
+      close();
+    }
+  };
+  onUnmounted(() => {
+    document.removeEventListener('keydown', handleKeydown);
+  });
   const showEditModal = ref(false);
   const openEditModal = item => {
     membershipForm.value = {
@@ -247,6 +254,8 @@
     margin: 16px 0;
     height: 1px;
     background-color: #e2e2e2;
+    width: 100%;
+    flex-shrink: 0;
   }
   .info-action-row {
     display: flex;

@@ -1,6 +1,6 @@
 package com.deveagles.be15_deveagles_be.features.sales.query.dto.request;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
@@ -8,8 +8,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class SalesListFilterRequest {
-  private LocalDate startDate;
-  private LocalDate endDate;
+  private LocalDateTime startDate;
+  private LocalDateTime endDate;
   private List<String> saleTypes;
   private List<String> itemTypes;
   private Long staffId;

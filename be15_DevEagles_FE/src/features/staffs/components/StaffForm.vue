@@ -47,6 +47,8 @@
         { value: true, text: '재직중' },
         { value: false, text: '퇴사' },
       ]"
+      :error="errors.working"
+      @focus="clearError('working')"
     />
     <PrimeDatePicker v-model="form.joinedDate" label="입사일" />
     <PrimeDatePicker
@@ -83,7 +85,7 @@
     description: '',
     joinedDate: null,
     leftDate: null,
-    working: true,
+    working: false,
     colorCode: '#3FC1C9',
   });
 
@@ -158,6 +160,7 @@
     email: '',
     phoneNumber: '',
     grade: '',
+    working: '',
   });
 
   const clearError = field => {
@@ -232,7 +235,7 @@
     }
 
     if (!form.value.staffName) {
-      errors.value.staffName = '대표자명을 입력해주세요.';
+      errors.value.staffName = '직원명을 입력해주세요.';
       valid = false;
     }
 
@@ -248,6 +251,11 @@
 
     if (!form.value.grade) {
       errors.value.grade = '직급을 입력해주세요.';
+      valid = false;
+    }
+
+    if ((form.value.working === 'false' || form.value.working === false) && !form.value.leftDate) {
+      errors.value.working = '퇴사일을 입력하셔야 합니다.';
       valid = false;
     }
 
