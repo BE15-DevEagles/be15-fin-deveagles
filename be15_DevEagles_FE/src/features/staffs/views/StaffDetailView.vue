@@ -32,6 +32,7 @@
   import { useRouter } from 'vue-router';
   import { getStaffDetail, putStaffDetail } from '@/features/staffs/api/staffs.js';
   import BaseToast from '@/components/common/BaseToast.vue';
+  import dayjs from 'dayjs';
 
   const props = defineProps({
     staffId: [String, Number],
@@ -87,14 +88,17 @@
     change.description = isDifferent('description');
     change.colorCode = isDifferent('colorCode');
 
-    const formatDate = d => (d ? new Date(d).toISOString().split('T')[0] : null);
+    const formatDate = date => {
+      const d = dayjs(date);
+      return d.isValid() ? d.format('YYYY-MM-DD') : null;
+    };
 
     change.joinedDate =
       formatDate(current.joinedDate) !== formatDate(origin.joinedDate)
         ? formatDate(current.joinedDate)
         : formatDate(origin.joinedDate);
 
-    change.leftDate = current.working === true ? null : formatDate(current.leftDate);
+    change.leftDate = current.working === 'true' ? null : formatDate(current.leftDate);
 
     change.permissions = current.permissions || [];
 

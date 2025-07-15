@@ -2,7 +2,7 @@
   <div class="mypage-container">
     <div v-if="isLoading">로딩 중 ...</div>
 
-    <div v-else class="profile-card-vertical">
+    <form v-else class="profile-card-vertical">
       <div class="form-fields">
         <div class="label-row">
           <label for="email">아이디</label>
@@ -17,6 +17,7 @@
           v-model="staff.email"
           type="email"
           :error="errors.email"
+          autocomplete="email"
           @blur="emailChecked"
           @focus="clearError('email')"
         />
@@ -30,6 +31,7 @@
           v-model="staff.phoneNumber"
           type="text"
           :error="errors.phoneNumber"
+          autocomplete="phoneNumber"
           @blur="phoneChecked"
           @focus="clearError('phoneNumber')"
         />
@@ -44,6 +46,7 @@
           type="password"
           placeholder="변경할 비밀번호를 입력해주세요."
           :error="errors.password"
+          autocomplete="new-password"
           @blur="passwordChecked"
           @focus="clearError('password')"
         />
@@ -57,6 +60,7 @@
           type="password"
           placeholder="비밀번호를 한 번 더 입력해주세요."
           :error="errors.checkPwd"
+          autocomplete="new-password"
           @blur="checkPwdChecked"
           @focus="clearError('checkPwd')"
         />
@@ -67,7 +71,7 @@
           </BaseButton>
         </div>
       </div>
-    </div>
+    </form>
     <BaseToast ref="toastRef" />
   </div>
 </template>

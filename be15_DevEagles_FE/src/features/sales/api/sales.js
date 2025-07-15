@@ -1,9 +1,11 @@
 import api from '@/plugins/axios'; // 토큰 및 리프레시 포함된 axios 인스턴스 사용
+import qs from 'qs';
 
 // 매출 전체 조회
 export const getSalesList = async (filters = {}) => {
   const response = await api.get('/sales', {
     params: filters,
+    paramsSerializer: params => qs.stringify(params, { arrayFormat: 'repeat' }),
   });
   return response.data.data; // ApiResponse.success(result) 기준
 };

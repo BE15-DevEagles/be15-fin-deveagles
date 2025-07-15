@@ -9,6 +9,7 @@
         type="text"
         placeholder="아이디를 입력해주세요."
         :error="errors.loginId"
+        autocomplete="username"
         @focus="clearError('loginId')"
       />
 
@@ -18,6 +19,7 @@
         type="password"
         placeholder="비밀번호를 입력해주세요."
         :error="errors.password"
+        autocomplete="current-password"
         @focus="clearError('password')"
       />
 

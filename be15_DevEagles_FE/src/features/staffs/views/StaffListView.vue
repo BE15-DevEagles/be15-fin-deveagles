@@ -45,8 +45,8 @@
         <!-- 재직 상태 커스터마이징 -->
         <template #cell-isActive="{ item }">
           <BaseBadge
-            :type="item.leftDate ? 'error' : 'success'"
-            :text="item.leftDate ? '퇴직' : '재직'"
+            :type="item.working ? 'success' : 'error'"
+            :text="item.working ? '재직' : '퇴직'"
             dot
           />
         </template>

@@ -15,6 +15,7 @@ public class SalesListResponse {
   private Long salesId;
   private LocalDateTime salesDate;
   private String salesType; // 상품 / 회원권 / 환불
+  private Long staffId;
   private String staffName;
   private String customerName;
   private String secondaryItemName;

@@ -10,6 +10,7 @@
         <id property="salesId" column="sales_id"/>
         <result property="salesDate" column="sales_date"/>
         <result property="salesType" column="sales_type"/>
+        <result property="staffId" column="staff_id"/>
         <result property="staffName" column="staff_name"/>
         <result property="customerName" column="customer_name"/>
         <result property="secondaryItemName" column="item_name"/>
@@ -27,16 +28,17 @@
 
     <select id="findSalesListWithoutPayments" resultMap="SalesListWithoutPaymentsMap">
         SELECT
+        s.staff_id,
         s.sales_id,
         s.sales_date,
         CASE
         WHEN s.total_amount &lt; 0 OR s.is_refunded = TRUE THEN 'REFUND'
-        WHEN EXISTS (SELECT 1 FROM item_sales i2 WHERE i2.sales_id = s.sales_id) THEN 'ITEMS'
         WHEN EXISTS (
         SELECT 1 FROM session_pass_sales sp2 WHERE sp2.sales_id = s.sales_id
         UNION
         SELECT 1 FROM prepaid_pass_sales pp2 WHERE pp2.sales_id = s.sales_id
-        ) THEN 'MEMBERSHIP'
+        ) AND NOT EXISTS (SELECT 1 FROM item_sales i3 WHERE i3.sales_id = s.sales_id) THEN 'MEMBERSHIP'
+        WHEN EXISTS (SELECT 1 FROM item_sales i2 WHERE i2.sales_id = s.sales_id) THEN 'ITEMS'
         ELSE 'UNKNOWN'
         END AS sales_type,
         st.staff_name,
@@ -79,10 +81,15 @@
                 <choose>
                     <when test="'ITEMS'.equals(type)">
                         EXISTS (SELECT 1 FROM item_sales i2 WHERE i2.sales_id = s.sales_id)
+                        AND (s.total_amount >= 0 AND s.is_refunded = FALSE)
                     </when>
                     <when test="'MEMBERSHIP'.equals(type)">
+                        (
                         EXISTS (SELECT 1 FROM session_pass_sales sp2 WHERE sp2.sales_id = s.sales_id)
                         OR EXISTS (SELECT 1 FROM prepaid_pass_sales pp2 WHERE pp2.sales_id = s.sales_id)
+                        )
+                        AND NOT EXISTS (SELECT 1 FROM item_sales i3 WHERE i3.sales_id = s.sales_id)
+                        AND (s.total_amount >= 0 AND s.is_refunded = FALSE)
                     </when>
                     <when test="'REFUND'.equals(type)">
                         s.total_amount &lt; 0 OR s.is_refunded = TRUE
@@ -110,6 +117,7 @@
         <foreach item="id" collection="salesIds" open="(" separator="," close=")">
             #{id}
         </foreach>
+        AND p.deleted_at IS NULL
     </select>
 
     <!-- 전체 건수 조회 -->

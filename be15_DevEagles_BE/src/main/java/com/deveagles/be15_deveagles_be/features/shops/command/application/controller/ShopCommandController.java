@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -53,10 +52,8 @@ public class ShopCommandController {
     return ResponseEntity.ok().body(ApiResponse.success(response));
   }
 
-  // 공개 프로필용(인증 불필요) 매장 정보 조회 API ---
   @Transactional(readOnly = true)
   @GetMapping("/p/{shopId}")
-  @PreAuthorize("permitAll()") // 로그인하지 않은 사용자도 이 API는 호출 가능하도록 설정
   public ResponseEntity<ApiResponse<GetShopResponse>> getPublicShopInfo(
       @PathVariable Long shopId) { // URL 경로에서 shopId를 변수로 받음
 

@@ -73,7 +73,7 @@
 
               <div ref="dropdownRef" class="dropdown-wrapper">
                 <BaseButton class="primary" @click="toggleDropdown">매출 수정</BaseButton>
-                <div v-if="dropdownVisible" class="dropdown-menu">
+                <div v-if="dropdownVisible" class="sales-dropdown-menu">
                   <BaseButton class="primary" outline @click="handleAction('refund')">
                     매출 환불
                   </BaseButton>
@@ -130,7 +130,8 @@
         :initial-date="date"
         :initial-time="time"
         :initial-payments="props.salesItem.payments"
-        @close="handleEditConfirm"
+        @close="handleEditCancel"
+        @submit="handleEditConfirm"
       />
 
       <!-- ✅ Toast 추가 -->
@@ -314,5 +315,8 @@
     showRefundModal.value = false;
   };
 
+  const handleEditCancel = () => {
+    showEditModal.value = false;
+  };
   const formatPrice = val => (val || 0).toLocaleString('ko-KR') + '원';
 </script>

@@ -1,6 +1,8 @@
 <template>
   <div class="sales-page-wrapper">
     <BaseToast ref="toastRef" />
+
+    <!-- 헤더 -->
     <div class="header-row">
       <h1 class="page-title">매출 등록/목록</h1>
       <div class="button-group">
@@ -9,11 +11,12 @@
       </div>
     </div>
 
+    <!-- 검색 -->
     <div class="search-bar">
       <BaseForm
         v-model="customerKeyword"
         type="text"
-        placeholder="고객명/매출메모 검색"
+        placeholder="고객명 검색"
         style="width: 300px"
         @keydown.enter="applySearch"
       />
@@ -22,13 +25,23 @@
       </BaseButton>
     </div>
 
+    <!-- 필터 뱃지 -->
+
     <div v-if="filterState" class="filter-badges">
       <span v-if="filterState.startDate && filterState.endDate" class="badge">
         날짜: {{ formatDate(filterState.startDate) }} ~ {{ formatDate(filterState.endDate) }}
         <button @click="clearField('date')">×</button>
       </span>
+      <span v-else-if="filterState.startDate" class="badge">
+        날짜: {{ formatDate(filterState.startDate) }} ~
+        <button @click="clearField('date')">×</button>
+      </span>
+      <span v-else-if="filterState.endDate" class="badge">
+        날짜: ~ {{ formatDate(filterState.endDate) }}
+        <button @click="clearField('date')">×</button>
+      </span>
       <span v-if="filterState.types?.length" class="badge">
-        매출유형: {{ filterState.types.join(', ') }}
+        매출유형: {{ filterState.types.map(mapTypeToKorean).join(', ') }}
         <button @click="clearField('types')">×</button>
       </span>
       <span v-if="filterState.staff" class="badge">
@@ -37,6 +50,7 @@
       </span>
     </div>
 
+    <!-- 테이블 -->
     <SalesTableForm
       ref="salesTableRef"
       :customer-keyword="customerKeyword"
@@ -46,8 +60,10 @@
       @update:total-items="totalItems = $event"
     />
 
+    <!-- 필터 모달 -->
     <SalesFilterModal v-if="showFilterModal" v-model="showFilterModal" @apply="handleFilterApply" />
 
+    <!-- 회원권 판매 등록 모달 -->
     <div v-if="showMembershipModal" class="overlay" @click.self="showMembershipModal = false">
       <div class="modal-panel">
         <MembershipSalesRegistModal
@@ -57,6 +73,7 @@
       </div>
     </div>
 
+    <!-- 상품 판매 등록 모달 -->
     <div v-if="showItemModal" class="overlay" @click.self="showItemModal = false">
       <div class="modal-panel">
         <ItemsSalesRegistModal @close="showItemModal = false" @submit="handleItemSubmit" />
@@ -90,7 +107,14 @@
   };
 
   const handleFilterApply = filters => {
-    filterState.value = filters;
+    // staffName은 staff로, staffId는 따로 유지
+    filterState.value = {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      types: filters.types,
+      staff: filters.staffName ?? '', // 담당자 이름
+      staffId: filters.staffId ?? null, // 담당자 ID (table용)
+    };
     currentPage.value = 1;
     showFilterModal.value = false;
   };
@@ -112,6 +136,7 @@
         break;
       case 'staff':
         newFilter.staff = null;
+        newFilter.staffId = null;
         break;
     }
     filterState.value = newFilter;
@@ -123,6 +148,19 @@
       month: '2-digit',
       day: '2-digit',
     });
+
+  const mapTypeToKorean = type => {
+    switch (type) {
+      case 'ITEMS':
+        return '상품';
+      case 'MEMBERSHIP':
+        return '회원권';
+      case 'REFUND':
+        return '환불';
+      default:
+        return type;
+    }
+  };
 
   const handleMembershipSubmit = () => {
     showMembershipModal.value = false;
@@ -199,6 +237,5 @@
     display: flex;
     flex-direction: column;
     padding: 24px;
-    overflow-y: auto;
   }
 </style>

@@ -15,6 +15,7 @@ public class ItemSalesDetailResponse {
   // sales
   private Long salesId;
   private String salesDate;
+  private Long customerId;
   private String customerName;
   private String staffName;
   private Integer retailPrice;
@@ -26,6 +27,7 @@ public class ItemSalesDetailResponse {
 
   // item_sales
   private Long itemSalesId;
+  private Long secondaryItemId;
   private String secondaryItemName;
   private Integer itemDiscountRate;
   private Integer quantity;

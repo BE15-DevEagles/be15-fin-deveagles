@@ -4,7 +4,7 @@ import {
   getMyNotifications,
   markNotificationAsRead,
 } from '@/features/notifications/api/notifications.js';
-import { useToast } from '@/composables/useToast'; // 수정된 useToast 훅을 임포트합니다.
+import { useToast } from '@/composables/useToast';
 
 const historicalNotifications = ref([]);
 const realtimeNotifications = ref([]);
@@ -14,7 +14,7 @@ let eventSource = null;
 
 export function useNotifications() {
   const authStore = useAuthStore();
-  const { showToast } = useToast(); // 수정된 훅에서 showToast 함수를 가져옵니다.
+  const { showToast } = useToast();
 
   const allNotifications = computed(() => {
     const historicalIds = new Set(historicalNotifications.value.map(n => n.notificationId));
@@ -57,7 +57,7 @@ export function useNotifications() {
     eventSource.addEventListener('notification', event => {
       try {
         realtimeNotifications.value.unshift(JSON.parse(event.data));
-        // ✨ [핵심] 새로운 알림이 오면 토스트 메시지를 띄웁니다.
+        // 새로운 알림이 오면 토스트 메시지를 띄웁니다.
         showToast('새로운 알림이 있습니다.');
       } catch (e) {
         console.error('SSE 데이터 파싱 오류', e);
