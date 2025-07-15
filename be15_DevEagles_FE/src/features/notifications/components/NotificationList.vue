@@ -8,7 +8,6 @@
   });
   const emit = defineEmits(['update:modelValue']);
 
-  // 중앙 관제실에서 최종 가공된 데이터와 필요한 기능만 가져옵니다.
   const { allNotifications, isLoading, handleMarkAsRead } = useNotifications();
 
   const getNotificationDetails = type => {
@@ -49,12 +48,10 @@
         </div>
 
         <div class="notification-scroll custom-scrollbar">
-          <!-- 중앙 관리되는 isLoading 상태를 사용합니다. -->
           <div v-if="isLoading" class="empty-state">
             <p class="empty-text">알림을 불러오는 중입니다...</p>
           </div>
 
-          <!-- 중앙 관리되는 최종 알림 목록(allNotifications)을 사용합니다. -->
           <ul v-else-if="allNotifications.length > 0" class="notification-list">
             <li
               v-for="item in allNotifications"
