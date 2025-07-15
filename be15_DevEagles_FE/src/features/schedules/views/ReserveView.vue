@@ -59,20 +59,23 @@
           <h4>오전</h4>
           <div class="time-grid">
             <BaseButton
-              v-for="t in times.am"
+              v-for="t in amSlots"
               :key="t"
               :outline="form.time !== t"
+              :disabled="bookedTimes.includes(t)"
               @click="selectTime(t)"
             >
               {{ t }}
             </BaseButton>
           </div>
+
           <h4>오후</h4>
           <div class="time-grid">
             <BaseButton
-              v-for="t in times.pm"
-              :key="'pm-' + t"
+              v-for="t in pmSlots"
+              :key="t"
               :class="['btn', form.time === t ? 'btn-primary' : 'btn-outline btn-primary']"
+              :disabled="bookedTimes.includes(t)"
               @click="selectTime(t)"
             >
               {{ t }}
@@ -121,12 +124,13 @@
               {{ item.secondaryItemName }}
               ( {{ item.secondaryItemPrice.toLocaleString() }}원
               <template v-if="item.timeTaken != null && item.timeTaken !== 0">
-                / {{ item.timeTaken }}분 </template
-              >)
+                / {{ item.timeTaken }}분
+              </template>
+              )
             </div>
           </div>
           <div class="submit-area">
-            <BaseButton type="primary" :disabled="!isValid" @click="submitReservation">
+            <BaseButton type="primary" :disabled="!isValid" @click="openConfirmModal">
               예약하기
             </BaseButton>
           </div>
@@ -134,6 +138,14 @@
       </div>
     </div>
   </div>
+  <BaseConfirm
+    v-model="showConfirm"
+    title="예약 확인"
+    :message="reservationMessage"
+    confirm-text="예약하기"
+    cancel-text="취소"
+    @confirm="handleConfirmReservation"
+  />
 </template>
 
 <script setup>
@@ -143,36 +155,217 @@
   import BaseButton from '@/components/common/BaseButton.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
   import BaseBadge from '@/components/common/BaseBadge.vue';
+  import { useRouter } from 'vue-router';
+  import BaseConfirm from '@/components/common/BaseConfirm.vue';
 
-  // API
   import {
     getActiveSecondaryItems,
     getAllPrimaryItems,
+    fetchStaffBookedTimes,
+    fetchReservationSettings,
+    createCustomReservation,
   } from '@/features/schedules/api/schedules.js';
 
+  const timeSlots = ref([]);
   const toast = useToast();
   const route = useRoute();
   const phoneInput = ref('');
   const badgeColorMap = reactive({});
-  // 상품 상태
+  const shopId = route.params.shopId;
+  const bookedTimes = ref([]);
   const primaryItems = ref([]);
   const selectedPrimaryId = ref(null);
   const allSecondaryItems = ref([]);
-
-  // 탭별 선택 상태
+  const router = useRouter();
+  const showConfirm = ref(false);
   const selectedServicesMap = reactive({});
 
-  // 예약 form
   const form = reactive({
-    designerId: route.params.id,
+    staffId: route.params.staffId,
     customer: '',
     phone: '',
     memo: '',
     date: null,
     time: '',
     menu: '',
-    services: [], // 현재 탭에서 보여줄 선택
+    services: [],
   });
+
+  const reservationMessage = computed(() => {
+    if (!form.date || !form.time) return '선택된 시간 정보가 없습니다.';
+    const d = new Date(form.date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hhmm = form.time;
+    return `${yyyy}-${mm}-${dd} ${hhmm} 에 예약하시겠습니까?`;
+  });
+
+  const amSlots = computed(() => timeSlots.value.filter(t => Number(t.split(':')[0]) < 12));
+
+  const pmSlots = computed(() => timeSlots.value.filter(t => Number(t.split(':')[0]) >= 12));
+  watch(timeSlots, val => {
+    console.log('timeSlots 값:', val);
+  });
+  const generateTimeSlots = (start, end, term, lunchStart, lunchEnd) => {
+    const slots = [];
+    const toMinutes = t => t.hours * 60 + t.minutes;
+
+    let current = toMinutes(start);
+    const endMinutes = toMinutes(end);
+    const lunchStartMin = toMinutes(lunchStart);
+    const lunchEndMin = toMinutes(lunchEnd);
+
+    while (current <= endMinutes) {
+      if (current < lunchStartMin || current >= lunchEndMin) {
+        const hours = Math.floor(current / 60);
+        const minutes = current % 60;
+        const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        slots.push(formatted);
+      }
+      current += term;
+    }
+    return slots;
+  };
+  const getDayOfWeek = date => {
+    const jsDay = new Date(date).getDay();
+    // 서버의 availableDay: 1(월)~7(일)
+    return jsDay === 0 ? 7 : jsDay;
+  };
+  const openConfirmModal = () => {
+    if (!isValid.value) {
+      toast.warning('모든 필수 항목을 입력해주세요.');
+      return;
+    }
+    showConfirm.value = true;
+  };
+
+  // 실제 확인 시 실행되는 함수
+  const handleConfirmReservation = async () => {
+    try {
+      // 예약 등록 로직 실행 (submitReservation 로직 사용)
+      const [hour, minute] = form.time.split(':').map(n => parseInt(n, 10));
+      const startDateTime = new Date(form.date);
+      startDateTime.setHours(hour, minute, 0, 0);
+
+      // 시술 소요시간 계산 (30분 기준, 필요 시 동적으로 변경)
+      const unitMinutes = 30;
+      const endDateTime = new Date(startDateTime.getTime() + unitMinutes * 60000);
+
+      const selectedIds = allSelectedServices.value
+        .map(svc => {
+          const item = allSecondaryItems.value.find(i => i.secondaryItemName === svc.name);
+          return item ? item.secondaryItemId : null;
+        })
+        .filter(id => id !== null);
+
+      const reservationStartAt = formatDateTimeLocal(form.date, form.time);
+      const reservationEndAt = formatDateTimeLocal(
+        form.date,
+        `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`
+      );
+
+      const payload = {
+        shopId: Number(shopId),
+        staffId: Number(form.staffId),
+        customerId: null,
+        customerName: form.customer,
+        customerPhone: form.phone.replace(/-/g, ''), // 하이픈 제거
+        reservationMemo: form.memo,
+        reservationStartAt,
+        reservationEndAt,
+        secondaryItemIds: selectedIds,
+      };
+
+      console.log('전송할 payload:', payload);
+
+      const reservationId = await createCustomReservation(payload);
+      toast.success('예약이 완료되었습니다! 예약번호: ' + reservationId);
+
+      router.push(`/p/${shopId}`);
+    } catch (err) {
+      console.error('예약 생성 중 오류:', err);
+      toast.error('예약 생성 중 오류가 발생했습니다.');
+    }
+  };
+  onMounted(async () => {
+    try {
+      const settings = await fetchReservationSettings(shopId);
+
+      const day = getDayOfWeek(new Date());
+      const settingForDay = settings.find(s => s.availableDay === day);
+
+      if (!settingForDay) {
+        console.warn('해당 요일의 설정을 찾을 수 없습니다.');
+        timeSlots.value = [];
+        return;
+      }
+
+      const parseTime = str => {
+        const [h, m] = str.split(':').map(n => parseInt(n, 10));
+        return { hours: h, minutes: m };
+      };
+
+      const start = parseTime(settingForDay.availableStartTime);
+      const end = parseTime(settingForDay.availableEndTime);
+      const lunchStart = parseTime(settingForDay.lunchStartTime);
+      const lunchEnd = parseTime(settingForDay.lunchEndTime);
+      const term = settingForDay.reservationUnitMinutes;
+
+      timeSlots.value = generateTimeSlots(start, end, term, lunchStart, lunchEnd);
+    } catch (e) {
+      console.error('예약 설정 조회 실패', e);
+    }
+  });
+
+  const loadBookedTimes = async () => {
+    try {
+      const res = await fetchStaffBookedTimes(form.staffId, formatDateOnly(form.date));
+      bookedTimes.value = Array.isArray(res.bookedTimes) ? res.bookedTimes.map(bt => bt.time) : [];
+    } catch (e) {
+      console.error('예약된 시간 조회 실패', e);
+      bookedTimes.value = [];
+    }
+  };
+
+  watch(
+    () => form.date,
+    async newDate => {
+      if (!newDate) {
+        bookedTimes.value = [];
+        form.time = '';
+        timeSlots.value = [];
+        return;
+      }
+
+      await loadBookedTimes();
+      form.time = '';
+
+      const settings = await fetchReservationSettings(shopId);
+      const day = getDayOfWeek(newDate);
+      const settingForDay = settings.find(s => s.availableDay === day);
+
+      if (!settingForDay) {
+        timeSlots.value = [];
+        return;
+      }
+
+      const parseTime = str => {
+        const [h, m] = str.split(':').map(n => parseInt(n, 10));
+        return { hours: h, minutes: m };
+      };
+
+      const generated = generateTimeSlots(
+        parseTime(settingForDay.availableStartTime),
+        parseTime(settingForDay.availableEndTime),
+        settingForDay.reservationUnitMinutes,
+        parseTime(settingForDay.lunchStartTime),
+        parseTime(settingForDay.lunchEndTime)
+      );
+
+      timeSlots.value = generated;
+    }
+  );
 
   const allSelectedServices = computed(() => {
     const result = [];
@@ -187,12 +380,10 @@
     return result;
   });
 
-  // 초기 데이터
   onMounted(async () => {
     try {
       primaryItems.value = await getAllPrimaryItems();
       allSecondaryItems.value = await getActiveSecondaryItems();
-      // 예: 색상 타입을 반복해서 할당
       const colorTypes = ['neutral', 'primary', 'secondary', 'success', 'warning', 'error'];
       primaryItems.value.forEach((item, idx) => {
         badgeColorMap[item.primaryItemId] = colorTypes[idx % colorTypes.length];
@@ -207,7 +398,6 @@
     }
   });
 
-  // 1차 선택
   const selectPrimary = item => {
     selectedPrimaryId.value = item.primaryItemId;
     form.menu = item.primaryItemName;
@@ -216,13 +406,11 @@
       : [];
   };
 
-  // 2차 목록
   const filteredSecondaryItems = computed(() => {
     if (!selectedPrimaryId.value) return [];
     return allSecondaryItems.value.filter(item => item.primaryItemId === selectedPrimaryId.value);
   });
 
-  // 2차 선택 토글
   const toggleService = serviceName => {
     const primaryId = selectedPrimaryId.value;
     if (!selectedServicesMap[primaryId]) {
@@ -238,9 +426,7 @@
     form.services = [...arr];
   };
 
-  // X 버튼으로 제거
   const removeService = serviceName => {
-    // 모든 탭에서 해당 서비스 제거
     for (const key in selectedServicesMap) {
       const arr = selectedServicesMap[key];
       const idx = arr.indexOf(serviceName);
@@ -248,17 +434,18 @@
         arr.splice(idx, 1);
       }
     }
-    // 현재 탭의 선택 목록도 다시 동기화
     const currentArr = selectedServicesMap[selectedPrimaryId.value];
     form.services = currentArr ? [...currentArr] : [];
   };
 
-  // 시간 선택
   const selectTime = time => {
-    form.time = time;
+    if (form.time === time) {
+      form.time = '';
+    } else {
+      form.time = time;
+    }
   };
 
-  // 전화번호 입력 포맷팅
   watch(phoneInput, val => {
     let digits = val.replace(/\D/g, '');
     if (val !== digits) toast.warning('숫자만 입력 가능합니다.');
@@ -273,8 +460,21 @@
     phoneInput.value = formatted;
     form.phone = formatted;
   });
+  const formatDateTimeLocal = (date, time) => {
+    const d = new Date(date);
+    const [hour, minute] = time.split(':').map(n => parseInt(n, 10));
+    d.setHours(hour, minute, 0, 0);
 
-  // 날짜 포맷
+    // KST 그대로 문자열로 보내기 (ISO X)
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const HH = String(d.getHours()).padStart(2, '0');
+    const MM = String(d.getMinutes()).padStart(2, '0');
+    const SS = '00';
+
+    return `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}`; // Z 안 붙임
+  };
   const formatDateOnly = date => {
     const d = new Date(date);
     const yyyy = d.getFullYear();
@@ -283,7 +483,6 @@
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  // 유효성 검사
   const isValid = computed(() => {
     return (
       form.customer.trim() &&
@@ -295,38 +494,71 @@
     );
   });
 
-  // 예약하기
-  const submitReservation = () => {
+  const submitReservation = async () => {
     if (!isValid.value) {
       toast.warning('모든 필수 항목을 입력해주세요.');
       return;
     }
-    const payload = {
-      ...form,
-      services: allSelectedServices.value, // 전체 선택된 서비스 전송
-      date: form.date ? formatDateOnly(form.date) : '',
-    };
-    toast.success('예약 정보가 정상적으로 준비되었습니다.');
-    alert('예약 정보:\n' + JSON.stringify(payload, null, 2));
-  };
 
-  // 시간대
-  const times = {
-    am: ['10:00', '10:30', '11:00', '11:30'],
-    pm: [
-      '12:00',
-      '12:30',
-      '13:00',
-      '13:30',
-      '14:00',
-      '14:30',
-      '15:00',
-      '15:30',
-      '16:00',
-      '16:30',
-      '17:00',
-      '17:30',
-    ],
+    try {
+      // 1. 선택한 시술들의 총 소요시간 계산 (분 단위)
+      const totalDuration = allSelectedServices.value.reduce((sum, svc) => {
+        const item = allSecondaryItems.value.find(i => i.secondaryItemName === svc.name);
+        return sum + (item && item.timeTaken ? item.timeTaken : 0);
+      }, 0);
+
+      // 2. 시작시간을 Date로 변환
+      const startDateTime = new Date(form.date);
+      const [startHour, startMin] = form.time.split(':').map(n => parseInt(n, 10));
+      startDateTime.setHours(startHour, startMin, 0, 0);
+
+      // 3. 종료시간 = 시작시간 + 총 소요시간(분)
+      const endDateTime = new Date(startDateTime.getTime() + totalDuration * 60000);
+
+      // 4. LocalDateTime 포맷으로 변환 (KST 그대로)
+      const toLocalDateTimeString = d => {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const HH = String(d.getHours()).padStart(2, '0');
+        const MM = String(d.getMinutes()).padStart(2, '0');
+        const SS = '00';
+        return `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}`;
+      };
+      const reservationStartAt = toLocalDateTimeString(startDateTime);
+      const reservationEndAt = toLocalDateTimeString(endDateTime);
+
+      // 5. 선택된 secondaryItemIds
+      const secondaryItemIds = allSelectedServices.value
+        .map(svc => {
+          const item = allSecondaryItems.value.find(i => i.secondaryItemName === svc.name);
+          return item ? item.secondaryItemId : null;
+        })
+        .filter(id => id !== null);
+      const phoneRaw = form.phone.replace(/-/g, '');
+      // 6. payload 구성
+      const payload = {
+        shopId: Number(shopId),
+        staffId: Number(form.staffId),
+        customerId: null,
+        customerName: form.customer,
+        customerPhone: phoneRaw,
+        reservationMemo: form.memo,
+        reservationStartAt,
+        reservationEndAt,
+        secondaryItemIds,
+      };
+
+      console.log('전송할 payload:', payload);
+
+      // 7. API 호출
+      const reservationId = await createCustomReservation(payload);
+      toast.success('예약이 완료되었습니다! 예약번호: ' + reservationId);
+      console.log('생성된 예약 ID:', reservationId);
+    } catch (err) {
+      console.error('예약 생성 중 오류:', err);
+      toast.error('예약 생성 중 오류가 발생했습니다.');
+    }
   };
 </script>
 
@@ -368,6 +600,7 @@
     height: 60px;
     width: auto;
   }
+
   .selected-tags {
     display: flex;
     flex-wrap: wrap;
@@ -513,5 +746,13 @@
     padding-top: 16px;
     display: flex;
     justify-content: flex-end;
+  }
+
+  button:disabled {
+    background-color: var(--color-gray-200);
+    color: var(--color-gray-500);
+    border-color: var(--color-gray-300);
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 </style>
