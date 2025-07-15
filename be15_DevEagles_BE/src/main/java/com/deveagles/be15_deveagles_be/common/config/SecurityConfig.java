@@ -52,6 +52,7 @@ public class SecurityConfig {
                         "/auth/login",
                         "/auth/check-email",
                         "/auth/refresh",
+                        "/auth/verify",
                         "/users",
                         "/users/valid-id",
                         "/users/valid-email",

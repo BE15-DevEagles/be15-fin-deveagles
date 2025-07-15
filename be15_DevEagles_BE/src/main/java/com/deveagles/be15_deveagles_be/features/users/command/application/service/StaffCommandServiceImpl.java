@@ -166,6 +166,7 @@ public class StaffCommandServiceImpl implements StaffCommandService {
         .colorCode(staff.getColorCode())
         .isWorking(isWorking)
         .joinedDate(staff.getJoinedDate())
+        .leftDate(staff.getLeftDate())
         .phoneNumber(staff.getPhoneNumber())
         .description(staff.getStaffDescription())
         .profileUrl(staff.getProfileUrl())
