@@ -208,3 +208,20 @@ export const updateRegularPlan = (regularPlanId, payload) => {
 export const switchScheduleType = payload => {
   return api.post('/schedules/plans/switch', payload);
 };
+
+export const getStaffDetail = async staffId => {
+  const response = await api.get(`/staffs/${staffId}`);
+  return response.data.data;
+};
+
+export const fetchStaffBookedTimes = async (staffId, date) => {
+  const response = await api.get(`/schedules/reservations/staff/${staffId}/available-times`, {
+    params: { date },
+  });
+  return response.data.data;
+};
+
+export const createCustomReservation = async payload => {
+  const response = await api.post('/schedules/reservations', payload);
+  return response.data.data;
+};

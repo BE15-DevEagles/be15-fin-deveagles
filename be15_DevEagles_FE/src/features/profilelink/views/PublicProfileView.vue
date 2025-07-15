@@ -30,7 +30,12 @@
   }
 
   function goReservation() {
-    if (shop.value?.reservationUrl) window.open(shop.value.reservationUrl, '_blank');
+    const shopId = route.params.shopId;
+    if (shopId) {
+      window.open(`/reserve/${shopId}/staff`, '_blank');
+    } else {
+      console.error('shopId를 찾을 수 없습니다.');
+    }
   }
 
   function goMap() {
