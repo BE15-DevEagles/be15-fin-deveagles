@@ -24,23 +24,6 @@
         />
       </div>
 
-      <!-- 상품유형 -->
-      <div v-if="types.includes('상품')" class="form-section">
-        <label class="section-title">상품 유형</label>
-        <div class="button-group">
-          <BaseButton
-            v-for="option in productTypes"
-            :key="option"
-            outline
-            type="primary"
-            :class="{ selected: selectedProducts.includes(option) }"
-            @click="toggleProduct(option)"
-          >
-            {{ option }}
-          </BaseButton>
-        </div>
-      </div>
-
       <!-- 담당자 -->
       <div class="form-section">
         <BaseForm
@@ -80,10 +63,8 @@
   const startDate = ref(null);
   const endDate = ref(null);
   const types = ref([]);
-  const selectedProducts = ref([]);
   const selectedStaff = ref('');
 
-  const productTypes = ['시술', '상품', '패키지'];
   const staffOptions = ['김경민', '홍길동', '김민지'];
 
   // v-model sync
@@ -96,21 +77,6 @@
   watch(isVisible, val => {
     emit('update:modelValue', val);
   });
-
-  watch(types, newVal => {
-    if (!newVal.includes('상품')) {
-      selectedProducts.value = [];
-    }
-  });
-
-  const toggleProduct = option => {
-    const index = selectedProducts.value.indexOf(option);
-    if (index >= 0) {
-      selectedProducts.value.splice(index, 1);
-    } else {
-      selectedProducts.value.push(option);
-    }
-  };
 
   const close = () => {
     isVisible.value = false;
@@ -126,10 +92,8 @@
       startDate: startDate.value,
       endDate: adjustedEndDate,
       types: types.value,
-      products: selectedProducts.value,
       staff: selectedStaff.value,
     });
-
     close();
   };
 </script>
@@ -159,29 +123,17 @@
     gap: 1rem;
   }
 
-  .button-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .button-group :deep(.btn) {
-    padding: 6px 12px;
-    font-size: 14px;
-    border-radius: 6px;
-  }
-
-  .button-group :deep(.btn.selected) {
-    background-color: #364f6b;
-    color: white;
-    border-color: #364f6b;
-  }
-
   .footer-buttons {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
     padding: 0 1.5rem 1rem;
+  }
+
+  .footer-buttons button {
+    min-height: 36px;
+    padding: 6px 16px;
+    font-size: 14px;
   }
 </style>
 

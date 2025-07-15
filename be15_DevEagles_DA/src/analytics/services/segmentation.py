@@ -17,7 +17,6 @@ class CustomerSegment(str, Enum):
     GROWING = "growing"      # 성장 고객 (방문 3-10회, 꾸준한 방문)
     LOYAL = "loyal"          # 충성 고객 (방문 10회 이상, 정기적 방문)
     VIP = "vip"              # VIP 고객 (고액 결제, 프리미엄 서비스)
-    AT_RISK = "at_risk"      # 이탈 위험 (오랫동안 미방문)
     DORMANT = "dormant"      # 휴면 고객 (6개월 이상 미방문)
 
 
@@ -34,7 +33,6 @@ class CustomerSegmentationService:
         self.new_customer_visits = 3
         self.growing_customer_visits = 10
         self.vip_amount_threshold = 500000  # 50만원
-        self.at_risk_days = 60
         self.dormant_days = 180
         
     def segment_all_customers(self) -> Dict[str, int]:
@@ -190,10 +188,6 @@ class CustomerSegmentationService:
         if days_since_last_visit >= self.dormant_days:
             return CustomerSegment.DORMANT
         
-        # 2. 이탈 위험 고객 (2개월 이상 미방문, 기존 고객)
-        if days_since_last_visit >= self.at_risk_days and total_visits >= 3:
-            return CustomerSegment.AT_RISK
-        
         # 3. VIP 고객 (고액 결제 + 충성도)
         if (total_amount >= self.vip_amount_threshold and 
             total_visits >= self.growing_customer_visits and
@@ -319,12 +313,6 @@ class CustomerSegmentationService:
                 "우선 예약 서비스",
                 "독점 신제품/서비스 체험",
                 "VIP 전용 이벤트 초대"
-            ],
-            CustomerSegment.AT_RISK: [
-                "재방문 유도 할인 쿠폰 발송",
-                "개인화된 서비스 추천",
-                "고객 만족도 조사 및 피드백 수집",
-                "특별 케어 프로그램 제안"
             ],
             CustomerSegment.DORMANT: [
                 "컴백 할인 이벤트",

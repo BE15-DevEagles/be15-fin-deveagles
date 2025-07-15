@@ -63,6 +63,9 @@ public enum ErrorCode implements ErrorCodeType {
 
   // 채팅 관련 에러 (41000번대)
   CHATROOM_NOT_FOUND("41001", "해당 채팅방을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+  WEBSOCKET_INVALID_TOKEN("41002", "WebSocket 연결 실패: 유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED),
+  WEBSOCKET_AUTHENTICATION_FAILED(
+      "41003", "WebSocket 인증에 실패했습니다. 사용자 정보를 확인할 수 없습니다.", HttpStatus.UNAUTHORIZED),
 
   // 쿠폰 관련 에러 (50000번대)
   COUPON_NOT_FOUND("50001", "쿠폰을 찾을 수 없습니다", HttpStatus.NOT_FOUND),

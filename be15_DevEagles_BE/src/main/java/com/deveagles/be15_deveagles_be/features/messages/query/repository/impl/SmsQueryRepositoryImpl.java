@@ -1,5 +1,6 @@
 package com.deveagles.be15_deveagles_be.features.messages.query.repository.impl;
 
+import com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.QCustomer;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.MessageDeliveryStatus;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.MessageSendingType;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.QSms;
@@ -31,6 +32,7 @@ public class SmsQueryRepositoryImpl implements SmsQueryRepository {
   @Override
   public Page<SmsListResponse> findSmsListByShopId(Long shopId, Pageable pageable) {
     QSms sms = QSms.sms;
+    QCustomer customer = QCustomer.customer;
 
     log.info(
         "📨 문자 목록 조회 시작 - shopId={}, page={}, size={}",
@@ -38,49 +40,55 @@ public class SmsQueryRepositoryImpl implements SmsQueryRepository {
         pageable.getPageNumber(),
         pageable.getPageSize());
 
+    // 조건
     BooleanBuilder builder = new BooleanBuilder().and(sms.shopId.eq(shopId));
 
-    // 예약이면 scheduledAt, 아니면 sentAt
+    // 날짜 필드: 예약이면 scheduledAt, 아니면 sentAt
     DateTimeExpression<LocalDateTime> dateField =
         new CaseBuilder()
             .when(sms.messageSendingType.eq(MessageSendingType.RESERVATION))
             .then(sms.scheduledAt)
             .otherwise(sms.sentAt);
 
+    // 본문 조회
     List<SmsListResponse> content =
         queryFactory
             .select(
                 Projections.constructor(
                     SmsListResponse.class,
                     sms.messageId,
-                    sms.messageKind.stringValue(),
-                    sms.messageContent,
-                    sms.customerId.stringValue(), // 추후 join해서 이름 가져와도 됨
-                    sms.messageDeliveryStatus.stringValue(),
-                    dateField,
+                    sms.messageKind.stringValue(), // → title
+                    sms.messageContent, // → content
+                    customer.customerName, // → receiverName
+                    sms.messageDeliveryStatus.stringValue(), // → statusLabel
+                    dateField, // → 예약 or 발송 일자
                     new CaseBuilder()
                         .when(sms.messageSendingType.eq(MessageSendingType.RESERVATION))
                         .then(true)
-                        .otherwise(false),
+                        .otherwise(false), // → canEdit
                     new CaseBuilder()
                         .when(sms.messageSendingType.eq(MessageSendingType.RESERVATION))
                         .then(true)
-                        .otherwise(false),
+                        .otherwise(false), // → canDelete
                     new CaseBuilder()
                         .when(sms.messageDeliveryStatus.eq(MessageDeliveryStatus.FAIL))
                         .then("전송 실패")
-                        .otherwise("")))
+                        .otherwise(""), // → errorMessage
+                    sms.messageSendingType.stringValue() // ✅ → sendingType (마지막)
+                    ))
             .from(sms)
+            .leftJoin(customer)
+            .on(customer.id.eq(sms.customerId))
             .where(builder)
-            .orderBy(sms.createdAt.desc()) // 정렬 제거 요청 반영
+            .orderBy(sms.createdAt.desc())
             .offset(pageable.getOffset())
             .limit(pageable.getPageSize())
             .fetch();
 
+    // 총 개수 조회
     Long total = queryFactory.select(sms.count()).from(sms).where(builder).fetchOne();
 
     log.info("📨 문자 목록 조회 완료 - 총 {}건", total);
-
     return new PageImpl<>(content, pageable, total != null ? total : 0);
   }
 

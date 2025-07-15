@@ -5,48 +5,60 @@
 
 <mapper namespace="com.deveagles.be15_deveagles_be.features.sales.query.mapper.SalesMapper">
 
-    <resultMap id="SalesListResultMap" type="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.SalesListResponse">
+    <!-- 매출만 조회 (payments 제외) -->
+    <resultMap id="SalesListWithoutPaymentsMap" type="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.SalesListResponse">
         <id property="salesId" column="sales_id"/>
         <result property="salesDate" column="sales_date"/>
         <result property="salesType" column="sales_type"/>
         <result property="staffName" column="staff_name"/>
         <result property="customerName" column="customer_name"/>
         <result property="secondaryItemName" column="item_name"/>
+        <result property="prepaidPassName" column="prepaid_pass_name"/>
+        <result property="sessionPassName" column="session_pass_name"/>
         <result property="retailPrice" column="retail_price"/>
         <result property="discountAmount" column="discount_amount"/>
         <result property="totalAmount" column="total_amount"/>
-        <collection property="payments" ofType="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.PaymentsDTO">
-            <result property="paymentsMethod" column="payments_method"/>
-            <result property="amount" column="amount"/>
-        </collection>
+
+        <!-- 상세 조회용 식별자 -->
+        <result property="itemSalesId" column="item_sales_id"/>
+        <result property="prepaidPassSalesId" column="prepaid_pass_sales_id"/>
+        <result property="sessionPassSalesId" column="session_pass_sales_id"/>
     </resultMap>
 
-    <select id="findSalesList" resultMap="SalesListResultMap">
+    <select id="findSalesListWithoutPayments" resultMap="SalesListWithoutPaymentsMap">
         SELECT
         s.sales_id,
         s.sales_date,
         CASE
         WHEN s.total_amount &lt; 0 OR s.is_refunded = TRUE THEN 'REFUND'
-        WHEN i.sales_id IS NOT NULL THEN 'ITEMS'
-        WHEN sp.sales_id IS NOT NULL OR pp.sales_id IS NOT NULL THEN 'MEMBERSHIP'
+        WHEN EXISTS (SELECT 1 FROM item_sales i2 WHERE i2.sales_id = s.sales_id) THEN 'ITEMS'
+        WHEN EXISTS (
+        SELECT 1 FROM session_pass_sales sp2 WHERE sp2.sales_id = s.sales_id
+        UNION
+        SELECT 1 FROM prepaid_pass_sales pp2 WHERE pp2.sales_id = s.sales_id
+        ) THEN 'MEMBERSHIP'
         ELSE 'UNKNOWN'
         END AS sales_type,
         st.staff_name,
         c.customer_name,
         IFNULL(si.secondary_item_name, '') AS item_name,
+        ppp.prepaid_pass_name AS prepaid_pass_name,
+        spp.session_pass_name AS session_pass_name,
         s.retail_price,
         s.discount_amount,
         s.total_amount,
-        p.payments_method,
-        p.amount
+        i.item_sales_id,
+        pp.prepaid_pass_sales_id,
+        sp.session_pass_sales_id
         FROM sales s
         LEFT JOIN staff st ON s.staff_id = st.staff_id
         LEFT JOIN customer c ON s.customer_id = c.customer_id
         LEFT JOIN item_sales i ON s.sales_id = i.sales_id
-        LEFT JOIN session_pass_sales sp ON s.sales_id = sp.sales_id
-        LEFT JOIN prepaid_pass_sales pp ON s.sales_id = pp.sales_id
-        LEFT JOIN payments p ON s.sales_id = p.sales_id
         LEFT JOIN secondary_item si ON i.secondary_item_id = si.secondary_item_id
+        LEFT JOIN session_pass_sales sp ON s.sales_id = sp.sales_id
+        LEFT JOIN session_pass spp ON sp.session_pass_id = spp.session_pass_id
+        LEFT JOIN prepaid_pass_sales pp ON s.sales_id = pp.sales_id
+        LEFT JOIN prepaid_pass ppp ON pp.prepaid_pass_id = ppp.prepaid_pass_id
         WHERE s.shop_id = #{shopId}
         AND s.deleted_at IS NULL
         <if test="filter.startDate != null">
@@ -55,15 +67,22 @@
         <if test="filter.endDate != null">
             AND s.sales_date &lt;= #{filter.endDate}
         </if>
+        <if test="filter.customerKeyword != null and filter.customerKeyword != ''">
+            AND (
+            c.customer_name LIKE CONCAT('%', #{filter.customerKeyword}, '%')
+            OR c.phone_number LIKE CONCAT('%', #{filter.customerKeyword}, '%')
+            )
+        </if>
         <if test="filter.saleTypes != null and !filter.saleTypes.isEmpty()">
             AND (
             <foreach item="type" collection="filter.saleTypes" separator=" OR ">
                 <choose>
                     <when test="'ITEMS'.equals(type)">
-                        i.sales_id IS NOT NULL
+                        EXISTS (SELECT 1 FROM item_sales i2 WHERE i2.sales_id = s.sales_id)
                     </when>
                     <when test="'MEMBERSHIP'.equals(type)">
-                        sp.sales_id IS NOT NULL OR pp.sales_id IS NOT NULL
+                        EXISTS (SELECT 1 FROM session_pass_sales sp2 WHERE sp2.sales_id = s.sales_id)
+                        OR EXISTS (SELECT 1 FROM prepaid_pass_sales pp2 WHERE pp2.sales_id = s.sales_id)
                     </when>
                     <when test="'REFUND'.equals(type)">
                         s.total_amount &lt; 0 OR s.is_refunded = TRUE
@@ -80,12 +99,23 @@
         OFFSET #{filter.offset}
     </select>
 
+    <!-- 결제 정보 조회 -->
+    <select id="findPaymentsBySalesIds" resultType="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.PaymentsDTO">
+        SELECT
+        p.sales_id AS salesId,
+        p.payments_method AS paymentsMethod,
+        p.amount
+        FROM payments p
+        WHERE p.sales_id IN
+        <foreach item="id" collection="salesIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <!-- 전체 건수 조회 -->
     <select id="countSalesList" resultType="long">
         SELECT COUNT(DISTINCT s.sales_id)
         FROM sales s
-        LEFT JOIN item_sales i ON s.sales_id = i.sales_id
-        LEFT JOIN session_pass_sales sp ON s.sales_id = sp.sales_id
-        LEFT JOIN prepaid_pass_sales pp ON s.sales_id = pp.sales_id
         WHERE s.shop_id = #{shopId}
         AND s.deleted_at IS NULL
         <if test="filter.startDate != null">
@@ -99,10 +129,11 @@
             <foreach item="type" collection="filter.saleTypes" separator=" OR ">
                 <choose>
                     <when test="'ITEMS'.equals(type)">
-                        i.sales_id IS NOT NULL
+                        EXISTS (SELECT 1 FROM item_sales i2 WHERE i2.sales_id = s.sales_id)
                     </when>
                     <when test="'MEMBERSHIP'.equals(type)">
-                        sp.sales_id IS NOT NULL OR pp.sales_id IS NOT NULL
+                        EXISTS (SELECT 1 FROM session_pass_sales sp2 WHERE sp2.sales_id = s.sales_id)
+                        OR EXISTS (SELECT 1 FROM prepaid_pass_sales pp2 WHERE pp2.sales_id = s.sales_id)
                     </when>
                     <when test="'REFUND'.equals(type)">
                         s.total_amount &lt; 0 OR s.is_refunded = TRUE

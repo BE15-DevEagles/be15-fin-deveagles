@@ -17,7 +17,7 @@ database:
     pool_size: 20
     max_overflow: 30
   analytics:
-    url: "/data/analytics.db" # 프로덕션 경로
+    url: "data/analytics_local.db" # 통일된 DB 경로
     pool_size: 8
     max_overflow: 0
 

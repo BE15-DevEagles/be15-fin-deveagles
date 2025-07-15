@@ -1,5 +1,5 @@
 /* === 공통 오버레이 및 패널 === */
-.overlay {
+.items-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -9,7 +9,7 @@
   z-index: 1000;
 }
 
-.modal-panel {
+.items-modal-panel {
   position: fixed;
   top: 0;
   left: 240px;
@@ -18,84 +18,71 @@
   background: white;
   display: flex;
   flex-direction: column;
-  padding: 24px;
   overflow-y: auto;
   z-index: 1001;
 }
 
 /* === 헤더 === */
-.top-bar {
+.items-top-bar {
+  padding: 24px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
 }
-.title {
+
+.items-title {
   font-size: 20px;
   font-weight: bold;
   margin-bottom: 6px;
 }
-.close-button {
+
+.items-close-button {
   font-size: 24px;
   background: transparent;
   border: none;
   cursor: pointer;
-  line-height: 1;
 }
-.divider {
-  margin: 16px 0;
+
+.items-divider {
   height: 1px;
   background-color: #e2e2e2;
 }
 
-/* === 본문 레이아웃 === */
-.register-body {
+/* === 전체 본문 === */
+.items-register-body {
   display: flex;
   flex: 1;
   overflow: hidden;
 }
-.form-left {
+
+/* === 왼쪽 영역 === */
+.items-form-left {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding-right: 24px;
+  gap: 2rem;
+  padding: 24px;
   position: relative;
+  border-right: 1px solid #ccc;
   overflow-y: auto;
-  overflow-x: hidden;
-}
-.form-left::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: -22px;
-  width: 1px;
-  height: 100%;
-  background-color: #ccc;
-}
-.form-right {
-  width: 480px;
-  padding-left: 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
 }
 
-/* === 날짜/시간 === */
-.datetime-row {
+/* 날짜 및 시간 선택 */
+.items-datetime-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 1rem;
 }
-.date-time-group {
+
+.items-date-time-group {
   display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
   flex-shrink: 0;
 }
 
-/* === 정보 박스 === */
-.receipt-box {
+/* 상품 박스 */
+.items-box {
   border: 2px solid #364f6b;
   border-radius: 6px;
   padding: 2rem;
@@ -103,72 +90,72 @@
   font-size: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
   text-align: left;
-  max-height: 540px;
-  overflow-y: auto;
+  cursor: pointer;
 }
-.placeholder {
+
+.items-placeholder {
   color: #444;
   font-weight: 500;
   text-align: center;
 }
 
-/* === 상품 목록 === */
-.selected-detail {
-  border: 1px solid #ccc;
-  padding: 16px;
-  border-radius: 8px;
-  background: #fff;
-  position: relative;
+/* 선택된 상품 */
+.items-selected-detail {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0.75rem;
+  padding: 10px;
+  border-radius: 10px;
+  background-color: #e5e7eb;
 }
-.product-header {
+
+.items-product-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
-.x-button {
+
+.items-x-button {
   font-size: 18px;
-  background: transparent;
+  background: none;
   border: none;
   cursor: pointer;
   color: #999;
 }
 
-/* === 그리드 입력 === */
-.grid-container {
+/* 상품 정보 그리드 */
+.items-grid-container {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  gap: 12px;
   margin-top: 12px;
 }
-.input-group {
+
+.items-input-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.input-group input,
-.input-group select {
+
+.items-input-group input,
+.items-input-group select {
   padding: 12px;
   font-size: 14px;
   border: 1px solid #ccc;
   border-radius: 6px;
-  width: 100%;
-  box-sizing: border-box;
 }
 
-/* === 메모 === */
-.memo-label {
+/* 메모 */
+.items-memo-label {
   font-weight: bold;
   font-size: 16px;
-  margin-top: 1.5rem;
+  margin-top: 1rem;
 }
-.base-form textarea,
-textarea {
+
+.items-textarea {
   height: 120px;
   font-size: 16px;
   padding: 12px;
@@ -178,80 +165,156 @@ textarea {
   box-sizing: border-box;
 }
 
-/* === 결제 정보 === */
-.total-price-section label {
+/* === 오른쪽 영역 === */
+.items-form-right {
+  width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+}
+
+.items-form-right-body {
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* 결제 금액 정보 */
+.items-total-price-section label {
   font-weight: bold;
   margin-bottom: 4px;
 }
-.total-display {
+
+.items-payment-label {
+  padding-top: 32px;
+  white-space: nowrap;
+}
+.items-total-display {
   display: flex;
   justify-content: center;
 }
-.price-box {
+
+.items-price-box {
   font-size: 24px;
+  font-weight: bold;
   border-radius: 6px;
   border: 2px solid #364f6b;
   padding: 16px 0;
   width: 100%;
   text-align: center;
-  font-weight: bold;
-}
-.discount-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  margin-bottom: 0.5rem;
 }
 
-.discount-rate-group,
-.discount-amount-group {
+/* 할인 */
+.items-discount-row {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  gap: 12px;
 }
 
-.discount-rate-group label,
-.discount-amount-group label {
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 6px;
-}
-
-/* BaseForm의 select/input에 높이 맞춤 */
-.discount-rate-group select,
-.discount-amount-group input {
-  padding: 10px 12px;
-  height: 42px;
-  font-size: 14px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-}
-
-/* === 결제 수단 입력 === */
-.method-group {
+.items-discount-group {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
   gap: 1rem;
-  margin-bottom: 8px;
-}
-.radio-label {
-  width: 100px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
-}
-.method-price {
-  flex: 1;
-  padding: 6px;
-  border: 1px solid #aaa;
+  align-items: flex-end;
 }
 
-/* === 하단 버튼 === */
-.footer-buttons {
+.items-discount-rate-group,
+.items-discount-amount-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 결제 방법 */
+.items-method-row {
+  margin-bottom: 12px;
+}
+
+.items-method-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.items-method-price,
+.items-method-price.disabled {
+  width: 200px;
+  min-height: 38px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+  background-color: #fff;
+  color: #333;
+}
+/* 비활성화 상태일 때 회색 배경만 변경 */
+.items-method-price.disabled {
+  background-color: #f0f0f0;
+  color: #999;
+  cursor: not-allowed;
+}
+select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* option에도 적용 */
+select option {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.items-method-prepaid-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.items-prepaid-inline {
+  display: flex;
+  flex: 1;
+  gap: 12px;
+}
+
+.items-prepaid-inline .items-input-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.items-prepaid-inline .items-input-group label {
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #555;
+}
+
+.items-checkbox-label {
+  flex: 1;
+}
+
+/* 오른쪽 하단 버튼 */
+.items-form-right-footer {
+  height: 71.2px;
+  padding: 16.535px 24px;
+  border-top: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+.items-footer-buttons {
   display: flex;
   justify-content: flex-start;
   gap: 8px;
-  margin-top: auto;
+  height: 38.13px;
 }

@@ -13,21 +13,26 @@ server:
 
 database:
   crm:
-    url: "mysql+pymysql://swcamp:swcamp@localhost:3306/beautifly"
+    # 기본 연결 URL (auth plugin 포함)
+    url: "mysql+pymysql://swcamp:swcamp@localhost:3306/beautifly?charset=utf8mb4"
+    # 대안 연결 URLs (필요시 코드에서 사용)
+    backup_urls:
+      - "mysql+pymysql://swcamp:swcamp@localhost:3306/beautifly"
+      - "mysql+pymysql://swcamp:swcamp@127.0.0.1:3306/beautifly"
     pool_size: 5
     max_overflow: 10
   analytics:
-    url: "data/analytics_dev.duckdb" # DuckDB는 url 필드 사용
+    url: "data/analytics_local.db" # 모든 환경에서 동일한 DB 사용
     pool_size: 4 # threads로 사용
     max_overflow: 0
 
 etl:
   batch_size: 1000
   incremental: true
-  timestamp_file: "data/last_etl_dev.txt"
+  timestamp_file: "data/last_etl_local.txt"
 
 ml:
-  model_storage_path: "models/dev"
+  model_storage_path: "models_local"
   retrain_threshold: 0.1
   feature_columns:
     - "age"
@@ -39,11 +44,31 @@ ml:
     - "visits_3m"
 
 scheduling:
-  jobstore_url: "sqlite:///data/scheduler_dev.db"
+  jobstore_url: "sqlite:///data/scheduler_local.db"
   etl_schedule_hour: 2
   tagging_schedule_hour: 3
   training_schedule_day: "sun"
   training_schedule_hour: 4
+  # 고객 이탈분석 및 세그먼트 업데이트 스케줄
+  churn_analysis:
+    enabled: true
+    schedule_hour: 3
+    schedule_minute: 0
+    timezone: "Asia/Seoul"
+    max_retries: 3
+    retry_delay_minutes: 30
+    dry_run: false
+    # 세그먼트 업데이트 방식: "api" (백엔드 API 호출) 또는 "direct" (직접 DB 접근)
+    segment_update_method: "api"
+    # 분석 후 자동 세그먼트 적용 여부
+    auto_apply_segments: true
+    # 알림 설정
+    notification:
+      enabled: true
+      webhook_url: "${CHURN_ANALYSIS_WEBHOOK_URL}"
+      on_success: true
+      on_failure: true
+      include_summary: true
 
 customer_segmentation:
   new_customer_visit_threshold: 3
@@ -76,6 +101,8 @@ monitoring:
 external_services:
   workflow_service_url: "${WORKFLOW_SERVICE_URL}"
   notification_webhook_url: "${NOTIFICATION_WEBHOOK_URL}"
+  be_api_url: "http://localhost:8080"
+  be_api_timeout: 30
 
 local_dev:
   auto_reload_templates: true

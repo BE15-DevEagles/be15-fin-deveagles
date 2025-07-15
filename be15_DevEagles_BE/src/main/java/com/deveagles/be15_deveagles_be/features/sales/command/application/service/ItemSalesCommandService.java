@@ -12,7 +12,4 @@ public interface ItemSalesCommandService {
 
   @Transactional
   void refundItemSales(Long salesId);
-
-  //    @Transactional
-  //    void updateItemSales(Long salesId, ItemSalesRequest request);
 }

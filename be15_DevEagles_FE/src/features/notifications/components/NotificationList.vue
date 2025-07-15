@@ -1,39 +1,20 @@
+<!-- src/features/notifications/components/NotificationList.vue -->
 <script setup>
-  import { ref, computed, onMounted, watch, nextTick } from 'vue';
+  // ✨ [수정] 자체적인 로직(ref, onMounted, watch 등)을 모두 제거합니다.
   import BasePopover from '@/components/common/BasePopover.vue';
-  import { useAuthStore } from '@/store/auth';
-  import { getMyNotifications } from '@/features/notifications/api/notifications.js';
   import { useNotifications } from '@/features/notifications/composables/useNotifications.js';
 
-  const props = defineProps({
+  defineProps({
     modelValue: Boolean,
     triggerElement: Object,
   });
   const emit = defineEmits(['update:modelValue']);
 
-  const authStore = useAuthStore();
-  const historicalNotifications = ref([]);
-  const isLoading = ref(false);
+  // ✨ [수정] 컴포넌트는 더 이상 자체적으로 상태를 관리하거나 API를 호출하지 않습니다.
+  // 중앙 관제실에서 최종 가공된 데이터와 필요한 기능만 가져옵니다.
+  const { allNotifications, isLoading, handleMarkAsRead } = useNotifications();
 
-  // [수정] Composables의 반환값을 안전하게 받습니다.
-  const notificationState = useNotifications();
-
-  // [수정] computed 속성을 방어적으로 재작성하여 런타임 에러를 방지합니다.
-  const allNotifications = computed(() => {
-    // useNotifications 훅에서 반환된 객체나 그 내부의 ref가 아직 준비되지 않았을 경우를 대비합니다.
-    const rtNotifications = notificationState?.realtimeNotifications?.value || [];
-    const histNotifications = historicalNotifications.value || [];
-
-    const historicalIds = new Set(histNotifications.map(n => n.notificationId));
-
-    const uniqueRealtimeNotifications = rtNotifications.filter(
-      n => !historicalIds.has(n.notificationId)
-    );
-
-    return [...uniqueRealtimeNotifications, ...histNotifications];
-  });
-
-  // 알림 타입에 따른 아이콘과 발신자, 색상을 반환하는 헬퍼 함수
+  // 헬퍼 함수들은 그대로 유지합니다.
   const getNotificationDetails = type => {
     switch (type) {
       case 'RESERVATION':
@@ -46,51 +27,11 @@
         return { icon: '🔔', sender: '시스템', color: '#6b7280' };
     }
   };
-
-  // 날짜 형식을 'n월 n일' 등으로 변환하는 함수
   const formatDate = dateString => {
     if (!dateString) return '';
     const date = new Date(dateString);
     return `${date.getMonth() + 1}월 ${date.getDate()}일`;
   };
-
-  // [수정] 읽음 처리 함수를 안전하게 호출합니다.
-  const handleItemClick = item => {
-    if (notificationState && typeof notificationState.handleMarkAsRead === 'function') {
-      notificationState.handleMarkAsRead(item);
-    }
-  };
-
-  // 과거 알림 내역을 불러오는 함수
-  const fetchHistoricalNotifications = async () => {
-    if (isLoading.value || !authStore.isAuthenticated) return;
-    isLoading.value = true;
-    try {
-      const response = await getMyNotifications({ page: 0, size: 20 });
-      historicalNotifications.value = response.data.content;
-    } catch (err) {
-      console.error('과거 알림 목록 조회에 실패했습니다:', err);
-    } finally {
-      isLoading.value = false;
-    }
-  };
-
-  onMounted(() => {
-    fetchHistoricalNotifications();
-  });
-
-  // 팝오버의 안정적인 렌더링을 위한 watch 로직은 그대로 유지합니다.
-  watch(
-    () => props.modelValue,
-    async newVal => {
-      if (newVal) {
-        await nextTick();
-        requestAnimationFrame(() => {
-          window.dispatchEvent(new Event('resize'));
-        });
-      }
-    }
-  );
 </script>
 
 <template>
@@ -112,16 +53,18 @@
         </div>
 
         <div class="notification-scroll custom-scrollbar">
+          <!-- ✨ [수정] 중앙 관리되는 isLoading 상태를 사용합니다. -->
           <div v-if="isLoading" class="empty-state">
             <p class="empty-text">알림을 불러오는 중입니다...</p>
           </div>
 
+          <!-- ✨ [수정] 중앙 관리되는 최종 알림 목록(allNotifications)을 사용합니다. -->
           <ul v-else-if="allNotifications.length > 0" class="notification-list">
             <li
               v-for="item in allNotifications"
               :key="item.notificationId"
               :class="['notification-item', { 'is-read': item.read }]"
-              @click="handleItemClick(item)"
+              @click="handleMarkAsRead(item)"
             >
               <div class="item-icon">
                 {{ getNotificationDetails(item.type).icon }}
@@ -148,7 +91,9 @@
   </BasePopover>
 </template>
 
+<!-- 스타일 코드는 변경 없이 그대로 유지됩니다. -->
 <style scoped>
+  /* 이전과 동일한 스타일 코드 */
   .notification-wrapper {
     width: 100%;
     max-width: 340px;

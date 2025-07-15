@@ -9,15 +9,15 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
-@Table(name = "notification") // 컨벤션 2.2: snake_case 테이블명 명시
+@Table(name = "notification")
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED) // 컨벤션 2.8: 프록시 생성을 위한 protected 기본 생성자
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Notification {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   @Column(name = "notification_id")
-  private Long notificationId; // DDL에 맞춰 필드명 수정
+  private Long notificationId;
 
   @Column(name = "shop_id", nullable = false)
   private Long shopId;
@@ -25,7 +25,7 @@ public class Notification {
   @Column(name = "title", length = 100)
   private String title;
 
-  @Lob // DDL의 TEXT 타입 매핑
+  @Lob
   @Column(name = "content")
   private String content;
 

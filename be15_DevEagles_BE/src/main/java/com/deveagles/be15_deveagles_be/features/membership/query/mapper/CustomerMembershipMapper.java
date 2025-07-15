@@ -59,4 +59,6 @@ public interface CustomerMembershipMapper {
   List<CustomerPrepaidPassDetailInfo> findExpiredOrUsedUpPrepaidPasses(Long customerId);
 
   List<CustomerSessionPassDetailInfo> findExpiredOrUsedUpSessionPasses(Long customerId);
+
+  List<CustomerSessionPassReponse> findUsableSessionPassesByCustomerId(Long customerId);
 }

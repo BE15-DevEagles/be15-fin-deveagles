@@ -17,7 +17,7 @@ database:
     pool_size: 10
     max_overflow: 20
   analytics:
-    url: "data/analytics.db"
+    url: "data/analytics_local.db"
     pool_size: 6
     max_overflow: 0
 
@@ -76,3 +76,5 @@ monitoring:
 external_services:
   workflow_service_url: "${ANALYTICS_WORKFLOW_SERVICE_URL}"
   notification_webhook_url: "${ANALYTICS_NOTIFICATION_WEBHOOK_URL}"
+  be_api_url: "${ANALYTICS_BE_API_URL}"
+  be_api_timeout: 30

@@ -62,10 +62,10 @@ services:
   crm-db:
     image: mariadb:11.0
     environment:
-      MARIADB_ROOT_PASSWORD: rootpassword
-      MARIADB_DATABASE: crm
-      MARIADB_USER: readonly_user
-      MARIADB_PASSWORD: password
+      MARIADB_ROOT_PASSWORD: 1791
+      MARIADB_DATABASE: beautifly
+      MARIADB_USER: swcamp
+      MARIADB_PASSWORD: swcamp
     ports:
       - "3306:3306"
     volumes:

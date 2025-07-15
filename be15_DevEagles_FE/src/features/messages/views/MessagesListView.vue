@@ -1,5 +1,11 @@
 <script setup>
-  import { ref, computed, nextTick } from 'vue';
+  import { ref, onMounted, watch, nextTick } from 'vue';
+  import messagesAPI from '@/features/messages/api/message.js';
+  import couponsAPI from '@/features/coupons/api/coupons.js';
+  import customersAPI from '@/features/customer/api/customers.js';
+  import GradesAPI from '@/features/customer/api/grades.js';
+  import TagsAPI from '@/features/customer/api/tags.js';
+
   import MessageItem from '../components/MessageItem.vue';
   import MessageStats from '../components/MessageStats.vue';
   import MessageSendModal from '../components/modal/MessageSendModal.vue';
@@ -7,61 +13,28 @@
   import ReservationSendModal from '../components/modal/ReservationSendModal.vue';
   import TemplateSelectDrawer from '@/features/messages/components/drawer/TemplateSelectDrawer.vue';
   import CustomerSelectDrawer from '@/features/messages/components/drawer/CustomerSelectDrawer.vue';
+  import MessageDetailModal from '@/features/messages/components/modal/MessageDetailModal.vue';
+  import EditReservationModal from '@/features/messages/components/modal/EditReservationModal.vue';
+
   import BaseButton from '@/components/common/BaseButton.vue';
-  import BaseToast from '@/components/common/BaseToast.vue';
   import BaseTable from '@/components/common/BaseTable.vue';
   import Pagination from '@/components/common/Pagination.vue';
   import BaseCard from '@/components/common/BaseCard.vue';
-  import MessageDetailModal from '@/features/messages/components/modal/MessageDetailModal.vue';
-  import EditReservationModal from '@/features/messages/components/modal/EditReservationModal.vue';
+  import BaseToast from '@/components/common/BaseToast.vue';
   import BaseModal from '@/components/common/BaseModal.vue';
 
-  const messages = ref([
-    {
-      id: 1,
-      title: '예약 안내',
-      content: '고객님 예약이 완료되었습니다.',
-      receiver: '김민지',
-      status: 'sent',
-      date: '2024-06-10',
-    },
-    {
-      id: 2,
-      title: '시술 전 안내',
-      content: '시술 전 주의사항 안내드립니다.',
-      receiver: '박지훈',
-      status: 'reserved',
-      date: '2024-06-12',
-    },
-    {
-      id: 3,
-      title: '리뷰 요청',
-      content: '리뷰를 남겨주시면 감사하겠습니다.',
-      receiver: '이예진',
-      status: 'sent',
-      date: '2024-06-09',
-    },
-  ]);
-
-  const templateList = ref([
-    { id: 1, name: '예약 안내', content: '고객님 예약이 확정되었습니다.' },
-    { id: 2, name: '시술 전 안내', content: '시술 전 주의사항을 확인해주세요.' },
-  ]);
-
-  const searchKeyword = ref('');
-  const statusFilter = ref('all');
+  const messages = ref([]);
+  const totalElements = ref(0);
+  const totalPages = ref(0);
   const currentPage = ref(1);
   const itemsPerPage = 10;
+  const isLoading = ref(false);
 
-  const showDeleteConfirm = ref(false);
-  const selectedMessage = ref(null);
-  const triggerElement = ref(null);
-
-  const showSendModal = ref(false);
-  const showSendConfirm = ref(false);
-  const showReserveModal = ref(false);
-  const showTemplateDrawer = ref(false);
-  const showCustomerDrawer = ref(false);
+  const allMessages = ref([]);
+  const availableCoupons = ref([]);
+  const allCustomers = ref([]);
+  const customerGrades = ref([]);
+  const tags = ref([]);
 
   const selectedCustomers = ref([]);
   const messageToSend = ref({
@@ -70,8 +43,22 @@
     coupon: null,
     grades: [],
     tags: [],
+    customers: [],
   });
+  const showSendModal = ref(false);
+  const showSendConfirm = ref(false);
+  const showReserveModal = ref(false);
+  const showTemplateDrawer = ref(false);
+  const showCustomerDrawer = ref(false);
+  const showDeleteConfirm = ref(false);
+  const showDetailModal = ref(false);
+  const showEditModal = ref(false);
+
+  const selectedMessage = ref(null);
+  const triggerElement = ref(null);
+  const messageToEdit = ref(null);
   const toast = ref(null);
+  const statusFilter = ref('all');
 
   const columns = [
     { key: 'title', title: '제목', width: '18%', headerClass: 'text-center' },
@@ -82,42 +69,47 @@
     { key: 'actions', title: '관리', width: '10%', headerClass: 'text-center' },
   ];
 
-  const filteredMessages = computed(() => {
-    let result = [...messages.value];
-    const keyword = searchKeyword.value.trim().toLowerCase();
-    if (keyword) {
-      result = result.filter(
-        msg =>
-          msg.title.toLowerCase().includes(keyword) || msg.content.toLowerCase().includes(keyword)
-      );
+  async function loadMessages() {
+    try {
+      isLoading.value = true;
+      const params = { page: currentPage.value - 1, size: itemsPerPage };
+      if (statusFilter.value !== 'all') params.status = statusFilter.value;
+      const {
+        content,
+        totalElements: total,
+        totalPages: pages,
+      } = await messagesAPI.fetchMessages(params);
+      messages.value = content;
+      totalElements.value = total;
+      totalPages.value = pages;
+    } catch (e) {
+      await nextTick();
+      toast.value?.error('메시지 조회 실패');
+    } finally {
+      isLoading.value = false;
     }
-    if (statusFilter.value !== 'all') {
-      result = result.filter(msg => msg.status === statusFilter.value);
-    }
-    return result;
-  });
-
-  const paginatedMessages = computed(() => {
-    const start = (currentPage.value - 1) * itemsPerPage;
-    return filteredMessages.value.slice(start, start + itemsPerPage);
-  });
-
-  const totalPages = computed(() => Math.ceil(filteredMessages.value.length / itemsPerPage));
-  const showDetailModal = ref(false);
-  const showEditModal = ref(false);
-  const messageToEdit = ref(null);
-
-  function handleEditMessage(msg) {
-    messageToEdit.value = null;
-    nextTick(() => {
-      messageToEdit.value = msg;
-      showEditModal.value = true;
-    });
   }
 
-  function handleShowDetail(msg) {
-    selectedMessage.value = msg;
-    showDetailModal.value = true;
+  async function loadAllMessagesForStats() {
+    try {
+      let page = 0;
+      let finished = false;
+      const size = 100;
+      const tempAll = [];
+      while (!finished) {
+        const { content, totalPages } = await messagesAPI.fetchMessages({ page, size });
+        tempAll.push(...content);
+        page++;
+        if (page >= totalPages) finished = true;
+      }
+      allMessages.value = tempAll;
+    } catch (e) {
+      console.error('📉 통계 메시지 로드 실패', e);
+    }
+  }
+
+  function handlePageChange(page) {
+    currentPage.value = page;
   }
 
   function onStatusChange(value) {
@@ -125,10 +117,16 @@
     currentPage.value = 1;
   }
 
+  watch([currentPage, statusFilter], () => loadMessages());
+
   function handleDelete(msg, event) {
     selectedMessage.value = msg;
     triggerElement.value = event.currentTarget;
     showDeleteConfirm.value = true;
+  }
+
+  function cancelDelete() {
+    showDeleteConfirm.value = false;
   }
 
   function confirmDelete() {
@@ -136,27 +134,34 @@
     showDeleteConfirm.value = false;
   }
 
-  function cancelDelete() {
-    showDeleteConfirm.value = false;
-  }
-
-  function handleSendRequest(content) {
-    selectedCustomers.value = content.customers || [];
-
+  function handleSendRequest(payload, sendingType) {
     messageToSend.value = {
-      content: content.content || '',
-      link: content.link || '',
-      coupon: content.coupon || null,
-      grades: content.grades || [],
-      tags: content.tags || [],
+      ...payload,
     };
 
-    console.log('[RECV] request-send로 받은 고객 목록:', content.customers);
+    if (sendingType === 'IMMEDIATE') {
+      nextTick(() => {
+        showSendConfirm.value = true;
+      });
+    } else if (sendingType === 'RESERVATION') {
+      nextTick(() => {
+        showReserveModal.value = true;
+      });
+    }
+  }
 
-    nextTick(() => {
-      console.log('[CHECK] selectedCustomers 상태:', selectedCustomers.value);
-      showSendConfirm.value = true;
-    });
+  function handleSendConfirm() {
+    messagesAPI
+      .sendMessage(messageToSend.value) // ✅ customerIds 포함된 payload
+      .then(() => {
+        toast.value?.success('메시지가 성공적으로 발송되었습니다.');
+        showSendConfirm.value = false;
+        loadMessages();
+        loadAllMessagesForStats();
+      })
+      .catch(() => {
+        toast.value?.error('메시지 전송에 실패했습니다.');
+      });
   }
 
   function handleReserveRequest(content) {
@@ -164,53 +169,30 @@
     showReserveModal.value = true;
   }
 
-  function handleSendConfirm() {
-    showSendConfirm.value = false;
-    nextTick(() => {
-      toast.value.success('메시지를 보냈습니다.');
-    });
-    messageToSend.value = {
-      content: '',
-      link: '',
-      coupon: null,
-      grades: [],
-      tags: [],
-    };
-  }
-
-  function handleReserveConfirm({ content, date }) {
-    showReserveModal.value = false;
-
-    messageToSend.value = {
-      content: '',
-      link: '',
-      coupon: null,
-      grades: [],
-      tags: [],
-    };
-
-    toast.value.success('예약 요청이 완료되었습니다.');
+  function handleReserveConfirm(payload) {
+    messagesAPI
+      .sendMessage(payload)
+      .then(() => {
+        toast.value?.success('예약 메시지가 성공적으로 등록되었습니다.');
+        showReserveModal.value = false;
+        loadMessages();
+        loadAllMessagesForStats();
+      })
+      .catch(() => {
+        toast.value?.error('예약 메시지 등록에 실패했습니다.');
+      });
   }
 
   function handleOpenTemplateDrawer() {
-    showSendModal.value = true;
-    nextTick(() => {
-      showTemplateDrawer.value = true;
-    });
+    showTemplateDrawer.value = true;
   }
 
   function handleOpenCustomerDrawer() {
-    showSendModal.value = true;
-    nextTick(() => {
-      showCustomerDrawer.value = true;
-    });
+    showCustomerDrawer.value = true;
   }
 
   function handleTemplateSelect(template) {
-    messageToSend.value = {
-      ...messageToSend.value,
-      content: template.content,
-    };
+    messageToSend.value.content = template.content;
     showTemplateDrawer.value = false;
   }
 
@@ -219,14 +201,46 @@
     showCustomerDrawer.value = false;
   }
 
+  function handleShowDetail(msg) {
+    selectedMessage.value = msg;
+    showDetailModal.value = true;
+  }
+
+  function handleEditMessage(msg) {
+    messageToEdit.value = null;
+    nextTick(async () => {
+      messageToEdit.value = msg;
+      showEditModal.value = true;
+    });
+  }
+
   function handleEditConfirm(updated) {
     const idx = messages.value.findIndex(m => m.id === updated.id);
-    if (idx !== -1) {
-      messages.value[idx] = { ...messages.value[idx], ...updated };
-    }
+    if (idx !== -1) messages.value[idx] = { ...messages.value[idx], ...updated };
     showEditModal.value = false;
-    toast.value.success('예약 메시지가 수정되었습니다.');
+    toast.value?.success('예약 메시지가 수정되었습니다.');
   }
+
+  onMounted(async () => {
+    await Promise.allSettled([
+      couponsAPI
+        .getCoupons({ page: 0, size: 100 })
+        .then(res => (availableCoupons.value = res.content)),
+      customersAPI.getCustomersByShop().then(list => {
+        allCustomers.value = list.map(c => ({
+          id: c.customerId,
+          name: c.customerName,
+          phone: c.phoneNumber,
+        }));
+      }),
+      GradesAPI.getGradesByShop().then(res => (customerGrades.value = res)),
+      TagsAPI.getTagsByShop().then(res => (tags.value = res)),
+    ]);
+
+    await loadMessages();
+    await nextTick();
+    await loadAllMessagesForStats();
+  });
 </script>
 
 <template>
@@ -235,17 +249,12 @@
       <h2 class="font-section-title text-dark">보낸 메시지 목록</h2>
     </div>
 
-    <MessageStats :messages="messages" />
+    <MessageStats :messages="allMessages" />
 
     <div class="message-filter-row with-button">
       <div class="filter-control">
         <label class="filter-label" for="message-status">메시지 상태</label>
-        <select
-          id="message-status"
-          v-model="statusFilter"
-          class="filter-select short"
-          @change="onStatusChange($event.target.value)"
-        >
+        <select id="message-status" v-model="statusFilter" class="filter-select short">
           <option value="all">전체</option>
           <option value="sent">발송 완료</option>
           <option value="reserved">예약 문자</option>
@@ -257,10 +266,13 @@
     </div>
 
     <BaseCard>
-      <BaseTable :columns="columns" :data="paginatedMessages">
+      <template v-if="isLoading">
+        <div class="text-center py-10">📡 메시지를 불러오는 중입니다...</div>
+      </template>
+      <BaseTable v-else :columns="columns" :data="messages">
         <template #body>
           <MessageItem
-            v-for="msg in paginatedMessages"
+            v-for="msg in messages"
             :key="msg.id"
             :message="msg"
             @delete="handleDelete"
@@ -275,12 +287,11 @@
       v-if="totalPages > 1"
       :current-page="currentPage"
       :total-pages="totalPages"
-      :total-items="filteredMessages.length"
+      :total-items="totalElements"
       :items-per-page="itemsPerPage"
-      @page-change="page => (currentPage.value = page)"
+      @page-change="handlePageChange"
     />
 
-    <!-- 모달 -->
     <BaseModal
       :model-value="showDeleteConfirm"
       @update:model-value="val => (showDeleteConfirm = val)"
@@ -292,11 +303,11 @@
         <BaseButton type="error" @click="confirmDelete">삭제</BaseButton>
       </template>
     </BaseModal>
+
     <Teleport to="body">
       <TemplateSelectDrawer
         v-if="showTemplateDrawer"
         v-model="showTemplateDrawer"
-        :templates="templateList"
         @select="handleTemplateSelect"
       />
     </Teleport>
@@ -305,18 +316,22 @@
       <CustomerSelectDrawer
         v-if="showCustomerDrawer"
         v-model="showCustomerDrawer"
+        :customers="allCustomers"
+        :page-size="20"
         @select="handleCustomerSelect"
       />
     </Teleport>
 
-    <!-- 그다음 아래쪽에서 MessageSendModal -->
     <MessageSendModal
       :model-value="showSendModal"
       :template-content="messageToSend"
       :customers="selectedCustomers"
+      :available-coupons="availableCoupons"
+      :grades="customerGrades"
+      :tags="tags"
       @update:model-value="val => (showSendModal = val)"
-      @request-send="handleSendRequest"
-      @request-reserve="handleReserveRequest"
+      @request-send="payload => handleSendRequest(payload, 'IMMEDIATE')"
+      @request-reserve="payload => handleSendRequest(payload, 'RESERVATION')"
       @open-template="handleOpenTemplateDrawer"
       @open-customer="handleOpenCustomerDrawer"
     />
@@ -330,7 +345,6 @@
     />
 
     <SendConfirmModal
-      v-if="showSendConfirm"
       :model-value="showSendConfirm"
       :message-content="messageToSend"
       :customers="selectedCustomers"
@@ -351,8 +365,6 @@
       @update:model-value="val => (showEditModal = val)"
       @confirm="handleEditConfirm"
     />
-
-    <!-- 🔥 여기서 모달보다 위에 있게 렌더링됨 -->
 
     <BaseToast ref="toast" />
   </div>

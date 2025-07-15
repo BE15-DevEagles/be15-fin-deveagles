@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.deveagles.be15_deveagles_be.features.sales.query.mapper.ItemSalesQueryMapper">
+
+    <!-- ItemSalesDetailResponse 매핑 -->
+    <resultMap id="ItemSalesDetailResponseMap" type="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.ItemSalesDetailResponse">
+        <!-- sales -->
+        <id property="salesId" column="sales_id"/>
+        <result property="salesDate" column="sales_date"/>
+        <result property="customerName" column="customer_name"/>
+        <result property="staffName" column="staff_name"/>
+        <result property="retailPrice" column="retail_price"/>
+        <result property="salesDiscountRate" column="sales_discount_rate"/>
+        <result property="discountAmount" column="discount_amount"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="couponName" column="coupon_name"/>
+        <result property="salesMemo" column="sales_memo"/>
+
+        <!-- item_sales -->
+        <result property="itemSalesId" column="item_sales_id"/>
+        <result property="secondaryItemName" column="secondary_item_name"/>
+        <result property="itemDiscountRate" column="item_discount_rate"/>
+        <result property="quantity" column="quantity"/>
+
+        <!-- customer_membership_history -->
+        <result property="customerPrepaidPassId" column="customer_prepaid_pass_id"/>
+        <result property="customerSessionPassId" column="customer_session_pass_id"/>
+        <result property="usedCount" column="used_count"/>
+    </resultMap>
+
+
+    <select id="findItemSalesDetail" resultMap="ItemSalesDetailResponseMap">
+        SELECT
+            -- sales
+            s.sales_id,
+            s.sales_date,
+            s.retail_price,
+            s.discount_rate AS sales_discount_rate,
+            s.discount_amount,
+            s.total_amount,
+            s.sales_memo,
+            c.customer_name,
+            st.staff_name,
+
+            -- item_sales
+            i.item_sales_id,
+            si.secondary_item_name,
+            i.discount_rate AS item_discount_rate,
+            i.quantity,
+            cp.coupon_title AS coupon_name,
+
+            -- membership history (nullable)
+            cmh.customer_prepaid_pass_id,
+            cmh.customer_session_pass_id,
+            cmh.used_count AS used_count
+
+        FROM item_sales i
+                 JOIN sales s ON i.sales_id = s.sales_id
+                 JOIN customer c ON s.customer_id = c.customer_id
+                 JOIN staff st ON s.staff_id = st.staff_id
+                 LEFT JOIN secondary_item si ON i.secondary_item_id = si.secondary_item_id
+                 LEFT JOIN coupon cp ON i.coupon_id = cp.coupon_id
+                 LEFT JOIN customer_membership_history cmh ON i.sales_id = cmh.sales_id
+
+        WHERE i.item_sales_id = #{itemSalesId}
+          AND i.deleted_at IS NULL
+          AND s.deleted_at IS NULL
+    </select>
+
+
+    <select id="findPaymentsBySalesId" resultType="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.PaymentsDTO">
+        SELECT
+            payments_id,
+            payments_method,
+            amount
+        FROM payments
+        WHERE sales_id = #{salesId}
+          AND deleted_at IS NULL
+    </select>
+
+</mapper>

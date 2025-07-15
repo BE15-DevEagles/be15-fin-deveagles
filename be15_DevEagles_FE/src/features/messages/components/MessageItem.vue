@@ -1,4 +1,5 @@
 <script setup>
+  import { computed, toRefs } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import TrashIcon from '@/components/icons/TrashIcon.vue';
   import EditIcon from '@/components/icons/EditIcon.vue';
@@ -10,7 +11,22 @@
     },
   });
 
-  const emit = defineEmits(['delete', 'show-detail', 'edit']);
+  const emit = defineEmits(['delete', 'show-detail', 'edit', 'resend']);
+
+  // ✅ 안정적인 구조분해 (reactivity 보존)
+  const { statusLabel, messageSendingType } = toRefs(props.message);
+
+  const statusText = computed(() => {
+    if (statusLabel.value === 'SENT') {
+      return messageSendingType.value === 'AUTOMATIC' ? '자동 발송' : '발송 완료';
+    }
+
+    if (messageSendingType.value === 'RESERVATION') return '예약 문자';
+    if (statusLabel.value === 'FAIL') {
+      return '전송 실패';
+    }
+    return statusLabel.value || '기타';
+  });
 </script>
 
 <template>
@@ -24,19 +40,23 @@
       </div>
     </td>
     <td>
-      <div class="cell-content">{{ props.message.receiver }}</div>
+      <div class="cell-content">{{ props.message.receiverName }}</div>
     </td>
     <td>
-      <div class="cell-content">
-        {{ props.message.status === 'sent' ? '발송 완료' : '예약 문자' }}
-      </div>
+      <div class="cell-content">{{ statusText }}</div>
     </td>
     <td>
       <div class="cell-content">{{ props.message.date }}</div>
     </td>
     <td>
       <div class="cell-content">
-        <div v-if="props.message.status === 'reserved'" class="action-buttons">
+        <div
+          v-if="
+            props.message.messageSendingType === 'RESERVATION' &&
+            props.message.statusLabel !== 'SENT'
+          "
+          class="action-buttons"
+        >
           <BaseButton
             type="ghost"
             size="sm"
@@ -54,6 +74,16 @@
             <TrashIcon :size="16" color="var(--color-error-600)" />
           </BaseButton>
         </div>
+        <div v-else-if="props.message.statusLabel === 'FAIL'" class="action-buttons">
+          <BaseButton
+            type="ghost"
+            size="sm"
+            class="icon-button"
+            @click="$emit('resend', props.message)"
+          >
+            <span style="font-size: 14px">🔁</span>
+          </BaseButton>
+        </div>
       </div>
     </td>
   </tr>
@@ -68,8 +98,6 @@
     white-space: nowrap;
     color: var(--color-gray-800);
   }
-
-  /* 말줄임 + 가운데 정렬 */
   .text-ellipsis {
     max-width: 240px;
     margin: 0 auto;
@@ -79,7 +107,6 @@
     text-align: center;
     cursor: pointer;
   }
-
   .action-buttons {
     display: flex;
     justify-content: center;

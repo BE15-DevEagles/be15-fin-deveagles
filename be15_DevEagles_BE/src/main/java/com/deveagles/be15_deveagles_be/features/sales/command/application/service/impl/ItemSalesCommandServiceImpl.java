@@ -9,10 +9,7 @@ import com.deveagles.be15_deveagles_be.features.membership.command.domain.reposi
 import com.deveagles.be15_deveagles_be.features.sales.command.application.dto.request.ItemSalesRequest;
 import com.deveagles.be15_deveagles_be.features.sales.command.application.dto.request.PaymentsInfo;
 import com.deveagles.be15_deveagles_be.features.sales.command.application.service.ItemSalesCommandService;
-import com.deveagles.be15_deveagles_be.features.sales.command.domain.aggregate.CustomerMembershipHistory;
-import com.deveagles.be15_deveagles_be.features.sales.command.domain.aggregate.ItemSales;
-import com.deveagles.be15_deveagles_be.features.sales.command.domain.aggregate.Payments;
-import com.deveagles.be15_deveagles_be.features.sales.command.domain.aggregate.Sales;
+import com.deveagles.be15_deveagles_be.features.sales.command.domain.aggregate.*;
 import com.deveagles.be15_deveagles_be.features.sales.command.domain.repository.CustomerMembershipHistoryRepository;
 import com.deveagles.be15_deveagles_be.features.sales.command.domain.repository.ItemSalesRepository;
 import com.deveagles.be15_deveagles_be.features.sales.command.domain.repository.PaymentsRepository;
@@ -51,6 +48,25 @@ public class ItemSalesCommandServiceImpl implements ItemSalesCommandService {
       }
       if (payment.getPaymentsMethod() == null) {
         throw new BusinessException(ErrorCode.SALES_PAYMENTMETHOD_REQUIRED);
+      }
+    }
+    for (PaymentsInfo payment : request.getPayments()) {
+      if (payment.getAmount() == null || payment.getAmount() < 0) {
+        throw new BusinessException(ErrorCode.SALES_PAYMENTSAMOUNT_REQUIRED);
+      }
+
+      if (payment.getPaymentsMethod() == null) {
+        throw new BusinessException(ErrorCode.SALES_PAYMENTMETHOD_REQUIRED);
+      }
+
+      if (payment.getPaymentsMethod() == PaymentsMethod.PREPAID_PASS
+          && payment.getCustomerPrepaidPassId() == null) {
+        //        throw new BusinessException(ErrorCode.CUSTOMERPREPAIDPASS_REQUIRED);
+      }
+
+      if (payment.getPaymentsMethod() == PaymentsMethod.SESSION_PASS
+          && payment.getCustomerSessionPassId() == null) {
+        //        throw new BusinessException(ErrorCode.CUSTOMERSESSIONPASS_REQUIRED);
       }
     }
 

@@ -65,7 +65,7 @@
 </template>
 
 <script setup>
-  import { ref, defineProps, defineEmits, watch, onMounted } from 'vue';
+  import { ref, defineProps, defineEmits, watch, onMounted, onBeforeUnmount } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import { getPrepaidPass, getSessionPass } from '@/features/membership/api/membership.js';
 
@@ -106,6 +106,19 @@
     fetchMembershipList(newTab);
   });
 
+  onMounted(() => {
+    window.addEventListener('keydown', handleKeydown);
+  });
+
+  onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleKeydown);
+  });
+
+  const handleKeydown = event => {
+    if (event.key === 'Escape') {
+      closeModal();
+    }
+  };
   const getItemName = item =>
     item.type === 'PREPAID' ? item.prepaidPassName : item.sessionPassName;
 

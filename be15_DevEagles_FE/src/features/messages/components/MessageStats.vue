@@ -10,9 +10,14 @@
       required: true,
     },
   });
+  const sentCount = computed(() => props.messages.filter(m => m.statusLabel === 'SENT').length);
 
-  const sentCount = computed(() => props.messages.filter(m => m.status === 'sent').length);
-  const reservedCount = computed(() => props.messages.filter(m => m.status === 'reserved').length);
+  const reservedCount = computed(
+    () =>
+      props.messages.filter(m => m.messageSendingType === 'RESERVATION' && m.statusLabel !== 'SENT')
+        .length
+  );
+
   const totalCount = computed(() => props.messages.length);
 </script>
 
@@ -56,7 +61,6 @@
     gap: 20px;
     margin-bottom: 24px;
   }
-
   .stats-card {
     flex: 1;
     display: flex;
@@ -67,7 +71,6 @@
     background-color: var(--color-neutral-white);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
-
   .stats-icon-wrapper {
     display: flex;
     align-items: center;
@@ -77,31 +80,21 @@
     border-radius: 8px;
     margin-right: 12px;
   }
-
-  .icon-blue {
-    background-color: var(--color-gray-100);
-  }
-
-  .icon-gray {
-    background-color: var(--color-gray-100);
-  }
-
+  .icon-blue,
+  .icon-gray,
   .icon-yellow {
     background-color: var(--color-gray-100);
   }
-
   .stats-content {
     display: flex;
     flex-direction: column;
     gap: 2px;
   }
-
   .stats-value {
     font-size: 20px;
     font-weight: 700;
     color: var(--color-gray-900);
   }
-
   .stats-label {
     font-size: 14px;
     font-weight: 500;

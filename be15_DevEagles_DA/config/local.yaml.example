@@ -23,6 +23,8 @@ local_dev:
 external_services:
   workflow_service_url: "http://localhost:8080"
   notification_webhook_url: null
+  be_api_url: "http://localhost:8080"
+  be_api_timeout: 30
 
 # 로깅 레벨 조정
 app:

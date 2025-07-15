@@ -35,9 +35,11 @@
 
     emit('confirm', {
       ...props.messageContent,
-      date: selectedDate.value,
-      customers: props.customers,
+      messageSendingType: 'RESERVATION', // ✅ 중요
+      customerIds: props.customers.map(c => c.id), // ✅ 리스트 형태
+      scheduledAt: selectedDate.value, // ✅ 예약 시간
     });
+
     close();
   }
 </script>

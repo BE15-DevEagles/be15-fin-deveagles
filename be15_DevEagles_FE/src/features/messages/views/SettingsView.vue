@@ -1,5 +1,5 @@
 <script setup>
-  import { ref } from 'vue';
+  import { ref, onMounted } from 'vue';
   import BaseCard from '@/components/common/BaseCard.vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseToast from '@/components/common/BaseToast.vue';
@@ -8,9 +8,11 @@
   import PointChargeModal from '@/features/messages/components/modal/PointChargeModal.vue';
   import AutoSendSettingModal from '@/features/messages/components/modal/AutoSendSettingModal.vue';
 
+  import messagesAPI from '@/features/messages/api/message.js';
+
   const sender = ref('');
   const useAlimtalk = ref(false);
-  const messagePoints = ref(1200);
+  const messagePoints = ref(0);
 
   const showSenderModal = ref(false);
   const showAlimtalkModal = ref(false);
@@ -66,26 +68,54 @@
     },
   ]);
 
+  async function fetchSettings() {
+    try {
+      const settings = await messagesAPI.getMessageSettings();
+
+      if (!settings) {
+        toastRef.value?.error?.('문자 설정이 존재하지 않습니다. 먼저 등록해주세요.');
+
+        return;
+      }
+
+      sender.value = settings.senderNumber || '';
+      useAlimtalk.value = settings.canAlimtalk || false;
+      messagePoints.value = settings.point || 0;
+    } catch (err) {
+      const errorMessage =
+        err?.response?.data?.message || err?.message || '알 수 없는 오류가 발생했습니다.';
+
+      toastRef.value?.error?.(errorMessage);
+    }
+  }
+  async function updateSettings(payload) {
+    try {
+      await messagesAPI.updateMessageSettings(payload);
+      toastRef.value?.addToast({ message: '설정이 저장되었습니다.', type: 'success' });
+    } catch (err) {
+      toastRef.value?.addToast({ message: err.message, type: 'error' });
+    }
+  }
+
   function confirmSender(number) {
     sender.value = number;
-    toastRef.value?.addToast({ message: '발신 번호가 등록되었습니다.', type: 'success' });
+    updateSettings({ senderNumber: number });
     showSenderModal.value = false;
   }
 
   function confirmAlimtalk() {
     useAlimtalk.value = true;
-    toastRef.value?.addToast({ message: '알림톡 신청이 완료되었습니다.', type: 'success' });
+    updateSettings({ canAlimtalk: true });
     showAlimtalkModal.value = false;
   }
 
   function handleConfirmCharge(amount) {
     messagePoints.value += amount;
-    toastRef.value?.addToast({
-      message: `${amount.toLocaleString()}P 충전되었습니다.`,
-      type: 'success',
-    });
+    updateSettings({ point: amount });
     showChargeModal.value = false;
   }
+
+  onMounted(fetchSettings);
 </script>
 
 <template>
@@ -106,9 +136,9 @@
                 {{ sender || '미등록' }}
               </span>
             </div>
-            <BaseButton class="action-button sm" type="primary" @click="showSenderModal = true"
-              >번호 등록</BaseButton
-            >
+            <BaseButton class="action-button sm" type="primary" @click="showSenderModal = true">
+              번호 등록
+            </BaseButton>
           </div>
           <div class="setting-info">
             <p class="setting-description text-sub">
@@ -148,9 +178,9 @@
               <h3 class="setting-title with-underline">문자 포인트</h3>
               <span class="status-chip neutral">{{ messagePoints.toLocaleString() }}P</span>
             </div>
-            <BaseButton class="action-button sm" type="primary" @click="showChargeModal = true"
-              >포인트 충전</BaseButton
-            >
+            <BaseButton class="action-button sm" type="primary" @click="showChargeModal = true">
+              포인트 충전
+            </BaseButton>
           </div>
         </div>
 
@@ -162,9 +192,9 @@
             <div class="setting-title-group">
               <h3 class="setting-title with-underline">자동 발신 설정</h3>
             </div>
-            <BaseButton class="action-button sm" type="primary" @click="showAutoSendModal = true"
-              >설정 변경</BaseButton
-            >
+            <BaseButton class="action-button sm" type="primary" @click="showAutoSendModal = true">
+              설정 변경
+            </BaseButton>
           </div>
         </div>
       </div>

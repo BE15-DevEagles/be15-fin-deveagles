@@ -18,9 +18,15 @@ public class SalesListResponse {
   private String staffName;
   private String customerName;
   private String secondaryItemName;
+  private String prepaidPassName;
+  private String sessionPassName;
   private Integer retailPrice;
   private Integer discountAmount;
   private Integer totalAmount;
 
   private List<PaymentsDTO> payments;
+
+  private Long itemSalesId;
+  private Long prepaidPassSalesId;
+  private Long sessionPassSalesId;
 }

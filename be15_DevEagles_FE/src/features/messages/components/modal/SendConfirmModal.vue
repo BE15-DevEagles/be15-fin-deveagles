@@ -17,7 +17,7 @@
       default: () => [],
     },
   });
-  console.log(props.customers);
+
   const emit = defineEmits(['update:modelValue', 'confirm', 'cancel']);
 
   function onConfirm() {

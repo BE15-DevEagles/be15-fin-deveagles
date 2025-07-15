@@ -13,6 +13,7 @@ public class SalesListFilterRequest {
   private List<String> saleTypes;
   private List<String> itemTypes;
   private Long staffId;
+  private String customerKeyword;
 
   private Integer page = 1;
   private Integer size = 10;

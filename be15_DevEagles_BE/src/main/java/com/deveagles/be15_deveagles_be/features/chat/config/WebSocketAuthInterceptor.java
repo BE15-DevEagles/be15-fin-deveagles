@@ -1,5 +1,7 @@
 package com.deveagles.be15_deveagles_be.features.chat.config;
 
+import com.deveagles.be15_deveagles_be.common.exception.BusinessException;
+import com.deveagles.be15_deveagles_be.common.exception.ErrorCode;
 import com.deveagles.be15_deveagles_be.common.jwt.JwtTokenProvider;
 import com.deveagles.be15_deveagles_be.features.auth.command.application.model.CustomUser;
 import java.security.Principal;
@@ -34,22 +36,21 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
       String token = extractTokenFromHeaders(accessor);
       log.info("📩 헤더에서 추출한 토큰: {}", token);
 
+      if (!StringUtils.hasText(token) || !jwtTokenProvider.validateToken(token)) {
+        throw new BusinessException(ErrorCode.WEBSOCKET_INVALID_TOKEN);
+      }
+
       try {
-        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
-          String username = jwtTokenProvider.getUsernameFromJWT(token);
-          CustomUser userDetails = (CustomUser) userDetailsService.loadUserByUsername(username);
+        String username = jwtTokenProvider.getUsernameFromJWT(token);
+        CustomUser userDetails = (CustomUser) userDetailsService.loadUserByUsername(username);
 
-          // Principal 설정
-          Principal principal = () -> String.valueOf(userDetails.getUserId());
-          accessor.setUser(principal);
+        // WebSocket 사용자 인증 성공 시 Principal 설정
+        Principal principal = () -> String.valueOf(userDetails.getUserId());
+        accessor.setUser(principal);
 
-          log.info("✅ WebSocket 인증 성공: userId={}", userDetails.getUserId());
-        } else {
-          log.warn("❌ WebSocket 인증 실패: 유효하지 않은 토큰");
-        }
+        log.info("✅ WebSocket 인증 성공: userId={}", userDetails.getUserId());
       } catch (Exception e) {
-        log.error("❌ WebSocket 인증 처리 중 예외 발생: {}", e.getMessage());
-        // 예외를 삼켜서 연결 자체는 유지
+        throw new BusinessException(ErrorCode.WEBSOCKET_AUTHENTICATION_FAILED);
       }
     }
 

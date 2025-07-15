@@ -11,7 +11,7 @@
           v-model:preview="profilePreview"
         />
       </div>
-      <div class="permission-column">
+      <div v-if="permission" class="permission-column">
         <StaffPermission v-model="staff.permissions" />
       </div>
     </div>
@@ -43,6 +43,7 @@
   const staffFormRef = ref();
   const originalStaff = ref(null);
   const staff = ref(null);
+  const permission = ref(null);
   const profileFile = ref(null);
   const profilePreview = ref('');
 

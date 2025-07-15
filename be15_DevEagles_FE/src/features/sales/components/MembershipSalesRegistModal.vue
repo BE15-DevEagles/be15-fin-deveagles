@@ -44,7 +44,7 @@
                 <div class="mem-product-header">
                   <p>
                     <strong>{{ selectedMembership.name }}</strong>
-                    ({{ formatPrice(selectedMembership.price) }})
+                    ({{ formatPrice(selectedMembership.retailPrice) }})
                   </p>
                   <button class="mem-x-button" @click.stop="clearMembership">×</button>
                 </div>
@@ -54,12 +54,16 @@
                     <BaseForm v-model.number="selectedMembership.quantity" type="number" min="1" />
                   </div>
                   <div class="mem-input-group">
-                    <label>가격</label>
-                    <BaseForm v-model.number="selectedMembership.price" type="number" />
+                    <label>정가</label>
+                    <BaseForm v-model.number="selectedMembership.retailPrice" type="number" />
                   </div>
                   <div class="mem-input-group">
                     <label>제공 혜택</label>
                     <BaseForm v-model="selectedMembership.benefit" type="text" />
+                  </div>
+                  <div class="mem-input-group">
+                    <label>가격</label>
+                    <BaseForm v-model.number="selectedMembership.discountAmount" type="number" />
                   </div>
                   <div v-if="selectedMembership.type === 'PREPAID'" class="mem-input-group">
                     <label>충전 금액</label>
@@ -73,10 +77,6 @@
                     <label>충전 횟수</label>
                     <BaseForm v-model.number="selectedMembership.totalSESSION" type="number" />
                   </div>
-                  <div v-if="selectedMembership.type === 'SESSION'" class="mem-input-group">
-                    <label>잔여 횟수</label>
-                    <BaseForm v-model.number="selectedMembership.remainSESSION" type="number" />
-                  </div>
                   <div class="mem-input-group">
                     <label>유효 기간</label>
                     <PrimeDatePicker
@@ -85,9 +85,15 @@
                       class="date-picker"
                     />
                   </div>
+                  <!-- 담당자 -->
                   <div class="mem-input-group">
                     <label>담당자</label>
-                    <BaseForm v-model="selectedMembership.manager" type="text" />
+                    <BaseForm
+                      v-model.number="selectedMembership.manager"
+                      type="select"
+                      :options="staffOptions"
+                      placeholder="담당자 선택"
+                    />
                   </div>
                 </div>
               </div>
@@ -101,19 +107,33 @@
         <div class="mem-form-right">
           <!-- 우측 바디 -->
           <div class="mem-form-right-body">
-            <div class="mem-search-row">
+            <div class="mem-search-row" style="position: relative">
               <BaseForm
+                v-model="searchKeyword"
                 type="text"
                 class="mem-customer-search"
                 placeholder="고객명 또는 연락처 검색"
+                @input="handleInput"
               />
+              <ul v-if="showDropdown" class="autocomplete-dropdown">
+                <li
+                  v-for="(customer, index) in searchResults"
+                  :key="customer.customer_id || index"
+                  @click="handleCustomerSelect(customer)"
+                >
+                  <div>
+                    <strong>{{ customer.customer_name }}</strong>
+                    <span style="margin-left: 8px; color: #888">{{ customer.phone_number }}</span>
+                  </div>
+                </li>
+              </ul>
             </div>
 
             <div class="mem-total-price-section">
               <label>결제 금액</label>
               <div class="mem-total-display">
                 <div class="mem-price-box">
-                  {{ selectedMembership ? formatPrice(selectedMembership.price) : '가격' }}
+                  {{ selectedMembership ? formatPrice(selectedMembership.discountAmount) : '가격' }}
                 </div>
               </div>
             </div>
@@ -159,29 +179,145 @@
 </template>
 
 <script setup>
-  import { ref, watch } from 'vue';
+  import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
   import MembershipSelectModal from '@/features/sales/components/MembershipSelectModal.vue';
   import '@/features/sales/styles/SalesMembershipModal.css';
+  import { getStaff } from '@/features/staffs/api/staffs.js';
+  import customersAPI from '@/features/customer/api/customers.js';
+  import { registerPrepaidPassSale, registerSessionPassSale } from '@/features/sales/api/sales.js';
+  import { useAuthStore } from '@/store/auth';
 
   const emit = defineEmits(['close', 'submit']);
-
+  const authStore = useAuthStore();
   const date = ref(new Date().toISOString().substring(0, 10));
   const time = ref(new Date().toTimeString().substring(0, 5));
   const selectedMembership = ref(null);
   const memo = ref('');
   const showSelectModal = ref(false);
-
+  const staffOptions = ref([]);
   const selectedMethods = ref([]);
   const paymentAmounts = ref({});
 
+  const searchKeyword = ref('');
+  const searchResults = ref([]);
+  const showDropdown = ref(false);
+  const selectedCustomer = ref(null);
+
+  // 고객 검색 로직
+  const cachedCustomers = ref([]);
+  const lastFetchTime = ref(0);
+  const CACHE_DURATION = 5 * 60 * 1000; // 5분
+
+  const fetchCustomers = async () => {
+    const now = Date.now();
+    if (cachedCustomers.value.length > 0 && now - lastFetchTime.value < CACHE_DURATION) {
+      return cachedCustomers.value;
+    }
+
+    try {
+      const customers = await customersAPI.getCustomersByShop();
+      cachedCustomers.value = customers;
+      lastFetchTime.value = now;
+      return customers;
+    } catch (e) {
+      console.warn('[SalesMembershipModal] 고객 목록 조회 실패', e);
+      return [];
+    }
+  };
+
+  const isSearching = ref(false);
+  const searchTimeout = ref(null);
+
+  const fetchCustomerSuggestions = async keyword => {
+    if (!keyword || !keyword.trim()) {
+      searchResults.value = [];
+      showDropdown.value = false;
+      return;
+    }
+
+    if (isSearching.value) return;
+    isSearching.value = true;
+
+    try {
+      let results = [];
+
+      // 1. Elasticsearch 기반 검색
+      try {
+        results = await customersAPI.searchByKeyword(keyword);
+      } catch (e) {
+        console.warn('[SalesMembershipModal] 키워드 검색 실패', e);
+      }
+
+      // 2. fallback: autocomplete API
+      if (!results.length) {
+        try {
+          const strings = await customersAPI.autocomplete(keyword);
+          results = strings.map((s, i) => ({
+            customer_id: `auto-${i}`,
+            customer_name: s,
+            phone_number: '',
+          }));
+        } catch (e) {
+          console.warn('[SalesMembershipModal] 자동완성 실패', e);
+        }
+      }
+
+      // 3. fallback: 클라이언트 사이드 필터링
+      if (!results.length) {
+        const customers = await fetchCustomers();
+        const lower = keyword.toLowerCase();
+        results = customers.filter(
+          c =>
+            (c.customer_name || '').toLowerCase().includes(lower) ||
+            (c.phone_number || '').includes(lower)
+        );
+      }
+
+      searchResults.value = results;
+      showDropdown.value = results.length > 0;
+    } catch (e) {
+      console.warn('[SalesMembershipModal] 검색 실패', e);
+      searchResults.value = [];
+      showDropdown.value = false;
+    } finally {
+      isSearching.value = false;
+    }
+  };
+
+  const handleCustomerSelect = customer => {
+    selectedCustomer.value = customer;
+    searchKeyword.value = customer.customer_name;
+    showDropdown.value = false;
+  };
+
+  const handleInput = () => {
+    showDropdown.value = true;
+    if (searchTimeout.value) clearTimeout(searchTimeout.value);
+    searchTimeout.value = setTimeout(() => {
+      fetchCustomerSuggestions(searchKeyword.value);
+    }, 300);
+  };
+
+  const fetchStaffs = async () => {
+    try {
+      const response = await getStaff({ page: 1, size: 100, isActive: true });
+      staffOptions.value = response.data.data.staffList.map(staff => ({
+        value: staff.staffId,
+        text: staff.staffName,
+      }));
+    } catch (e) {
+      console.error('직원 목록 불러오기 실패:', e);
+    }
+  };
+
   const methods = ref([
-    { key: 'card', label: '카드 결제' },
-    { key: 'cash', label: '현금 결제' },
-    { key: 'naver', label: '네이버페이' },
-    { key: 'local', label: '지역화폐' },
+    { key: 'CARD', label: '카드 결제' },
+    { key: 'CASH', label: '현금 결제' },
+    { key: 'NAVER_PAY', label: '네이버페이' },
+    { key: 'LOCAL', label: '지역화폐' },
   ]);
 
   const selectMembership = () => {
@@ -199,17 +335,20 @@
           ? `(추가제공) ${item.bonus}`
           : hasDiscount
             ? `(할인) ${item.discountRate}%`
-            : null;
+            : '(할인) 0%';
 
     const discountedPrice = hasDiscount
-      ? Math.floor(item.prepaidPassPrice * (1 - item.discountRate / 100))
-      : item.prepaidPassPrice;
+      ? Math.floor(
+          (item.prepaidPassPrice ?? item.sessionPassPrice ?? 0) * (1 - item.discountRate / 100)
+        )
+      : (item.prepaidPassPrice ?? item.sessionPassPrice ?? 0);
 
-    const chargeAmount = hasBonus ? item.prepaidPassPrice + item.bonus : item.prepaidPassPrice;
+    const chargeAmount = hasBonus
+      ? (item.prepaidPassPrice ?? 0) + item.bonus
+      : (item.prepaidPassPrice ?? 0);
 
     const now = new Date();
     const expirationDate = new Date(now);
-
     switch (item.expirationPeriodType) {
       case 'DAY':
         expirationDate.setDate(now.getDate() + item.expirationPeriod);
@@ -228,19 +367,26 @@
     const formattedExpiration = expirationDate.toISOString().substring(0, 10);
 
     selectedMembership.value = {
-      id: item.prepaidPassId,
-      name: item.prepaidPassName,
-      price: discountedPrice,
-      chargeAmount,
-      remainAmount: chargeAmount,
+      id: item.prepaidPassId ?? item.sessionPassId,
+      name: item.prepaidPassName ?? item.sessionPassName ?? '이름없음',
+      retailPrice: item.prepaidPassPrice ?? item.sessionPassPrice ?? 0,
+      discountAmount: discountedPrice,
       benefit,
       expirationPeriod: item.expirationPeriod,
       expirationPeriodType: item.expirationPeriodType,
       expirationDate: formattedExpiration,
-      memo: item.prepaidPassMemo,
+      memo: item.prepaidPassMemo ?? item.sessionPassMemo ?? '',
       quantity: 1,
       type: item.type,
       manager: '',
+      ...(item.type === 'PREPAID' && {
+        chargeAmount,
+        remainAmount: chargeAmount,
+      }),
+      ...(item.type === 'SESSION' && {
+        totalSESSION: item.session ?? 0,
+        remainSESSION: item.session ?? 0,
+      }),
     };
 
     showSelectModal.value = false;
@@ -250,21 +396,63 @@
     selectedMembership.value = null;
   };
 
-  const submit = () => {
+  const submit = async () => {
+    if (!selectedMembership.value || !selectedCustomer.value) {
+      alert('회원권과 고객을 모두 선택해주세요.');
+      return;
+    }
+
+    const membership = selectedMembership.value;
+    const customer = selectedCustomer.value;
+    const staffId = membership.manager;
+    const totalAmount = selectedMethods.value.reduce((sum, key) => {
+      return sum + (paymentAmounts.value[key] || 0);
+    }, 0);
+
     const payments = selectedMethods.value.map(key => ({
-      method: key,
+      paymentsMethod: key, // 반드시 enum에 맞는 값이어야 함
       amount: paymentAmounts.value[key] || 0,
     }));
 
-    emit('submit', {
-      date: date.value,
-      time: time.value,
-      membership: selectedMembership.value,
-      memo: memo.value,
+    const basePayload = {
+      customerId: customer.customer_id,
+      staffId,
+      shopId: Number(authStore.shopId),
+      reservationId: null,
+      discountRate: null,
+      retailPrice: membership.retailPrice,
+      discountAmount: 0,
+      totalAmount,
+      salesMemo: memo.value,
+      salesDate: `${date.value}T${time.value}:00`,
       payments,
-    });
+    };
 
-    emit('close');
+    try {
+      if (membership.type === 'PREPAID') {
+        await registerPrepaidPassSale({
+          ...basePayload,
+          prepaidPassId: membership.id,
+        });
+      } else if (membership.type === 'SESSION') {
+        await registerSessionPassSale({
+          ...basePayload,
+          sessionPassId: membership.id,
+        });
+      }
+
+      emit('submit');
+      emit('close');
+    } catch (e) {
+      console.error('[매출 등록 실패]', e);
+      alert('매출 등록 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleKeydown = event => {
+    if (event.key === 'Escape') {
+      emit('close');
+    }
   };
 
   const formatPrice = val => val?.toLocaleString('ko-KR') + '원';
@@ -272,18 +460,26 @@
   watch([selectedMembership, selectedMethods], ([membership, selected]) => {
     if (!membership) return;
 
-    const total = membership.price || 0;
+    const total = membership.discountAmount || 0;
 
-    // 자동 입력: 결제수단 1개만 선택됐을 때 자동 채움
     if (selected.length === 1) {
       paymentAmounts.value[selected[0]] = total;
     }
 
-    // 체크 해제된 항목은 제거
     Object.keys(paymentAmounts.value).forEach(key => {
       if (!selected.includes(key)) {
         delete paymentAmounts.value[key];
       }
     });
+  });
+
+  onMounted(() => {
+    fetchStaffs();
+    fetchCustomers();
+    window.addEventListener('keydown', handleKeydown);
+  });
+
+  onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleKeydown);
   });
 </script>

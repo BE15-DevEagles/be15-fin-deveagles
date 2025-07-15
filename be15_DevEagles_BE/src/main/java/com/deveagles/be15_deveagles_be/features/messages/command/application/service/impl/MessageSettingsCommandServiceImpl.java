@@ -7,6 +7,7 @@ import com.deveagles.be15_deveagles_be.features.messages.command.application.dto
 import com.deveagles.be15_deveagles_be.features.messages.command.application.service.MessageSettingsCommandService;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.MessageSettings;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.repository.MessageSettingRepository;
+import com.deveagles.be15_deveagles_be.features.shops.command.application.service.ShopCommandServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MessageSettingsCommandServiceImpl implements MessageSettingsCommandService {
   private final MessageSettingRepository messageSettingRepository;
+  private final ShopCommandServiceImpl shopCommandServiceImpl;
 
   @Override
   public Long createDefault(Long shopId) {
@@ -37,6 +39,7 @@ public class MessageSettingsCommandServiceImpl implements MessageSettingsCommand
   @Override
   @Transactional(readOnly = true)
   public MessageSettingResponse loadSettings(Long shopId) {
+    shopCommandServiceImpl.validateShopExists(shopId);
     MessageSettings settings =
         messageSettingRepository
             .findByShopId(shopId)
@@ -46,6 +49,7 @@ public class MessageSettingsCommandServiceImpl implements MessageSettingsCommand
 
   @Override
   public void updateSettings(Long shopId, MessageSettingRequest request) {
+    shopCommandServiceImpl.validateShopExists(shopId);
     MessageSettings settings =
         messageSettingRepository
             .findByShopId(shopId)

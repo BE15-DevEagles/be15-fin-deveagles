@@ -4,15 +4,24 @@
   import BaseButton from '@/components/common/BaseButton.vue';
 
   const props = defineProps({
-    modelValue: {
-      type: Boolean,
-      required: true,
-    },
+    modelValue: Boolean,
     templateContent: {
       type: Object,
       default: () => ({ content: '', link: '', coupon: null, grades: [], tags: [] }),
     },
     customers: {
+      type: Array,
+      default: () => [],
+    },
+    availableCoupons: {
+      type: Array,
+      default: () => [],
+    },
+    grades: {
+      type: Array,
+      default: () => [],
+    },
+    tags: {
       type: Array,
       default: () => [],
     },
@@ -29,20 +38,14 @@
   const messageContent = ref('');
   const selectedGrade = ref([]);
   const selectedTags = ref([]);
-  const availableCoupons = ref([
-    { id: 1, name: '신규 고객 10% 할인' },
-    { id: 2, name: '시술 5천원 할인' },
-    { id: 3, name: '후기 작성 시 무료 서비스' },
-  ]);
-  const grades = ['전체', 'VIP', '일반'];
-  const tags = ['여드름', '탈모', '기미', '스킨부스터'];
-
   const linkUrl = ref('');
   const selectedCoupon = ref(null);
-
   const showVariableDropdown = ref(false);
   const textareaWrapper = ref(null);
   const variableButtonRef = ref(null);
+  const selectedKind = ref('advertising');
+
+  const sendingType = ref('IMMEDIATE');
 
   const variables = [
     '#{고객명}',
@@ -56,14 +59,22 @@
     () => props.templateContent,
     newVal => {
       if (!newVal) return;
-      try {
-        const parsed = JSON.parse(newVal);
-        messageContent.value = parsed.content || '';
-      } catch {
-        messageContent.value = typeof newVal === 'string' ? newVal : '';
-      }
-    }
+      messageContent.value = newVal.content || '';
+      linkUrl.value = newVal.link || '';
+      selectedCoupon.value = newVal.coupon || null;
+      selectedGrade.value = newVal.grades || [];
+      selectedTags.value = newVal.tags || [];
+    },
+    { immediate: true }
   );
+
+  watch(selectedCoupon, (newCoupon, oldCoupon) => {
+    if (!newCoupon || !newCoupon.couponTitle || newCoupon === oldCoupon) return;
+    const regex = /\[쿠폰\].*?\(\s*할인율:\s*\d+%\)/g;
+    messageContent.value = messageContent.value.replace(regex, '').trim();
+    const couponText = `\n[쿠폰] ${newCoupon.couponTitle} (할인율: ${newCoupon.discountRate}%)`;
+    messageContent.value = (messageContent.value + couponText).trim();
+  });
 
   function insertVariable(variable) {
     if (variable === '#{인스타url}') {
@@ -126,167 +137,162 @@
   }
 
   function close() {
-    emit('update:modelValue', false);
     messageContent.value = '';
     selectedGrade.value = [];
     selectedTags.value = [];
     linkUrl.value = '';
     selectedCoupon.value = null;
     showVariableDropdown.value = false;
+
+    emit('update:modelValue', false);
   }
 
-  function confirmSend() {
+  function confirmSend(type) {
     if (!messageContent.value.trim()) return;
-    emit('request-send', {
-      content: messageContent.value,
+
+    const payload = {
+      messageContent: messageContent.value,
+      messageType: 'SMS',
       link: linkUrl.value || null,
       coupon: selectedCoupon.value,
       grades: selectedGrade.value,
       tags: selectedTags.value,
-      customers: props.customers,
-    });
-    close();
-  }
+      customerIds: props.customers.map(c => c.id),
+      messageKind: selectedKind.value,
+    };
 
-  function reserveSend() {
-    if (!messageContent.value.trim()) return;
-    emit('request-reserve', {
-      content: messageContent.value,
-      link: linkUrl.value || null,
-      coupon: selectedCoupon.value,
-      grades: selectedGrade.value,
-      tags: selectedTags.value,
-      customers: props.customers,
-    });
+    if (type === 'IMMEDIATE') {
+      emit('request-send', { ...payload, messageSendingType: 'IMMEDIATE' });
+    } else {
+      emit('request-reserve', { ...payload, messageSendingType: 'RESERVATION' });
+    }
+
     close();
   }
 </script>
 
 <template>
-  <div class="modal-wrapper modal-z-index">
-    <BaseModal
-      :model-value="props.modelValue"
-      title="새 메시지"
-      @update:model-value="val => emit('update:modelValue', val)"
-    >
-      <div class="form-group">
-        <!-- 템플릿 가져오기 -->
-        <BaseButton class="template-button" size="sm" @click="emit('open-template')">
-          + 템플릿 가져오기
-        </BaseButton>
+  <BaseModal :model-value="modelValue" title="메시지 보내기" @update:model-value="close">
+    <div class="form-group">
+      <label for="message-kind">메시지 종류</label>
+      <select id="message-kind" v-model="selectedKind" class="form-control">
+        <option value="advertising">광고</option>
+        <option value="announcement">공지</option>
+        <option value="etc">기타</option>
+      </select>
+    </div>
 
-        <!-- 메시지 제목 + 버튼 -->
-        <div class="label-with-button">
-          <label class="form-label">메시지 내용</label>
-          <BaseButton
-            ref="variableButtonRef"
-            size="xs"
-            type="ghost"
-            @click.stop="showVariableDropdown = !showVariableDropdown"
+    <div class="template-button">
+      <BaseButton size="sm" @click="$emit('open-template')">템플릿 선택</BaseButton>
+    </div>
+
+    <div class="label-with-button">
+      <label>고객</label>
+      <BaseButton size="sm" @click="$emit('open-customer')">고객 선택하기</BaseButton>
+    </div>
+    <div class="selected-chip-wrap">
+      <span v-for="customer in visibleCustomers" :key="customer.id" class="customer-chip">
+        {{ customer.name }}
+      </span>
+      <span v-if="hiddenCustomerCount > 0" class="customer-chip more-chip">
+        +{{ hiddenCustomerCount }}
+      </span>
+    </div>
+
+    <div class="label-with-button">
+      <label>등급 선택</label>
+    </div>
+    <div class="selected-chip-wrap">
+      <span
+        v-for="grade in props.grades"
+        :key="grade.id"
+        class="customer-chip"
+        :class="{ 'more-chip': selectedGrade.includes(grade.name) }"
+        @click="toggleGrade(grade.name)"
+      >
+        {{ grade.name }}
+      </span>
+    </div>
+
+    <div class="label-with-button">
+      <label>태그 선택</label>
+    </div>
+    <div class="selected-chip-wrap">
+      <span
+        v-for="tag in props.tags"
+        :key="tag.tagId"
+        class="customer-chip"
+        :class="{ 'more-chip': selectedTags.includes(tag.tagName) }"
+        @click="
+          selectedTags.includes(tag.tagName)
+            ? (selectedTags = selectedTags.filter(t => t !== tag.tagName))
+            : selectedTags.push(tag.tagName)
+        "
+      >
+        {{ tag.tagName }}
+      </span>
+    </div>
+
+    <div class="label-with-button">
+      <label>쿠폰 선택</label>
+    </div>
+    <select v-model="selectedCoupon" class="input input--md">
+      <option disabled value="">쿠폰을 선택하세요</option>
+      <option v-for="coupon in props.availableCoupons" :key="coupon.id" :value="coupon">
+        {{ coupon.couponTitle }}
+      </option>
+    </select>
+
+    <div class="label-with-button">
+      <label>내용 작성</label>
+      <BaseButton
+        ref="variableButtonRef"
+        size="sm"
+        @click="showVariableDropdown = !showVariableDropdown"
+      >
+        변수 추가
+      </BaseButton>
+    </div>
+    <div class="textarea-variable-wrapper">
+      <div ref="textareaWrapper" class="textarea-container">
+        <textarea
+          v-model="messageContent"
+          class="input input--md w-full"
+          rows="6"
+          placeholder="메시지를 입력하세요"
+        ></textarea>
+      </div>
+      <div v-if="showVariableDropdown" class="variable-insert-wrap">
+        <div class="dropdown">
+          <div
+            v-for="item in variables"
+            :key="item"
+            class="insert-item"
+            @click="insertVariable(item)"
           >
-            변수 삽입 ▼
-          </BaseButton>
-        </div>
-
-        <div class="textarea-variable-wrapper">
-          <div ref="textareaWrapper" class="textarea-container">
-            <textarea
-              v-model="messageContent"
-              class="input input--md w-full"
-              rows="5"
-              placeholder="메시지 내용을 입력하세요"
-            />
-          </div>
-          <div class="variable-insert-wrap">
-            <div v-if="showVariableDropdown" class="dropdown">
-              <div v-for="v in variables" :key="v" class="insert-item" @click="insertVariable(v)">
-                {{ v }}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 링크 -->
-        <BaseButton class="mt-3" size="sm" type="ghost" @click="linkUrl = ''"
-          >링크 초기화</BaseButton
-        >
-        <input v-model="linkUrl" class="input input--md mt-1" placeholder="https://..." />
-
-        <!-- 쿠폰 -->
-        <label class="form-label mt-4">쿠폰 선택</label>
-        <select v-model="selectedCoupon" class="input input--md">
-          <option disabled value="">쿠폰을 선택하세요</option>
-          <option v-for="coupon in availableCoupons" :key="coupon.id" :value="coupon">
-            {{ coupon.name }}
-          </option>
-        </select>
-
-        <!-- 등급 -->
-        <div class="option-section mt-4">
-          <label class="form-label">보낼 대상 등급</label>
-          <div class="toggle-buttons">
-            <BaseButton
-              v-for="grade in grades"
-              :key="grade"
-              :type="selectedGrade.includes(grade) ? 'primary' : 'ghost'"
-              size="sm"
-              @click="toggleGrade(grade)"
-            >
-              {{ grade }}
-            </BaseButton>
-          </div>
-        </div>
-
-        <!-- 태그 -->
-        <div class="option-section mt-2">
-          <label class="form-label">고객 태그</label>
-          <div class="toggle-buttons">
-            <BaseButton
-              v-for="tag in tags"
-              :key="tag"
-              :type="selectedTags.includes(tag) ? 'primary' : 'ghost'"
-              size="sm"
-              @click="
-                selectedTags.includes(tag)
-                  ? (selectedTags = selectedTags.filter(t => t !== tag))
-                  : selectedTags.push(tag)
-              "
-            >
-              {{ tag }}
-            </BaseButton>
-          </div>
-        </div>
-
-        <!-- 고객 -->
-        <div class="option-section mt-4">
-          <BaseButton type="primary" size="sm" @click="emit('open-customer')">
-            + 고객 선택
-          </BaseButton>
-          <div v-if="props.customers?.length" class="selected-chip-wrap">
-            <span v-for="(customer, idx) in visibleCustomers" :key="idx" class="customer-chip">
-              {{ customer.name }}
-            </span>
-            <span v-if="hiddenCustomerCount > 0" class="customer-chip more-chip">
-              +{{ hiddenCustomerCount }} 더 보기
-            </span>
+            {{ item }}
           </div>
         </div>
       </div>
+    </div>
 
-      <template #footer>
-        <div class="footer-buttons">
-          <BaseButton type="primary" @click="confirmSend">보내기</BaseButton>
-          <BaseButton type="secondary" @click="reserveSend">예약 보내기</BaseButton>
-          <BaseButton type="error" @click="close">취소</BaseButton>
-        </div>
-      </template>
-    </BaseModal>
-  </div>
+    <div class="footer-buttons">
+      <BaseButton type="primary" @click="confirmSend('IMMEDIATE')">바로 발송</BaseButton>
+      <BaseButton type="secondary" @click="confirmSend('RESERVATION')">예약 발송</BaseButton>
+    </div>
+  </BaseModal>
 </template>
 
 <style scoped>
   .insert-item {
-    @apply py-1 px-2 text-sm hover:bg-gray-100 rounded cursor-pointer;
+    padding: 4px 8px;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+  .insert-item:hover {
+    background-color: var(--color-gray-100);
   }
   .selected-chip-wrap {
     display: flex;
@@ -302,8 +308,8 @@
     border-radius: 12px;
   }
   .more-chip {
-    background-color: var(--color-primary-50);
-    color: var(--color-primary-600);
+    background-color: var(--color-primary-main);
+    color: var(--color-primary-100);
   }
   .footer-buttons {
     display: flex;

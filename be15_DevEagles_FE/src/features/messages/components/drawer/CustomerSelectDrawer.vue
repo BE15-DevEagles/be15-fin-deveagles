@@ -1,11 +1,95 @@
+<script setup>
+  import { computed, ref, watch, nextTick } from 'vue';
+  import BaseDrawer from '@/components/common/BaseDrawer.vue';
+  import BaseButton from '@/components/common/BaseButton.vue';
+  import Pagination from '@/components/common/Pagination.vue';
+
+  const props = defineProps({
+    modelValue: Boolean,
+    customers: {
+      type: Array,
+      default: () => [],
+    },
+    pageSize: {
+      type: Number,
+      default: 20,
+    },
+  });
+
+  const emit = defineEmits(['update:modelValue', 'select']);
+
+  const drawerOpen = computed({
+    get: () => props.modelValue,
+    set: val => emit('update:modelValue', val),
+  });
+
+  const selected = ref([]);
+  const currentPage = ref(1);
+  const search = ref('');
+
+  const filteredCustomers = computed(() => {
+    const keyword = search.value.trim().toLowerCase();
+    return props.customers.filter(
+      c => c.name?.toLowerCase().includes(keyword) || c.phone?.toLowerCase().includes(keyword)
+    );
+  });
+
+  const totalElements = computed(() => filteredCustomers.value.length);
+
+  const pagedCustomers = computed(() => {
+    const start = (currentPage.value - 1) * props.pageSize;
+    return filteredCustomers.value.slice(start, start + props.pageSize);
+  });
+
+  const totalPages = computed(() => Math.ceil(totalElements.value / props.pageSize));
+
+  watch(drawerOpen, async opened => {
+    if (opened) {
+      await nextTick();
+      const el = document.querySelector('.drawer-backdrop');
+      if (el) el.style.zIndex = '1200';
+      currentPage.value = 1;
+      selected.value = [];
+      search.value = '';
+    }
+  });
+
+  function toggleSelect(customer) {
+    const exists = selected.value.find(c => c.phone === customer.phone);
+    if (exists) {
+      selected.value = selected.value.filter(c => c.phone !== customer.phone);
+    } else {
+      selected.value.push(customer);
+    }
+  }
+
+  function isSelected(customer) {
+    return selected.value.some(c => c.phone === customer.phone);
+  }
+
+  function onPageChange(page) {
+    currentPage.value = page;
+  }
+
+  function onSearchChange(event) {
+    search.value = event.target.value;
+    currentPage.value = 1;
+  }
+
+  function confirmSelect() {
+    emit('select', selected.value);
+  }
+</script>
+
 <template>
   <BaseDrawer v-model="drawerOpen" title="고객 선택">
     <div class="search-box">
       <input
-        v-model="search"
+        :value="search"
         type="text"
         class="input input--md"
         placeholder="이름 또는 번호로 검색"
+        @input="onSearchChange"
       />
     </div>
 
@@ -18,7 +102,7 @@
 
     <div class="list-section">
       <div
-        v-for="customer in filteredCustomers"
+        v-for="customer in pagedCustomers"
         :key="customer.phone"
         class="list-item"
         :class="{ selected: isSelected(customer) }"
@@ -34,71 +118,25 @@
       </div>
     </div>
 
+    <Pagination
+      v-if="totalPages > 1"
+      :current-page="currentPage"
+      :total-pages="totalPages"
+      :total-items="totalElements"
+      :items-per-page="pageSize"
+      @page-change="onPageChange"
+    />
+
     <template #footer>
       <BaseButton type="primary" class="w-full" @click="confirmSelect"> 선택 완료 </BaseButton>
     </template>
   </BaseDrawer>
 </template>
 
-<script setup>
-  import { ref, computed, watch, nextTick } from 'vue';
-  import BaseDrawer from '@/components/common/BaseDrawer.vue';
-  import BaseButton from '@/components/common/BaseButton.vue';
-
-  const props = defineProps({
-    modelValue: Boolean,
-  });
-  const emit = defineEmits(['update:modelValue', 'select']);
-
-  const drawerOpen = computed({
-    get: () => props.modelValue,
-    set: val => emit('update:modelValue', val),
-  });
-
-  watch(drawerOpen, async opened => {
-    if (opened) {
-      await nextTick();
-      const el = document.querySelector('.drawer-backdrop');
-      if (el) el.style.zIndex = '1200';
-    }
-  });
-
-  const customers = ref([
-    { name: '김수현', phone: '010-1234-5678' },
-    { name: '이민정', phone: '010-2345-6789' },
-    { name: '박보검', phone: '010-3456-7890' },
-    { name: '정해인', phone: '010-4567-8901' },
-  ]);
-
-  const selected = ref([]);
-  const search = ref('');
-  const filteredCustomers = computed(() =>
-    customers.value.filter(c => c.name.includes(search.value) || c.phone.includes(search.value))
-  );
-
-  function toggleSelect(customer) {
-    const exists = selected.value.find(c => c.phone === customer.phone);
-    if (exists) {
-      selected.value = selected.value.filter(c => c.phone !== customer.phone);
-    } else {
-      selected.value.push(customer);
-    }
-  }
-
-  function isSelected(customer) {
-    return selected.value.some(c => c.phone === customer.phone);
-  }
-
-  function confirmSelect() {
-    emit('select', selected.value);
-  }
-</script>
-
 <style scoped>
   .search-box {
     padding: 16px 16px 0;
   }
-
   .selected-preview {
     display: flex;
     flex-wrap: wrap;
@@ -122,14 +160,12 @@
   .selected-item .remove:hover {
     color: var(--color-error-500);
   }
-
   .list-section {
     display: flex;
     flex-direction: column;
     gap: 12px;
     padding: 16px;
   }
-
   .list-item {
     display: flex;
     align-items: center;
@@ -147,7 +183,6 @@
     border-color: var(--color-primary-500);
     background-color: var(--color-primary-50);
   }
-
   .list-item-content {
     display: flex;
     flex-direction: column;
@@ -160,7 +195,6 @@
     font-size: 13px;
     color: var(--color-gray-500);
   }
-
   .list-item-check {
     width: 20px;
     height: 20px;

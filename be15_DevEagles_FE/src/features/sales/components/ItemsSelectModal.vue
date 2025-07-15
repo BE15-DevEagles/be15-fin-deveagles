@@ -4,7 +4,7 @@
       <div class="modal-box">
         <div class="modal-header">
           <h2 class="title">상품 선택</h2>
-          <BaseButton type="ghost" size="sm" @click="closeModal">×</BaseButton>
+          <Button type="ghost" size="sm" @click="closeModal">×</Button>
         </div>
 
         <div class="modal-content">
@@ -54,29 +54,34 @@
 </template>
 
 <script setup>
-  import { ref, computed, defineEmits } from 'vue';
+  import { ref, computed, defineEmits, onMounted } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
+  import { getActiveAllSecondaryItems } from '@/features/items/api/items.js';
 
   const emit = defineEmits(['close', 'apply']);
 
   const tabs = ['SERVICE', 'PRODUCT'];
   const selectedTab = ref('SERVICE');
   const selectedIds = ref([]);
+  const productList = ref([]);
+  const loading = ref(false);
 
-  const productList = ref([
-    { id: 1, type: 'SERVICE', name: '커트', price: 35000 },
-    { id: 2, type: 'SERVICE', name: '펌(남자)', price: 158000 },
-    { id: 5, type: 'SERVICE', name: '커트', price: 35000 },
-    { id: 6, type: 'SERVICE', name: '펌(남자)', price: 158000 },
-    { id: 7, type: 'SERVICE', name: '커트', price: 35000 },
-    { id: 8, type: 'SERVICE', name: '펌(남자)', price: 158000 },
-    { id: 9, type: 'SERVICE', name: '커트', price: 35000 },
-    { id: 10, type: 'SERVICE', name: '펌(남자)', price: 158000 },
-    { id: 11, type: 'SERVICE', name: '커트', price: 35000 },
-    { id: 12, type: 'SERVICE', name: '펌(남자)', price: 158000 },
-    { id: 3, type: 'PRODUCT', name: '샴푸', price: 22000 },
-    { id: 4, type: 'PRODUCT', name: '트리트먼트', price: 44000 },
-  ]);
+  onMounted(async () => {
+    try {
+      loading.value = true;
+      const result = await getActiveAllSecondaryItems();
+      productList.value = result.map(item => ({
+        id: item.secondaryItemId,
+        name: item.secondaryItemName,
+        price: item.secondaryItemPrice,
+        type: item.timeTaken === null ? 'PRODUCT' : 'SERVICE', // ← 핵심 수정
+      }));
+    } catch (e) {
+      console.error('상품 목록 조회 실패:', e);
+    } finally {
+      loading.value = false;
+    }
+  });
 
   const filteredProducts = computed(() =>
     productList.value.filter(p => p.type === selectedTab.value)
@@ -227,9 +232,20 @@
   }
 
   .footer-buttons {
-    padding: 16px;
+    margin-top: 16px; /* 본문과의 간격 */
+    padding: 16px 24px; /* 내부 여백 */
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
     border-top: 1px solid #ddd;
+    background-color: white;
+    flex-shrink: 0;
+    min-height: 64px; /* 버튼 영역 높이 최소 확보 */
+  }
+  .footer-buttons button {
+    min-height: 36px;
+    padding: 6px 16px;
+    font-size: 14px;
   }
 </style>

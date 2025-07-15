@@ -87,4 +87,9 @@ public class CustomerMembershipQueryServiceImpl implements CustomerMembershipQue
 
     return CustomerExpiringMembershipResult.builder().Plist(prepaidList).SList(sessionList).build();
   }
+
+  @Override
+  public List<CustomerSessionPassReponse> getAvailableSessionPassesByCustomerId(Long customerId) {
+    return customerMembershipMapper.findUsableSessionPassesByCustomerId(customerId);
+  }
 }

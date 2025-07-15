@@ -1,16 +1,45 @@
 <script setup>
+  import { ref, onMounted, onUnmounted } from 'vue';
   import { useAuthStore } from '@/store/auth.js';
-  import { onMounted } from 'vue';
+  import BaseToast from '@/components/common/BaseToast.vue';
+  import { toastBus } from '@/composables/useToast';
+
+  const authStore = useAuthStore();
+  const toastRef = ref(null);
+
+  /**
+   * ✨ 3. 'show-toast'라는 글로벌 이벤트가 발생했을 때 실행될 리스너 함수입니다.
+   * 이 함수는 BaseToast 컴포넌트의 메서드를 직접 호출하여 토스트를 화면에 표시합니다.
+   * @param {object} payload - { message, type, options }
+   */
+  const onShowToast = payload => {
+    const { message, type = 'success', options = {} } = payload;
+    if (toastRef.value && typeof toastRef.value[type] === 'function') {
+      toastRef.value[type](message, options);
+    }
+  };
 
   onMounted(async () => {
-    const authStore = useAuthStore();
-    await authStore.initAuth(); // ✅ accessToken 복구
+    await authStore.initAuth(); // 기존 인증 초기화 로직
+    // ✨ 4. App.vue 컴포넌트가 생성될 때, 글로벌 토스트 이벤트 수신을 시작합니다.
+    toastBus.on('show-toast', onShowToast);
+  });
+
+  onUnmounted(() => {
+    // ✨ 5. App.vue 컴포넌트가 소멸될 때, 메모리 누수를 방지하기 위해 이벤트 수신을 중단합니다.
+    toastBus.off('show-toast', onShowToast);
   });
 </script>
 
 <template>
   <div id="app">
     <router-view />
+
+    <!--
+      ✨ 6. 앱 전체에서 단 하나만 존재하는 BaseToast 컴포넌트를 설치합니다.
+      ref="toastRef"를 통해 스크립트에서 이 컴포넌트의 메서드를 호출할 수 있게 됩니다.
+    -->
+    <BaseToast ref="toastRef" />
   </div>
 </template>
 

@@ -11,4 +11,5 @@ public record SmsListResponse(
     LocalDateTime date, // 예약 or 발송 일자
     boolean canEdit,
     boolean canDelete,
-    String errorMessage) {}
+    String errorMessage,
+    String messageSendingType) {}

@@ -7,7 +7,7 @@
           <h2 class="title">상품 매출 상세 조회</h2>
         </div>
         <div class="actions">
-          <BaseButton class="close-button" @click="emit('close')">&times;</BaseButton>
+          <Button class="close-button" @click="emit('close')">&times;</Button>
         </div>
       </div>
 
@@ -34,13 +34,21 @@
               </div>
             </div>
 
+            <!-- 총 영업액 밑 결제 항목 영역 수정 -->
             <div class="receipt-row">
               <span>총 영업액</span>
               <span>{{ formatPrice(totalAmount) }}</span>
             </div>
-            <div class="receipt-row">
-              <span>[결제] {{ paymentLabel }}</span>
-              <span>{{ formatPrice(totalAmount) }}</span>
+
+            <!-- ✅ 여러 결제 수단 처리 -->
+            <div v-for="(pay, idx) in props.salesItem.payments" :key="idx" class="receipt-row">
+              <span>
+                [결제]
+                {{
+                  methodLabelMap[pay.paymentsMethod?.toLowerCase()] || `기타(${pay.paymentsMethod})`
+                }}
+              </span>
+              <span>{{ formatPrice(pay.amount) }}</span>
             </div>
             <div class="receipt-row">
               <span>메모</span>
@@ -51,27 +59,34 @@
 
         <!-- 우측 -->
         <div class="form-right">
-          <div class="search-row">
-            <BaseForm
-              type="text"
-              :model-value="selectedItems[0]?.customer || ''"
-              label="고객명"
-              readonly
-            />
+          <!-- 본문 영역 -->
+          <div class="form-right-body">
+            <div class="search-row">
+              <BaseForm
+                type="text"
+                :model-value="selectedItems[0]?.customer || ''"
+                label="고객명"
+                readonly
+              />
+            </div>
           </div>
 
-          <div class="footer-buttons">
-            <BaseButton class="primary" outline @click="emit('close')">닫기</BaseButton>
-            <div ref="dropdownRef" class="dropdown-wrapper">
-              <BaseButton class="primary" @click="toggleDropdown">매출 수정</BaseButton>
-              <div v-if="dropdownVisible" class="dropdown-menu">
-                <BaseButton class="primary" outline @click="handleAction('refund')"
-                  >매출 환불</BaseButton
-                >
-                <BaseButton class="primary" outline @click="openEditModal">매출 수정</BaseButton>
-                <BaseButton class="primary" outline @click="handleAction('delete')"
-                  >매출 삭제</BaseButton
-                >
+          <!-- 하단 버튼 영역 -->
+          <div class="form-right-footer">
+            <div class="footer-buttons">
+              <BaseButton class="primary" outline @click="emit('close')">닫기</BaseButton>
+
+              <div ref="dropdownRef" class="dropdown-wrapper">
+                <BaseButton class="primary" @click="toggleDropdown">매출 수정</BaseButton>
+                <div v-if="dropdownVisible" class="dropdown-menu">
+                  <BaseButton class="primary" outline @click="handleAction('refund')"
+                    >매출 환불</BaseButton
+                  >
+                  <BaseButton class="primary" outline @click="openEditModal">매출 수정</BaseButton>
+                  <BaseButton class="primary" outline @click="handleAction('delete')"
+                    >매출 삭제</BaseButton
+                  >
+                </div>
               </div>
             </div>
           </div>
@@ -79,14 +94,23 @@
       </div>
 
       <!-- 모달 연결 -->
-      <ItemSalesDeleteModal v-model="showDeleteModal" @confirm="handleDeleteConfirm" />
-      <ItemSalesRefundModal v-model="showRefundModal" @confirm="handleRefundConfirm" />
+      <ItemSalesDeleteModal
+        v-model="showDeleteModal"
+        :sales-id="props.salesItem.salesId"
+        @confirm="handleDeleteConfirm"
+      />
+      <ItemSalesRefundModal
+        v-model="showRefundModal"
+        :sales-id="props.salesItem.salesId"
+        @confirm="handleRefundConfirm"
+      />
       <ItemSalesEditModal
         v-if="showEditModal"
         :initial-items="[selectedItems[0]]"
         :initial-memo="memo"
         :initial-date="date"
         :initial-time="time"
+        :initial-customer="selectedItems[0]?.customer"
         @close="handleEditConfirm"
       />
 
@@ -97,7 +121,7 @@
 </template>
 
 <script setup>
-  import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import BaseToast from '@/components/common/BaseToast.vue';
@@ -105,6 +129,7 @@
   import ItemSalesRefundModal from '@/features/sales/components/ItemSalesRefundModal.vue';
   import ItemSalesEditModal from '@/features/sales/components/ItemSalesEditModal.vue';
   import '@/features/sales/styles/SalesDetailModal.css';
+  import { getItemSalesDetail } from '@/features/sales/api/sales.js';
 
   const props = defineProps({ salesItem: Object });
   const emit = defineEmits(['close']);
@@ -115,7 +140,7 @@
   const showEditModal = ref(false);
   const dropdownRef = ref(null);
   const toastRef = ref(null);
-
+  const loading = ref(true);
   const date = ref('');
   const time = ref('');
   const memo = ref('');
@@ -129,34 +154,35 @@
       네이버페이: 'naver',
       지역화폐: 'local',
       계좌이체: 'transfer',
+      SESSION_PASS: 'session',
+      PREPAID_PASS: 'prepaid',
     };
     return map[label] || 'card';
   };
 
-  watch(
-    () => props.salesItem,
-    val => {
-      if (!val) return;
-      const [d, t] = val.date.split(' ');
-      date.value = d;
-      time.value = t;
-      memo.value = val.memo;
-      selectedMethod.value = mapMethodToKey(val.paymentMethod);
-      selectedItems.value = [val];
-    },
-    { immediate: true }
-  );
-
-  const paymentLabel = computed(() => {
-    const method = {
-      card: '카드 결제',
-      cash: '현금 결제',
-      naver: '네이버페이',
-      local: '지역화폐',
-      transfer: '계좌이체',
-    };
-    return method[selectedMethod.value] || '결제수단';
+  onMounted(() => {
+    window.addEventListener('keydown', handleKeydown);
   });
+
+  onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleKeydown);
+  });
+
+  const handleKeydown = event => {
+    if (event.key === 'Escape') {
+      emit('close');
+    }
+  };
+
+  const methodLabelMap = {
+    card: '카드',
+    cash: '현금',
+    naver_pay: '네이버페이',
+    local: '지역화폐',
+    transfer: '계좌이체',
+    prepaid_pass: '선불권',
+    session_pass: '횟수권',
+  };
 
   const totalAmount = computed(() =>
     selectedItems.value.reduce((sum, m) => sum + (m.netSales || 0), 0)
@@ -179,7 +205,39 @@
   onBeforeUnmount(() => {
     document.removeEventListener('click', handleClickOutside);
   });
+  onMounted(async () => {
+    window.addEventListener('keydown', handleKeydown);
+    document.addEventListener('click', handleClickOutside);
 
+    try {
+      const { data } = await getItemSalesDetail(props.salesItem.itemSalesId);
+      const detail = data.data;
+
+      // 날짜 분리
+      const dateTime = (detail.salesDate || '').replace('T', ' ').split(' ');
+      date.value = dateTime[0] ?? '';
+      time.value = dateTime[1] ?? '';
+
+      memo.value = detail.salesMemo || '';
+      selectedMethod.value = mapMethodToKey(detail.payments?.[0]?.paymentsMethod || '');
+
+      selectedItems.value = [
+        {
+          item: detail.secondaryItemName || '알 수 없음',
+          staff: detail.staffName,
+          salesTotal: detail.retailPrice,
+          discount: detail.discountAmount,
+          netSales: detail.totalAmount,
+          customer: detail.customerName,
+        },
+      ];
+    } catch (err) {
+      console.error('상품 매출 상세 조회 실패:', err);
+      toastRef.value?.error('매출 상세 조회에 실패했습니다.');
+    } finally {
+      loading.value = false;
+    }
+  });
   const handleAction = type => {
     dropdownVisible.value = false;
     switch (type) {

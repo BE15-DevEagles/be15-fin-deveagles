@@ -3,10 +3,7 @@ package com.deveagles.be15_deveagles_be.features.membership.query.controller;
 import com.deveagles.be15_deveagles_be.common.dto.ApiResponse;
 import com.deveagles.be15_deveagles_be.features.auth.command.application.model.CustomUser;
 import com.deveagles.be15_deveagles_be.features.membership.query.dto.request.CustomerMemebershipFilterRequest;
-import com.deveagles.be15_deveagles_be.features.membership.query.dto.response.CustomerExpiringMembershipResult;
-import com.deveagles.be15_deveagles_be.features.membership.query.dto.response.CustomerMembershipResult;
-import com.deveagles.be15_deveagles_be.features.membership.query.dto.response.CustomerPrepaidPassDetailInfo;
-import com.deveagles.be15_deveagles_be.features.membership.query.dto.response.CustomerSessionPassDetailInfo;
+import com.deveagles.be15_deveagles_be.features.membership.query.dto.response.*;
 import com.deveagles.be15_deveagles_be.features.membership.query.service.CustomerMembershipQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -79,6 +76,19 @@ public class CustomerMembershipQueryController {
 
     CustomerExpiringMembershipResult result =
         customerMembershipQueryService.getExpiredOrUsedUpMemberships(customerId);
+
+    return ResponseEntity.ok(ApiResponse.success(result));
+  }
+
+  @Operation(
+      summary = "고객이 특정 상품에 대해 보유한 횟수권 목록 조회",
+      description = "고객 ID와 2차 상품 ID를 기준으로 사용 가능한 횟수권 목록을 반환합니다.")
+  @GetMapping("/session-pass/available")
+  public ResponseEntity<ApiResponse<List<CustomerSessionPassReponse>>> getAvailableSessionPasses(
+      @RequestParam Long customerId) {
+
+    List<CustomerSessionPassReponse> result =
+        customerMembershipQueryService.getAvailableSessionPassesByCustomerId(customerId);
 
     return ResponseEntity.ok(ApiResponse.success(result));
   }

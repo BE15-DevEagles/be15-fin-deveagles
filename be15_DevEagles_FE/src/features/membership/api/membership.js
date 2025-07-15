@@ -231,3 +231,12 @@ export const updateCustomerSessionPass = async ({
   });
   return response.data.data;
 };
+
+// 고객 횟수권 조회
+// 🔧 수정된 API 함수
+export const getAvailableSessionPasses = async customerId => {
+  const response = await api.get('/customer-memberships/session-pass/available', {
+    params: { customerId },
+  });
+  return response.data.data;
+};

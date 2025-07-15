@@ -50,6 +50,29 @@ class MLConfig(BaseModel):
     ])
 
 
+class ChurnAnalysisNotificationConfig(BaseModel):
+    """Churn analysis notification configuration."""
+    enabled: bool = True
+    webhook_url: Optional[str] = None
+    on_success: bool = True
+    on_failure: bool = True
+    include_summary: bool = True
+
+
+class ChurnAnalysisConfig(BaseModel):
+    """Churn analysis scheduling configuration."""
+    enabled: bool = True
+    schedule_hour: int = 3
+    schedule_minute: int = 0
+    timezone: str = "Asia/Seoul"
+    max_retries: int = 3
+    retry_delay_minutes: int = 30
+    dry_run: bool = False
+    segment_update_method: str = "api"  # "api" or "direct"
+    auto_apply_segments: bool = True
+    notification: ChurnAnalysisNotificationConfig = Field(default_factory=ChurnAnalysisNotificationConfig)
+
+
 class SchedulingConfig(BaseModel):
     """Scheduling configuration."""
     jobstore_url: str = "sqlite:///data/scheduler.db"
@@ -57,6 +80,7 @@ class SchedulingConfig(BaseModel):
     tagging_schedule_hour: int = 3
     training_schedule_day: str = "sun"
     training_schedule_hour: int = 4
+    churn_analysis: ChurnAnalysisConfig = Field(default_factory=ChurnAnalysisConfig)
 
 
 class CustomerSegmentationConfig(BaseModel):
@@ -101,6 +125,8 @@ class ExternalServicesConfig(BaseModel):
     """External services configuration."""
     workflow_service_url: Optional[str] = None
     notification_webhook_url: Optional[str] = None
+    be_api_url: str = "http://localhost:8080"
+    be_api_timeout: int = 30
 
 
 class LocalDevConfig(BaseModel):
@@ -147,7 +173,11 @@ class Settings(BaseSettings):
 
     def _load_yaml_config(self) -> None:
         """Load configuration from YAML files."""
-        config_dir = Path("config")
+        # config 디렉토리 경로를 상대적으로 찾기
+        current_dir = Path(__file__).parent
+        config_dir = current_dir.parent.parent / "config"
+        if not config_dir.exists():
+            config_dir = Path("config")  # fallback
         
         # 환경별 설정 파일 경로
         env_config_file = config_dir / f"{self.environment}.yaml"
@@ -229,7 +259,7 @@ class Settings(BaseSettings):
         if secret_key_env:
             self.security.secret_key = secret_key_env
 
-    # 하위 호환성을 위한 프로퍼티들
+    # 호환성 프로퍼티
     @property
     def app_name(self) -> str:
         return self.app.name
@@ -267,7 +297,8 @@ class Settings(BaseSettings):
         if "crm" in self.database:
             url = self.database["crm"].url
             return self._substitute_env_vars(url)
-        return "mysql+pymysql://readonly_user:password@localhost:3306/beautifly"
+        # 기본값을 올바른 자격증명으로 변경
+        return "mysql+pymysql://swcamp:swcamp@localhost:3306/beautifly"
 
     @property
     def crm_pool_size(self) -> int:
@@ -279,9 +310,21 @@ class Settings(BaseSettings):
 
     @property
     def analytics_db_path(self) -> str:
+        from pathlib import Path
+        import os
+        
+        # 프로젝트 루트 절대 경로 계산 (src/../.. = be15_DevEagles_DA)
+        project_root = Path(__file__).parent.parent.parent.parent
+        
         if "analytics" in self.database:
-            return self.database["analytics"].url
-        return "data/analytics.db"
+            db_url = self.database["analytics"].url
+            # 상대경로인 경우 절대경로로 변환
+            if not os.path.isabs(db_url):
+                return str(project_root / db_url)
+            return db_url
+        
+        # 기본값: 항상 프로젝트 루트의 data 폴더 사용
+        return str(project_root / "data" / "analytics_local.db")
 
     @property
     def analytics_db_threads(self) -> int:
@@ -328,12 +371,32 @@ class Settings(BaseSettings):
 
     @property
     def etl_timestamp_file(self) -> str:
-        return self.etl.timestamp_file
+        from pathlib import Path
+        import os
+        
+        file_path = self.etl.timestamp_file
+        
+        # 상대경로인 경우 절대경로로 변환
+        if not os.path.isabs(file_path):
+            project_root = Path(__file__).parent.parent.parent.parent
+            return str(project_root / file_path)
+        
+        return file_path
 
     # ML 설정 프로퍼티들
     @property
     def model_storage_path(self) -> str:
-        return self.ml.model_storage_path
+        from pathlib import Path
+        import os
+        
+        model_path = self.ml.model_storage_path
+        
+        # 상대경로인 경우 절대경로로 변환
+        if not os.path.isabs(model_path):
+            project_root = Path(__file__).parent.parent.parent.parent
+            return str(project_root / model_path)
+        
+        return model_path
 
     @property
     def model_retrain_threshold(self) -> float:
@@ -346,7 +409,20 @@ class Settings(BaseSettings):
     # 스케줄링 설정 프로퍼티들
     @property
     def scheduler_jobstore_url(self) -> str:
-        return self._substitute_env_vars(self.scheduling.jobstore_url)
+        from pathlib import Path
+        import os
+        
+        url = self._substitute_env_vars(self.scheduling.jobstore_url)
+        
+        # SQLite URL인 경우 절대경로로 변환
+        if url.startswith("sqlite:///"):
+            db_path = url[10:]  # "sqlite:///" 제거
+            if not os.path.isabs(db_path):
+                project_root = Path(__file__).parent.parent.parent.parent
+                abs_path = project_root / db_path
+                return f"sqlite:///{abs_path}"
+        
+        return url
 
     @property
     def etl_schedule_hour(self) -> int:
@@ -421,11 +497,26 @@ class Settings(BaseSettings):
     def notification_webhook_url(self) -> Optional[str]:
         return self._substitute_env_vars(self.external_services.notification_webhook_url) if self.external_services.notification_webhook_url else None
 
+    @property
+    def be_api_url(self) -> str:
+        """Get BE API URL."""
+        return self._substitute_env_vars(self.external_services.be_api_url)
+
+    @property
+    def be_api_timeout(self) -> int:
+        """Get BE API timeout."""
+        return self.external_services.be_api_timeout
+
 
 @lru_cache()
 def get_settings() -> Settings:
     """Get cached application settings."""
     return Settings()
+
+
+def clear_settings_cache():
+    """Clear settings cache to reload configuration."""
+    get_settings.cache_clear()
 
 
 # Global settings instance

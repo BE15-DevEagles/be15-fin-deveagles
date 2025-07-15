@@ -100,22 +100,12 @@ class CampaignQueryServiceImplTest {
     assertThat(firstResponse.getShopId()).isEqualTo(shopId);
     assertThat(firstResponse.isActive()).isTrue(); // 현재 날짜 기준으로 활성 상태
 
-    // HATEOAS 링크 검증
-    assertThat(firstResponse.getLinks()).isNotEmpty();
-    assertThat(firstResponse.getLink("self")).isPresent();
-    assertThat(firstResponse.getLink("coupon")).isPresent();
-
     // 두 번째 캠페인 검증
     CampaignQueryResponse secondResponse = result.getContent().get(1);
     assertThat(secondResponse.getId()).isEqualTo(2L);
     assertThat(secondResponse.getCampaignTitle()).isEqualTo("두 번째 캠페인");
     assertThat(secondResponse.getDescription()).isEqualTo("두 번째 캠페인 설명");
     assertThat(secondResponse.getShopId()).isEqualTo(shopId);
-
-    // HATEOAS 링크 검증
-    assertThat(secondResponse.getLinks()).isNotEmpty();
-    assertThat(secondResponse.getLink("self")).isPresent();
-    assertThat(secondResponse.getLink("coupon")).isPresent();
 
     then(campaignQueryRepository)
         .should(times(1))
@@ -275,12 +265,6 @@ class CampaignQueryServiceImplTest {
     assertThat(response.getDescription()).isEqualTo("테스트 캠페인 설명");
     assertThat(response.getCouponId()).isEqualTo(1L);
 
-    // HATEOAS 링크 검증
-    assertThat(response.getLinks()).isNotEmpty();
-    assertThat(response.getLink("self")).isPresent();
-    assertThat(response.getLink("coupon")).isPresent();
-    assertThat(response.getLink("campaigns")).isPresent();
-
     then(campaignQueryRepository).should(times(1)).findByIdAndDeletedAtIsNull(campaignId);
   }
 
@@ -333,12 +317,6 @@ class CampaignQueryServiceImplTest {
     // Then
     assertThat(result).isPresent();
     CampaignQueryResponse response = result.get();
-
-    // HATEOAS 링크 검증 - 쿠폰 링크는 없어야 함
-    assertThat(response.getLinks()).isNotEmpty();
-    assertThat(response.getLink("self")).isPresent();
-    assertThat(response.getLink("coupon")).isEmpty(); // 쿠폰 링크 없음
-    assertThat(response.getLink("campaigns")).isPresent();
 
     then(campaignQueryRepository).should(times(1)).findByIdAndDeletedAtIsNull(campaignId);
   }

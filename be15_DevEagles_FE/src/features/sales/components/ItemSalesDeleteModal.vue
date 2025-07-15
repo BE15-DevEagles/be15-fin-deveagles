@@ -22,21 +22,32 @@
 </template>
 
 <script setup>
-  import { ref } from 'vue';
   import BaseModal from '@/components/common/BaseModal.vue';
   import BaseButton from '@/components/common/BaseButton.vue';
+  import { deleteSales } from '@/features/sales/api/sales.js';
 
   const props = defineProps({
     modelValue: Boolean,
+    salesId: {
+      type: Number,
+      required: true,
+    },
   });
 
   const emit = defineEmits(['update:modelValue', 'confirm']);
 
-  const toastRef = ref(null);
-
-  const handleDelete = () => {
-    emit('confirm');
-    emit('update:modelValue', false);
+  const handleDelete = async () => {
+    try {
+      await deleteSales(props.salesId);
+      emit('confirm'); // ✅ 삭제 성공 시 부모에 알림
+      alert('삭제가 완료되었습니다.');
+      window.location.reload();
+    } catch (error) {
+      console.error('상품 매출 삭제 실패:', error);
+      alert('삭제 중 오류가 발생했습니다.');
+    } finally {
+      emit('update:modelValue', false); // 모달 닫기
+    }
   };
 </script>
 

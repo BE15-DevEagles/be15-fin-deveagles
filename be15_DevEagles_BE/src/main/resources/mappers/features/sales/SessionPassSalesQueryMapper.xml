@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.deveagles.be15_deveagles_be.features.sales.query.mapper.SessionPassSalesQueryMapper">
+
+    <resultMap id="SessionPassSalesDetailResultMap" type="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.SessionPassSalesDetailResponse">
+        <id property="salesId" column="sales_id"/>
+        <result property="salesDate" column="sales_date"/>
+        <result property="customerName" column="customer_name"/>
+        <result property="staffName" column="staff_name"/>
+        <result property="retailPrice" column="retail_price"/>
+        <result property="salesDiscountRate" column="sales_discount_rate"/>
+        <result property="discountAmount" column="discount_amount"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="salesMemo" column="sales_memo"/>
+
+        <result property="sessionPassSalesId" column="session_pass_sales_id"/>
+        <result property="sessionPassId" column="session_pass_id"/>
+        <result property="sessionPassName" column="session_pass_name"/>
+        <result property="sessionPassPrice" column="session_pass_price"/>
+        <result property="session" column="session"/>
+        <result property="bonus" column="bonus"/>
+        <result property="discountRate" column="discount_rate"/>
+
+        <result property="customerSessionPassId" column="customer_session_pass_id"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 세션권 매출 상세 -->
+    <select id="findSessionPassSalesDetail" resultMap="SessionPassSalesDetailResultMap">
+        SELECT
+            s.sales_id,
+            s.sales_date,
+            c.customer_name,
+            st.staff_name,
+            s.retail_price,
+            s.discount_rate AS sales_discount_rate,
+            s.discount_amount,
+            s.total_amount,
+            s.sales_memo,
+
+            sps.session_pass_sales_id,
+            sps.session_pass_id,
+
+            sp.session_pass_name,
+            sp.session_pass_price AS session_pass_price,
+            sp.session,
+            sp.bonus,
+            sp.discount_rate,
+
+            csp.customer_session_pass_id,
+            csp.created_at
+
+        FROM session_pass_sales sps
+                 JOIN sales s ON sps.sales_id = s.sales_id
+                 JOIN customer c ON s.customer_id = c.customer_id
+                 JOIN staff st ON s.staff_id = st.staff_id
+                 JOIN session_pass sp ON sps.session_pass_id = sp.session_pass_id
+                 LEFT JOIN customer_session_pass csp ON sp.session_pass_id = csp.session_pass_id AND c.customer_id = csp.customer_id  AND csp.deleted_at IS NULL
+        WHERE sps.session_pass_sales_id = #{sessionPassSalesId}
+          AND s.deleted_at IS NULL
+          AND sps.deleted_at IS NULL
+    </select>
+
+    <!-- 결제 수단 -->
+    <select id="findPaymentsBySalesId" resultType="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.PaymentsDTO">
+        SELECT
+            payments_id,
+            sales_id,
+            payments_method,
+            amount
+        FROM payments
+        WHERE sales_id = #{salesId}
+    </select>
+
+</mapper>

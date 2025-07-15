@@ -23,10 +23,10 @@ import json
 # 프로젝트 경로 설정
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.config import settings
-from core.database import get_crm_db, get_analytics_db
-from services.cohort_retention import CohortRetentionAnalyzer
-from services.churn_prediction import ChurnPredictionService
+from analytics.core.config import settings
+from analytics.core.database import get_crm_db, get_analytics_db
+from analytics.services.cohort_retention import CohortRetentionAnalyzer
+from analytics.services.churn_prediction import ChurnPredictionService
 from analytics.dashboard.utils.serializers import serialize_results, deserialize_results
 from analytics.dashboard.utils.decorators import ensure_results
 from analytics.dashboard.components.common import kpi_card, empty_figure

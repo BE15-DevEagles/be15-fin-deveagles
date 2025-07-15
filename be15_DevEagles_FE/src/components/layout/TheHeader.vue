@@ -103,17 +103,12 @@
           <button ref="bellButtonRef" class="quick-menu-item" @click="toggleNotifications">
             <BellIcon :size="16" />
 
-            <!-- 🔴 알림 개수 뱃지 -->
-            <span
-              v-if="unreadCount > 0"
-              class="absolute -top-1 -right-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-danger rounded-full"
-            >
+            <span v-if="unreadCount > 0" class="notification-badge">
               {{ unreadCount }}
             </span>
           </button>
           <span class="tooltip tooltip-bottom tooltip-primary">알림</span>
 
-          <!-- ✨ [이동] 팝오버 컴포넌트를 올바른 위치로 이동 -->
           <NotificationList v-model="showNotifications" :trigger-element="bellButtonRef" />
         </div>
       </div>
@@ -886,9 +881,16 @@
     color: var(--color-neutral-white);
     font-size: 10px;
     font-weight: bold;
-    padding: 2px 5px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1rem; /* 16px */
+    height: 1rem; /* 16px */
+    padding: 0 4px;
     border-radius: 9999px;
     line-height: 1;
+    box-sizing: border-box;
   }
 
   .user-menu {

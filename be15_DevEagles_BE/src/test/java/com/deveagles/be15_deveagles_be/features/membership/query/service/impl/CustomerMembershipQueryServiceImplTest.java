@@ -117,4 +117,22 @@ class CustomerMembershipQueryServiceImplTest {
     assertThat(result.getPlist()).hasSize(1);
     assertThat(result.getSList()).hasSize(1);
   }
+
+  @Test
+  @DisplayName("getAvailableSessionPassesByCustomerId - 정상")
+  void getAvailableSessionPassesByCustomerId_success() {
+    // given
+    Long customerId = 123L;
+    CustomerSessionPassReponse mockResponse = mock(CustomerSessionPassReponse.class);
+    when(customerMembershipMapper.findUsableSessionPassesByCustomerId(customerId))
+        .thenReturn(List.of(mockResponse));
+
+    // when
+    List<CustomerSessionPassReponse> result =
+        service.getAvailableSessionPassesByCustomerId(customerId);
+
+    // then
+    assertThat(result).isNotNull();
+    assertThat(result).hasSize(1);
+  }
 }

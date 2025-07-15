@@ -9,6 +9,7 @@ import com.deveagles.be15_deveagles_be.features.messages.command.application.dto
 import com.deveagles.be15_deveagles_be.features.messages.command.application.dto.response.MessageSettingResponse;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.MessageSettings;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.repository.MessageSettingRepository;
+import com.deveagles.be15_deveagles_be.features.shops.command.application.service.ShopCommandServiceImpl;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ class MessageSettingsCommandServiceImplTest {
   @InjectMocks private MessageSettingsCommandServiceImpl messageSettingsService;
 
   @Mock private MessageSettingRepository messageSettingRepository;
+  @Mock private ShopCommandServiceImpl shopCommandServiceImpl;
 
   private final Long shopId = 1L;
 
