@@ -1,16 +1,16 @@
 <script setup>
-  import { ref, computed, defineProps, defineEmits } from 'vue';
+  import { ref, computed, onMounted } from 'vue';
   import BaseModal from '@/components/common/BaseModal.vue';
   import AutoSendSettingDrawer from '@/features/messages/components/drawer/AutoSendSettingDrawer.vue';
   import EditIcon from '@/components/icons/EditIcon.vue';
   import NewIcon from '@/components/icons/NewIcon.vue';
+  import AutoSendAPI from '@/features/messages/api/autoSend.js';
 
   const props = defineProps({
     modelValue: Boolean,
-    items: Array,
   });
 
-  const emit = defineEmits(['update:modelValue', 'update:items']);
+  const emit = defineEmits(['update:modelValue']);
 
   const show = computed({
     get: () => props.modelValue,
@@ -21,82 +21,84 @@
   const drawerVisible = ref(false);
   const selectedMessage = ref(null);
 
+  const DEFAULT_CATEGORIES = [
+    { label: '신규 등록', triggerType: 'NEW_CUSTOMER' },
+    { label: '예약 확정', triggerType: 'RESERVATION_CREATED' },
+    { label: '예약 수정', triggerType: 'RESERVATION_MODIFIED' },
+    { label: '예약 취소', triggerType: 'RESERVATION_CANCELLED' },
+    { label: '횟수권 차감', triggerType: 'SESSION_PASS_USED' },
+    { label: '선불권 차감', triggerType: 'PREPAID_USED' },
+  ];
+
+  const templates = ref([]);
+
+  const computedItems = computed(() => {
+    const map = new Map();
+    templates.value.forEach(({ automaticEventType, templateContent, isActive }) => {
+      const entry = { message: templateContent, isActive };
+      if (!map.has(automaticEventType)) {
+        map.set(automaticEventType, []);
+      }
+      map.get(automaticEventType).push(entry);
+    });
+
+    return DEFAULT_CATEGORIES.map(c => ({
+      ...c,
+      messages: map.get(c.triggerType) || [],
+    }));
+  });
+
+  async function fetchTemplates() {
+    try {
+      const res = await AutoSendAPI.getTemplates();
+      templates.value = Array.isArray(res) ? res : (res?.data ?? []);
+    } catch (e) {
+      console.error('자동발신 템플릿 초기 조회 실패', e);
+      templates.value = [];
+    }
+  }
+
+  onMounted(fetchTemplates);
+
   function openDrawer(message, index) {
+    const selectedItem = computedItems.value[selectedIndex.value];
     selectedMessage.value = {
       ...message,
       parentIndex: selectedIndex.value,
       messageIndex: index,
-      label: props.items[selectedIndex.value]?.label || '',
+      label: selectedItem.label,
+      triggerType: selectedItem.triggerType,
     };
     drawerVisible.value = true;
   }
 
   function addNewMessage(index) {
-    const newMessage = {
-      message: '',
-      enabled: true,
-      sendTime: 'immediate',
-      type: 'SMS',
-      label: props.items[index]?.label || '',
-    };
+    const selectedItem = computedItems.value[index];
     selectedIndex.value = index;
     selectedMessage.value = {
-      ...newMessage,
+      message: '',
+      isActive: true,
+      triggerType: selectedItem.triggerType,
+      label: selectedItem.label,
       parentIndex: index,
       messageIndex: null,
     };
     drawerVisible.value = true;
   }
 
-  function updateMessage(updated) {
-    const newItems = JSON.parse(JSON.stringify(props.items));
-    const messages = newItems[updated.parentIndex].messages;
-
-    if (updated.messageIndex == null || updated.messageIndex === undefined) {
-      messages.push({
-        id: Date.now(),
-        message: updated.message,
-        enabled: updated.enabled,
-        sendTime: updated.sendTime,
-        type: updated.type || 'SMS',
-      });
-    } else {
-      messages[updated.messageIndex] = {
-        ...messages[updated.messageIndex],
-        message: updated.message,
-        enabled: updated.enabled,
-        sendTime: updated.sendTime,
-      };
-    }
-
-    emit('update:items', newItems);
+  async function handleMessageSaved() {
+    await fetchTemplates();
     drawerVisible.value = false;
-  }
-
-  function getSendTimeLabel(value) {
-    const map = {
-      immediate: '차감 즉시',
-      '1min': '1분 후',
-      '5min': '5분 후',
-      custom: '직접 설정',
-    };
-    return map[value] || '-';
-  }
-
-  function truncateMessage(message) {
-    if (!message) return '(메시지 없음)';
-    return message.length > 30 ? message.slice(0, 30) + '...' : message;
   }
 </script>
 
 <template>
   <BaseModal v-model="show" title="자동 발신 설정">
     <div class="auto-send-modal-body">
-      <!-- 왼쪽 리스트 -->
       <div class="auto-send-list">
         <div
-          v-for="(item, index) in props.items"
-          :key="index"
+          v-for="(item, index) in computedItems"
+          :key="item.triggerType"
           class="auto-send-item"
           :class="{ selected: index === selectedIndex }"
           @click="selectedIndex = index"
@@ -110,40 +112,42 @@
         </div>
       </div>
 
-      <!-- 오른쪽 프리뷰 -->
-      <div v-if="props.items[selectedIndex]" class="auto-send-preview">
-        <div
-          v-for="(message, msgIdx) in props.items[selectedIndex].messages"
-          :key="msgIdx"
-          class="preview-card"
-        >
-          <div class="preview-row">
-            <span class="preview-label">전송 시간</span>
-            <span class="preview-value">{{ getSendTimeLabel(message.sendTime) }}</span>
+      <div class="auto-send-preview">
+        <template v-if="computedItems[selectedIndex].messages.length > 0">
+          <div
+            v-for="(message, msgIdx) in computedItems[selectedIndex].messages"
+            :key="msgIdx"
+            class="preview-card"
+          >
+            <div class="preview-row">
+              <span class="preview-label">활성화 여부</span>
+              <span class="preview-value">{{ message.isActive ? 'ON' : 'OFF' }}</span>
+            </div>
+            <div class="preview-row">
+              <span class="preview-label">메시지</span>
+              <span class="preview-value">{{ message.message }}</span>
+            </div>
+            <div class="text-right mt-2">
+              <button class="edit-icon-button" @click="openDrawer(message, msgIdx)">
+                <EditIcon />
+              </button>
+            </div>
           </div>
-          <div class="preview-row">
-            <span class="preview-label">자동 발송</span>
-            <span class="preview-value">{{ message.enabled ? '활성화됨' : '비활성화됨' }}</span>
+        </template>
+        <template v-else>
+          <div class="empty-preview">
+            등록된 메시지가 없습니다.<br />
+            <strong>＋ 버튼</strong>을 눌러 메시지를 추가해보세요.
           </div>
-          <div class="preview-row">
-            <span class="preview-label">메시지</span>
-            <span class="preview-value">{{ truncateMessage(message.message) }}</span>
-          </div>
-          <div class="text-right mt-2">
-            <button class="edit-icon-button" @click="openDrawer(message, msgIdx)">
-              <EditIcon />
-            </button>
-          </div>
-        </div>
+        </template>
       </div>
     </div>
 
-    <!-- 드로어 -->
     <AutoSendSettingDrawer
       v-if="selectedMessage"
       v-model="drawerVisible"
       :item="selectedMessage"
-      @save="updateMessage"
+      @save="handleMessageSaved"
     />
   </BaseModal>
 </template>
@@ -154,7 +158,6 @@
     gap: 2rem;
     min-height: 400px;
   }
-
   .auto-send-list {
     flex: 1;
     display: flex;
@@ -164,7 +167,6 @@
     border-right: 1px solid #e5e7eb;
     padding-right: 1rem;
   }
-
   .auto-send-item {
     padding: 0.75rem 1rem;
     border: 1px solid #d1d5db;
@@ -173,28 +175,23 @@
     cursor: pointer;
     transition: background-color 0.2s;
   }
-
   .auto-send-item:hover {
     background-color: #f3f4f6;
   }
-
   .auto-send-item.selected {
     background-color: #e0f2fe;
     border-color: #38bdf8;
   }
-
   .list-item-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
-
   .label {
     font-size: 0.95rem;
     font-weight: 500;
     color: #111827;
   }
-
   .add-icon-button {
     background: none;
     border: none;
@@ -202,7 +199,6 @@
     margin-left: 0.25rem;
     cursor: pointer;
   }
-
   .auto-send-preview {
     flex: 2;
     padding: 1rem 0;
@@ -210,7 +206,6 @@
     flex-direction: column;
     gap: 1rem;
   }
-
   .preview-card {
     width: 100%;
     background-color: #f9fafb;
@@ -221,7 +216,6 @@
     flex-direction: column;
     gap: 0.75rem;
   }
-
   .preview-row {
     display: flex;
     justify-content: space-between;
@@ -229,13 +223,11 @@
     border-bottom: 1px solid #e5e7eb;
     padding-bottom: 0.5rem;
   }
-
   .preview-label {
     font-weight: 500;
     color: #374151;
     font-size: 0.875rem;
   }
-
   .preview-value {
     color: #4b5563;
     font-size: 0.875rem;
@@ -243,11 +235,16 @@
     text-align: right;
     word-break: break-word;
   }
-
   .edit-icon-button {
     background: none;
     border: none;
     padding: 0.25rem;
     cursor: pointer;
+  }
+  .empty-preview {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    padding: 1.25rem;
+    text-align: center;
   }
 </style>

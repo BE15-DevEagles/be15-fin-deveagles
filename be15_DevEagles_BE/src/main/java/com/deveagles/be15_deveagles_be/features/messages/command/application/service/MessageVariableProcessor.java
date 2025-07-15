@@ -4,6 +4,8 @@ import com.deveagles.be15_deveagles_be.common.exception.BusinessException;
 import com.deveagles.be15_deveagles_be.common.exception.ErrorCode;
 import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerDetailResponse;
 import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerQueryService;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -16,8 +18,8 @@ public class MessageVariableProcessor {
 
   private final CustomerQueryService customerQueryService;
 
-  // ✅ payload 생성 - 고객 ID + 매장 ID 기반
-  public Map<String, String> buildPayload(Long customerId, Long shopId) {
+  public Map<String, String> buildPayload(
+      Long customerId, Long shopId, Map<String, String> externalPayload) {
     CustomerDetailResponse customer =
         customerQueryService
             .getCustomerDetail(customerId, shopId)
@@ -25,7 +27,11 @@ public class MessageVariableProcessor {
 
     Map<String, String> payload = new HashMap<>();
     payload.put("고객명", customer.getCustomerName());
-    // 앞으로 선불권, 예약일, 쿠폰 등 추가 가능
+
+    // 외부에서 예약일, 취소일 등 들어오면 그걸 merge해서 사용
+    if (externalPayload != null) {
+      payload.putAll(externalPayload);
+    }
 
     return payload;
   }
@@ -44,5 +50,9 @@ public class MessageVariableProcessor {
     }
     System.out.println("✅ 최종 content = " + content);
     return content;
+  }
+
+  private String format(LocalDateTime time) {
+    return time != null ? time.format(DateTimeFormatter.ofPattern("yyyy.MM.dd")) : "";
   }
 }

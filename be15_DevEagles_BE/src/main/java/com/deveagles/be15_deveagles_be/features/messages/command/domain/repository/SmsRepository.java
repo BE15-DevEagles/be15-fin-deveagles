@@ -5,6 +5,7 @@ import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregat
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.Sms;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SmsRepository extends JpaRepository<Sms, Long> {
@@ -13,4 +14,6 @@ public interface SmsRepository extends JpaRepository<Sms, Long> {
       MessageSendingType messageSendingType,
       LocalDateTime scheduledAt,
       MessageDeliveryStatus messageDeliveryStatus);
+
+  Optional<Sms> findByMessageIdAndShopId(Long messageId, Long shopId);
 }

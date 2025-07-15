@@ -55,16 +55,16 @@
   });
 
   function toggleSelect(customer) {
-    const exists = selected.value.find(c => c.phone === customer.phone);
+    const exists = selected.value.find(c => c.id === customer.id);
     if (exists) {
-      selected.value = selected.value.filter(c => c.phone !== customer.phone);
+      selected.value = selected.value.filter(c => c.id !== customer.id);
     } else {
       selected.value.push(customer);
     }
   }
 
   function isSelected(customer) {
-    return selected.value.some(c => c.phone === customer.phone);
+    return selected.value.some(c => c.id === customer.id);
   }
 
   function onPageChange(page) {
