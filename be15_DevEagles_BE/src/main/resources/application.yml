@@ -216,6 +216,11 @@ springdoc:
   api-docs:
     enabled: true
 
+# AES (암호화)
+aes:
+  key: ${AES_SECRET_KEY}
+  iv: ${AES_IV}
+
 ---
 # 운영 환경 설정
 spring:
@@ -286,3 +291,7 @@ jwt:
   expiration: 1800000
   refresh-expiration: 604800000
 
+# AES (암호화)
+aes:
+  key: ${AES_SECRET_KEY}
+  iv: ${AES_IV}
