@@ -51,7 +51,7 @@
                 :disabled="true"
                 style="pointer-events: none"
               />
-              <span v-else>{{ leave.staffName || '미지정' }}</span>
+              <span v-else>{{ leave.staffName }}</span>
             </div>
           </div>
 
@@ -174,7 +174,7 @@
 </template>
 
 <script setup>
-  import { ref, defineProps, defineEmits, watch, computed, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';

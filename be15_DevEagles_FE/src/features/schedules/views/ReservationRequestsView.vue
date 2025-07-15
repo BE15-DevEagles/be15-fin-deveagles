@@ -36,9 +36,7 @@
               outline
               type="primary"
               size="sm"
-              @click.stop="
-                openConfirm(`예약 ID ${item.id}를 확정하시겠습니까?`, () => confirmSingle(item.id))
-              "
+              @click.stop="openConfirm(`예약를 확정하시겠습니까?`, () => confirmSingle(item.id))"
             >
               예약 확정
             </BaseButton>
@@ -196,7 +194,7 @@
           reservationStatusName: 'CONFIRMED',
         }))
       );
-      toast.value.success(`확정 완료: ${selectedIds.value.join(', ')}`);
+      toast.value.success(`예약 확정 완료`);
       selectedIds.value = [];
       fetchReservations();
     } catch (e) {

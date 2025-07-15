@@ -159,6 +159,7 @@
       duration: item.timeTaken != null ? `${item.timeTaken}분` : '상품',
       price: item.secondaryItemPrice,
     });
+    form.value.selectedItems.push({ id: item.secondaryItemId });
     updateEndTimeAndDuration();
   };
 
@@ -171,6 +172,7 @@
     startTime: new Date(0, 0, 0, 0, 0),
     endTime: new Date(0, 0, 0, 0, 0),
     duration: '',
+    selectedItems: [],
   });
 
   const handleBlur = () => {
@@ -216,7 +218,9 @@
   const selectedServices = ref([]);
 
   const removeService = index => {
+    const removed = selectedServices.value[index];
     selectedServices.value.splice(index, 1);
+    form.value.selectedItems = form.value.selectedItems.filter(it => it.id !== removed.id);
   };
   onMounted(() => {
     fetchStaffList();

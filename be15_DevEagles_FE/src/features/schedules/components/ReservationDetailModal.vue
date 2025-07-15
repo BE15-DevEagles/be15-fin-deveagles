@@ -217,7 +217,7 @@
   <BaseConfirm
     v-model="showEditConfirm"
     title="변경 내용을 저장하시겠습니까?"
-    message="입력한 정보로 휴무를 수정하시겠습니까?"
+    message="입력한 정보로 예약을 수정하시겠습니까?"
     confirm-text="수정"
     cancel-text="취소"
     confirm-type="primary"
@@ -227,7 +227,7 @@
 </template>
 
 <script setup>
-  import { ref, defineProps, defineEmits, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
