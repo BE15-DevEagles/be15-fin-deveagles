@@ -83,8 +83,8 @@
             <div class="card-left">
               <span class="service-name">({{ item.category }}) {{ item.name }}</span>
               <span class="service-meta"
-                >{{ item.duration }} / {{ item.price.toLocaleString() }} 원</span
-              >
+                >{{ item.duration }} / {{ item.price.toLocaleString() }} 원
+              </span>
             </div>
             <button class="remove-btn" @click="removeService(index)">✕</button>
           </div>
@@ -159,6 +159,7 @@
       duration: item.timeTaken != null ? `${item.timeTaken}분` : '상품',
       price: item.secondaryItemPrice,
     });
+    form.value.selectedItems.push({ id: item.secondaryItemId });
     updateEndTimeAndDuration();
   };
 
@@ -171,6 +172,7 @@
     startTime: new Date(0, 0, 0, 0, 0),
     endTime: new Date(0, 0, 0, 0, 0),
     duration: '',
+    selectedItems: [],
   });
 
   const handleBlur = () => {
@@ -216,7 +218,9 @@
   const selectedServices = ref([]);
 
   const removeService = index => {
+    const removed = selectedServices.value[index];
     selectedServices.value.splice(index, 1);
+    form.value.selectedItems = form.value.selectedItems.filter(it => it.id !== removed.id);
   };
   onMounted(() => {
     fetchStaffList();
@@ -269,7 +273,7 @@
     background: white;
     border: 1px solid var(--color-gray-300);
     border-radius: 4px;
-    z-index: 10;
+    z-index: 100;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   }
 

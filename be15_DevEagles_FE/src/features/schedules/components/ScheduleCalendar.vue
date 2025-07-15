@@ -118,8 +118,11 @@
       };
     },
 
-    eventClick(info) {
-      emit('clickSchedule', info.event.id);
+    eventClick: info => {
+      emit('clickSchedule', {
+        id: info.event.id,
+        type: info.event.extendedProps.type,
+      });
     },
 
     eventDidMount(info) {

@@ -13,18 +13,21 @@
         <div class="modal-body">
           <div class="left-detail">
             <div class="row row-select">
-              <label>구분</label>
+              <label>반복</label>
               <div class="form-control-wrapper">
                 <BaseForm
                   v-if="isEditMode"
-                  v-model="edited.type"
+                  v-model="edited.repeat"
                   type="select"
                   :options="[
-                    { text: '일정', value: 'plan' },
-                    { text: '정기일정', value: 'regular_plan' },
+                    { text: '반복 안함', value: 'none' },
+                    { text: '매달 반복', value: 'monthly' },
+                    { text: '요일 반복', value: 'weekly' },
                   ]"
-                  placeholder="구분 선택"
+                  placeholder="반복 주기 선택"
+                  style="width: 200px"
                 />
+
                 <span v-else>{{ planTypeLabel }}</span>
               </div>
             </div>
@@ -41,29 +44,70 @@
                 <BaseForm
                   v-if="isEditMode"
                   v-model="edited.staffName"
-                  type="select"
-                  :options="[
-                    { text: '디자이너 A', value: '디자이너 A' },
-                    { text: '디자이너 B', value: '디자이너 B' },
-                  ]"
+                  type="text"
+                  :options="staffOptions"
                   placeholder="담당자 선택"
+                  :disabled="true"
                 />
                 <span v-else>{{ edited.staffName || '미지정' }}</span>
               </div>
             </div>
 
             <div class="row">
-              <label>날짜</label>
+              <label>날짜 및 시간</label>
               <div class="date-inline">
                 <template v-if="isEditMode">
-                  <!-- 그대로 유지 -->
-                  <PrimeDatePicker
-                    v-model="edited.date"
-                    :clearable="false"
-                    :show-time="false"
-                    :show-button-bar="true"
-                    :style="{ width: '200px' }"
-                  />
+                  <!-- 날짜 -->
+                  <template v-if="edited.repeat === 'none'">
+                    <PrimeDatePicker
+                      v-model="edited.date"
+                      :clearable="false"
+                      :show-time="false"
+                      :show-button-bar="true"
+                      placeholder="시작 날짜"
+                      :style="{ width: '200px' }"
+                    />
+                    <PrimeDatePicker
+                      v-model="edited.endDate"
+                      :clearable="false"
+                      :show-time="false"
+                      :show-button-bar="true"
+                      placeholder="종료 날짜"
+                      :style="{ width: '200px' }"
+                    />
+                  </template>
+
+                  <template v-else-if="edited.repeat === 'monthly'">
+                    <BaseForm
+                      v-model="edited.monthlyDay"
+                      type="select"
+                      :options="
+                        Array.from({ length: 31 }, (_, i) => ({ text: `${i + 1}일`, value: i + 1 }))
+                      "
+                      placeholder="매달 반복일 선택"
+                      style="width: 200px"
+                    />
+                  </template>
+
+                  <template v-else-if="edited.repeat === 'weekly'">
+                    <BaseForm
+                      v-model="edited.weeklyDay"
+                      type="select"
+                      :options="[
+                        { text: '월요일', value: 'MON' },
+                        { text: '화요일', value: 'TUE' },
+                        { text: '수요일', value: 'WED' },
+                        { text: '목요일', value: 'THU' },
+                        { text: '금요일', value: 'FRI' },
+                        { text: '토요일', value: 'SAT' },
+                        { text: '일요일', value: 'SUN' },
+                      ]"
+                      placeholder="반복 요일 선택"
+                      style="width: 200px"
+                    />
+                  </template>
+
+                  <!-- 시간 -->
                   <PrimeDatePicker
                     v-model="edited.startTime"
                     :clearable="false"
@@ -82,14 +126,8 @@
                     placeholder="종료 시간"
                     :style="{ width: '140px' }"
                   />
-                  <span>소요 시간 : </span>
-                  <input
-                    type="text"
-                    :value="edited.duration"
-                    readonly
-                    class="duration-input"
-                    style="width: 100px"
-                  />
+                  <span>소요 시간:</span>
+                  <BaseForm v-model="durationText" type="text" readonly placeholder="00:00" />
                   <label class="all-day-checkbox">
                     <input v-model="edited.allDay" type="checkbox" @change="handleAllDayToggle" />
                     <span>종일</span>
@@ -107,43 +145,6 @@
             </div>
 
             <div class="row">
-              <label>반복</label>
-              <div class="repeat-inline">
-                <template v-if="isEditMode">
-                  <BaseForm
-                    v-model="edited.repeat"
-                    type="select"
-                    :options="[
-                      { text: '반복 안함', value: 'none' },
-                      { text: '매달 반복', value: 'monthly' },
-                      { text: '요일 반복', value: 'weekly' },
-                    ]"
-                    placeholder="반복 주기"
-                  />
-                  <span v-if="edited.repeat !== 'none' && edited.date" class="repeat-description">
-                    {{
-                      edited.repeat === 'monthly'
-                        ? '매달 ' + new Date(edited.date).getDate() + '일 반복'
-                        : '매주 ' + koreanWeekday[new Date(edited.date).getDay()] + ' 반복'
-                    }}
-                  </span>
-                </template>
-
-                <template v-else>
-                  <template v-if="type === 'regular_plan' && edited.repeat === 'weekly'">
-                    <span>매주 {{ koreanWeekday[edited.date] || '요일 미지정' }} 반복</span>
-                  </template>
-                  <template v-else-if="type === 'regular_plan' && edited.repeat === 'monthly'">
-                    <span>매달 {{ edited.date || '일 미지정' }}일 반복</span>
-                  </template>
-                  <template v-else>
-                    <span>반복 없음</span>
-                  </template>
-                </template>
-              </div>
-            </div>
-
-            <div class="row">
               <label>메모</label>
               <span v-if="!isEditMode">{{ edited.memo }}</span>
               <BaseForm v-else v-model="edited.memo" type="textarea" rows="3" />
@@ -154,14 +155,14 @@
         <div class="modal-footer">
           <BaseButton type="error" @click="close">닫기</BaseButton>
           <template v-if="isEditMode">
-            <BaseButton type="primary" @click="saveEdit">저장</BaseButton>
+            <BaseButton type="primary" @click="handleSave">저장</BaseButton>
           </template>
           <template v-else>
             <div class="action-dropdown">
               <BaseButton type="primary" @click="toggleMenu">수정 / 삭제</BaseButton>
               <ul v-if="showMenu" class="dropdown-menu">
                 <li @click="handleEdit">수정하기</li>
-                <li @click="handleDelete">삭제하기</li>
+                <li @click="openDeleteConfirm">삭제하기</li>
               </ul>
             </div>
           </template>
@@ -169,21 +170,86 @@
       </div>
     </div>
   </div>
+  <BaseToast ref="toast" />
+  <BaseConfirm
+    v-model="showConfirmModal"
+    title="일정 삭제"
+    message="정말 이 일정을 삭제하시겠습니까?"
+    confirm-text="삭제"
+    cancel-text="취소"
+    confirm-type="error"
+    icon-type="error"
+    @confirm="handleDelete"
+  />
+  <BaseConfirm
+    v-model="showEditConfirm"
+    title="변경 내용을 저장하시겠습니까?"
+    message="입력한 정보로 휴무를 수정하시겠습니까?"
+    confirm-text="수정"
+    cancel-text="취소"
+    confirm-type="primary"
+    icon-type="info"
+    @confirm="confirmEdit"
+  />
 </template>
 
 <script setup>
-  import { computed, defineProps, defineEmits, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+  import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
-  import { fetchScheduleDetail } from '@/features/schedules/api/schedules.js';
+  import {
+    fetchScheduleDetail,
+    getStaffList,
+    deletePlans,
+    updatePlan,
+    updateRegularPlan,
+    switchScheduleType,
+  } from '@/features/schedules/api/schedules.js';
+  import BaseConfirm from '@/components/common/BaseConfirm.vue';
+  import BaseToast from '@/components/common/BaseToast.vue';
+  import dayjs from 'dayjs';
 
+  const staffOptions = ref([]);
+  const fetchStaffList = async () => {
+    try {
+      const res = await getStaffList({ isActive: true });
+      staffOptions.value = [
+        ...res.map(staff => ({
+          text: staff.staffName,
+          value: staff.staffId,
+        })),
+      ];
+    } catch (e) {
+      console.error('담당자 목록 조회 실패:', e);
+    }
+  };
+  onMounted(() => {
+    fetchStaffList();
+  });
+
+  const durationText = ref('');
+  const toast = ref(null);
   const emit = defineEmits(['update:modelValue']);
   const isEditMode = ref(false);
   const showMenu = ref(false);
   const edited = ref({});
   const backup = ref({});
+  const showEditConfirm = ref(false);
+  const showConfirmModal = ref(false);
 
+  const handleSave = () => {
+    showEditConfirm.value = true;
+  };
+
+  const confirmEdit = async () => {
+    await saveEdit();
+  };
+
+  const openDeleteConfirm = () => {
+    showMenu.value = false;
+    showConfirmModal.value = true;
+  };
   defineOptions({
     name: 'PlanDetailModal',
   });
@@ -194,15 +260,18 @@
     type: String,
   });
 
-  const koreanWeekday = {
-    SUN: '일요일',
-    MON: '월요일',
-    TUE: '화요일',
-    WED: '수요일',
-    THU: '목요일',
-    FRI: '금요일',
-    SAT: '토요일',
-  };
+  watch(
+    [() => edited.value.staffName, staffOptions],
+    ([name, options]) => {
+      if (!name || !options.length) return;
+
+      const matched = options.find(opt => opt.text === name);
+      if (matched) {
+        edited.value.staffId = matched.value;
+      }
+    },
+    { immediate: true }
+  );
 
   const close = () => {
     emit('update:modelValue', false);
@@ -212,6 +281,12 @@
   };
 
   const toggleMenu = () => (showMenu.value = !showMenu.value);
+  const toDate = str => {
+    const today = new Date();
+    const [h, m] = str.split(':').map(Number);
+    today.setHours(h, m, 0, 0);
+    return new Date(today);
+  };
 
   const handleEdit = () => {
     isEditMode.value = true;
@@ -219,64 +294,246 @@
 
     const { date, timeRange, duration, repeat = 'none', ...rest } = edited.value;
 
-    const [startStr, endStr] = (timeRange || '').split(' - ').map(str => str.trim());
+    const [startStr, endStr] = (timeRange || '').split(/[-~]/).map(str => str.trim());
 
     const toTime = str => {
-      if (!str) return null;
+      if (!str || !/^\d{2}:\d{2}$/.test(str)) return null;
       const [h, m] = str.split(':').map(Number);
-      let baseDate;
-      if (repeat === 'monthly') {
-        baseDate = new Date();
-        baseDate.setDate(Number(date));
-      } else if (repeat === 'weekly') {
-        baseDate = new Date();
-      } else {
-        baseDate = new Date(date);
-      }
-      if (isNaN(baseDate)) {
-        console.warn('⚠ Invalid base date for time parsing:', date);
-        return null;
-      }
-      baseDate.setHours(h, m, 0, 0);
-      return baseDate;
+      const base = new Date();
+      base.setHours(h, m, 0, 0);
+      return base;
     };
+
+    // 기본값 00:00
+    const defaultStart = new Date();
+    defaultStart.setHours(0, 0, 0, 0);
+
+    const defaultEnd = new Date();
+    defaultEnd.setHours(1, 0, 0, 0);
+
+    const parsedStart = toTime(startStr) || defaultStart;
+    const parsedEnd = toTime(endStr) || defaultEnd;
 
     edited.value = {
       ...rest,
+      type: props.type === 'regular_plan' ? 'regular_plan' : 'plan',
       date: repeat === 'none' ? new Date(date) : date,
-      startTime: toTime(startStr),
-      endTime: toTime(endStr),
+      endDate: repeat === 'none' ? (rest.endDate ? new Date(rest.endDate) : new Date(date)) : null,
+      startTime: parsedStart,
+      endTime: parsedEnd,
       duration,
       timeRange,
       allDay: timeRange === '00:00 - 23:59',
       repeat,
     };
 
-    backup.value = JSON.parse(JSON.stringify(edited.value));
+    backup.value = {
+      ...edited.value,
+      type: edited.value.type,
+      startTime: new Date(edited.value.startTime),
+      endTime: new Date(edited.value.endTime),
+      date: edited.value.date ? new Date(edited.value.date) : null,
+      endDate: edited.value.endDate ? new Date(edited.value.endDate) : null,
+    };
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     showMenu.value = false;
-    if (confirm('정말 삭제하시겠습니까?')) {
-      alert('삭제 요청 전송');
+
+    try {
+      const deleteRequest = [
+        {
+          id: edited.value.id,
+          type: edited.value.type?.toUpperCase() === 'REGULAR_PLAN' ? 'REGULAR_PLAN' : 'PLAN',
+        },
+      ];
+
+      await deletePlans(deleteRequest);
+
+      toast.value?.success('삭제가 완료되었습니다.');
+      close();
+    } catch (error) {
+      console.error('삭제 실패:', error);
+      toast.value?.error('삭제 중 오류가 발생했습니다.');
+    }
+  };
+  const getDayOfWeekCode = date => {
+    const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    return days[new Date(date).getDay()];
+  };
+  const saveEdit = async () => {
+    try {
+      const formatDateTime = (date, time) =>
+        dayjs(`${dayjs(date).format('YYYY-MM-DD')}T${dayjs(time).format('HH:mm')}`).format(
+          'YYYY-MM-DDTHH:mm:ss'
+        );
+
+      const formatTime = d => dayjs(d).format('HH:mm');
+      const isTypeChanged = edited.value.type !== backup.value.type;
+
+      if (isTypeChanged) {
+        const request = {
+          staffId: edited.value.staffId,
+          fromType: backup.value.type === 'regular_plan' ? 'REGULAR_PLAN' : 'PLAN',
+          fromId: edited.value.id,
+          toType: edited.value.type === 'regular_plan' ? 'REGULAR_PLAN' : 'PLAN',
+          planRequest: null,
+          regularPlanRequest: null,
+        };
+
+        if (request.toType === 'PLAN') {
+          request.planRequest = {
+            staffId: edited.value.staffId,
+            planTitle: edited.value.title,
+            planMemo: edited.value.memo,
+            planStartAt: formatDateTime(edited.value.date, edited.value.startTime),
+            planEndAt: formatDateTime(edited.value.endDate, edited.value.endTime),
+          };
+        } else {
+          request.regularPlanRequest = {
+            staffId: edited.value.staffId,
+            regularPlanTitle: edited.value.title,
+            regularPlanMemo: edited.value.memo,
+            regularPlanStartAt: formatTime(edited.value.startTime),
+            regularPlanEndAt: formatTime(edited.value.endTime),
+            weeklyPlan: edited.value.repeat === 'weekly' ? edited.value.weeklyDay : null,
+            monthlyPlan: edited.value.repeat === 'monthly' ? edited.value.monthlyDay : null,
+          };
+        }
+
+        await switchScheduleType(request);
+        toast.value?.success('일정 타입이 변경되었습니다.');
+        close();
+        return;
+      }
+
+      // 일반 수정
+      const payload = {
+        staffId: edited.value.staffId,
+      };
+
+      if (edited.value.type === 'plan') {
+        Object.assign(payload, {
+          planTitle: edited.value.title,
+          planMemo: edited.value.memo,
+          planStartAt: formatDateTime(edited.value.date, edited.value.startTime),
+          planEndAt: formatDateTime(edited.value.endDate, edited.value.endTime),
+        });
+
+        await updatePlan(edited.value.id, payload);
+      } else if (edited.value.type === 'regular_plan') {
+        Object.assign(payload, {
+          regularPlanTitle: edited.value.title,
+          regularPlanMemo: edited.value.memo,
+          regularPlanStartAt: formatTime(edited.value.startTime),
+          regularPlanEndAt: formatTime(edited.value.endTime),
+          weeklyPlan: edited.value.repeat === 'weekly' ? edited.value.weeklyDay : null,
+          monthlyPlan: edited.value.repeat === 'monthly' ? edited.value.monthlyDay : null,
+        });
+
+        await updateRegularPlan(edited.value.id, payload);
+      }
+
+      toast.value?.success('일정이 수정되었습니다.');
+      isEditMode.value = false;
+      close();
+    } catch (error) {
+      console.error('수정 오류:', error);
+      toast.value?.error('일정 수정 중 오류가 발생했습니다.');
     }
   };
 
-  const saveEdit = () => {
-    alert('수정 내용 저장:\n' + JSON.stringify(edited.value, null, 2));
-    isEditMode.value = false;
-  };
   const handleAllDayToggle = () => {
+    const base = new Date();
+    base.setSeconds(0);
+    base.setMilliseconds(0);
+
     if (edited.value.allDay) {
-      edited.value.startTime = new Date(edited.value.date);
-      edited.value.startTime.setHours(0, 0, 0);
-      edited.value.endTime = new Date(edited.value.date);
-      edited.value.endTime.setHours(23, 59, 0);
+      const start = new Date(base);
+      start.setHours(0, 0, 0);
+      const end = new Date(base);
+      end.setHours(23, 59, 0);
+
+      edited.value.startTime = start;
+      edited.value.endTime = end;
     } else {
       edited.value.startTime = new Date(backup.value.startTime);
       edited.value.endTime = new Date(backup.value.endTime);
     }
   };
+
+  watch(
+    () => edited.value.repeat,
+    repeat => {
+      if (repeat === 'none') {
+        if (!(edited.value.date instanceof Date)) {
+          edited.value.date = new Date();
+          edited.value.startDate = new Date();
+        }
+        if (!(edited.value.endDate instanceof Date)) {
+          edited.value.endDate = new Date();
+        }
+        edited.value.type = 'plan';
+      } else {
+        durationText.value = '';
+        edited.value.type = 'regular_plan';
+      }
+    }
+  );
+
+  watch(
+    [
+      () => edited.value.date,
+      () => edited.value.endDate,
+      () => edited.value.startTime,
+      () => edited.value.endTime,
+      () => edited.value.repeat,
+    ],
+    ([startDate, endDate, startTime, endTime, repeat]) => {
+      if (!startTime || !endTime) {
+        durationText.value = '';
+        return;
+      }
+
+      let start, end;
+
+      if (repeat === 'none') {
+        if (!(startDate instanceof Date) || !(endDate instanceof Date)) {
+          durationText.value = '';
+          return;
+        }
+
+        start = dayjs(startDate)
+          .hour(dayjs(startTime).hour())
+          .minute(dayjs(startTime).minute())
+          .second(0);
+
+        end = dayjs(endDate).hour(dayjs(endTime).hour()).minute(dayjs(endTime).minute()).second(0);
+      } else {
+        const dummyDate = '2000-01-01';
+        start = dayjs(`${dummyDate} ${dayjs(startTime).format('HH:mm:ss')}`);
+        end = dayjs(`${dummyDate} ${dayjs(endTime).format('HH:mm:ss')}`);
+      }
+
+      if (!start.isValid() || !end.isValid()) {
+        durationText.value = '';
+        return;
+      }
+
+      const diffMin = Math.round(end.diff(start, 'minute', true));
+      if (diffMin <= 0) {
+        durationText.value = '';
+        return;
+      }
+
+      const hours = Math.floor(diffMin / 60);
+      const minutes = diffMin % 60;
+      durationText.value = `${hours.toString().padStart(2, '0')}:${minutes
+        .toString()
+        .padStart(2, '0')}`;
+    },
+    { immediate: true }
+  );
 
   watch(
     () => [props.id, props.type, props.modelValue],
@@ -287,38 +544,31 @@
       const d = data.data;
 
       const convert = (startStr, endStr, showDate = false) => {
-        const parseTime = str => {
-          if (/^\d{2}:\d{2}:\d{2}$/.test(str)) {
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            return new Date(`${yyyy}-${mm}-${dd}T${str}`);
-          }
-          return new Date(str);
-        };
-
-        const startDate = parseTime(startStr);
-        const endDate = parseTime(endStr);
+        const startDate = new Date(startStr);
+        const endDate = new Date(endStr);
 
         if (isNaN(startDate) || isNaN(endDate)) {
           return {
             timeRange: '시간 정보 없음',
             duration: '',
+            startDate: null,
+            endDate: null,
           };
         }
 
-        const startTime = startDate.toTimeString().slice(0, 5);
-        const endTime = endDate.toTimeString().slice(0, 5);
+        const startTimeStr = startDate.toTimeString().slice(0, 5);
+        const endTimeStr = endDate.toTimeString().slice(0, 5);
 
         const toYMD = date =>
-          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+            date.getDate()
+          ).padStart(2, '0')}`;
 
         const timeRange = showDate
           ? toYMD(startDate) === toYMD(endDate)
-            ? `${toYMD(startDate)} ${startTime} - ${endTime}`
-            : `${toYMD(startDate)} ${startTime} ~ ${toYMD(endDate)} ${endTime}`
-          : `${startTime} - ${endTime}`;
+            ? `${toYMD(startDate)} ${startTimeStr} - ${endTimeStr}`
+            : `${toYMD(startDate)} ${startTimeStr} ~ ${toYMD(endDate)} ${endTimeStr}`
+          : `${startTimeStr} - ${endTimeStr}`;
 
         const diffMs = endDate - startDate;
         const minutes = Math.floor(diffMs / 60000);
@@ -330,6 +580,8 @@
         return {
           timeRange,
           duration,
+          startTime: startDate,
+          endTime: endDate,
         };
       };
 
@@ -342,25 +594,69 @@
         memo: d.memo,
         allDay: false,
         repeat: 'none',
+        startTime: null,
+        endTime: null,
       };
+
+      const { timeRange, duration, startTime, endTime } = convert(
+        d.startAt,
+        d.endAt,
+        type !== 'regular_plan'
+      );
+      result.timeRange = timeRange;
+      result.duration = duration;
+      result.startTime = startTime;
+      result.endTime = endTime;
 
       if (type === 'regular_plan') {
         result.type = 'regular_plan';
+        let repeatText = '';
+
         if (d.weeklyPlan) {
-          result.repeat = 'weekly';
-          result.date = d.weeklyPlan;
+          // 요일 코드 → 한글
+          const weekdayMap = {
+            MON: '월요일',
+            TUE: '화요일',
+            WED: '수요일',
+            THU: '목요일',
+            FRI: '금요일',
+            SAT: '토요일',
+            SUN: '일요일',
+          };
+          repeatText = `매주 ${weekdayMap[d.weeklyPlan]}`;
         } else if (d.monthlyPlan) {
-          result.repeat = 'monthly';
-          result.date = String(d.monthlyPlan);
+          repeatText = `매달 ${d.monthlyPlan}일`;
         }
-        const { timeRange, duration } = convert(d.startAt, d.endAt, false);
-        result.timeRange = timeRange;
-        result.duration = duration;
+
+        // 시간 문자열 파싱
+        const parseTime = t => {
+          if (!t || !/^\d{2}:\d{2}/.test(t)) return '';
+          return t.slice(0, 5); // HH:mm
+        };
+
+        const startTimeStr = parseTime(d.startAt);
+        const endTimeStr = parseTime(d.endAt);
+
+        result.repeat = d.weeklyPlan ? 'weekly' : 'monthly';
+        result.weeklyDay = d.weeklyPlan || null;
+        result.monthlyDay = d.monthlyPlan || null;
+        result.timeRange = `${repeatText} ${startTimeStr} - ${endTimeStr}`;
+        result.duration = ''; // 필요시 소요시간 계산 로직 추가 가능
       } else {
+        // 기존 단기 일정 처리 로직 그대로
         result.type = 'plan';
-        const { timeRange, duration } = convert(d.startAt, d.endAt, true);
+        result.date = new Date(d.startAt);
+        result.endDate = new Date(d.endAt);
+
+        const { timeRange, duration, startTime, endTime } = convert(
+          d.startAt,
+          d.endAt,
+          type !== 'regular_plan'
+        );
         result.timeRange = timeRange;
         result.duration = duration;
+        result.startTime = startTime;
+        result.endTime = endTime;
       }
 
       edited.value = result;
@@ -599,5 +895,13 @@
     min-width: 100px;
     height: 32px;
     white-space: nowrap;
+  }
+
+  .form-group {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    width: 200px !important;
   }
 </style>

@@ -187,13 +187,33 @@
   };
 
   // 일정 상세 클릭 시
-  const handleClickSchedule = id => {
-    let target =
-      schedules.value.find(item => String(item.id) === String(id)) ||
-      regularSchedules.value.find(item => {
-        const composedId = `${item.id}-${dayjs(item.startAt).format('YYYYMMDD')}`;
-        return composedId === String(id);
-      });
+  const handleClickSchedule = ({ id, type }) => {
+    let target;
+
+    if (type === 'plan' || type === 'regular_plan') {
+      target =
+        schedules.value.find(
+          item => String(item.id) === String(id) && item.scheduleType.toLowerCase().includes('plan')
+        ) ||
+        regularSchedules.value.find(item => {
+          const composedId = `${item.id}-${dayjs(item.startAt).format('YYYYMMDD')}`;
+          return composedId === String(id) && item.scheduleType.toLowerCase().includes('plan');
+        });
+    } else if (type === 'leave' || type === 'regular_leave') {
+      target =
+        schedules.value.find(
+          item =>
+            String(item.id) === String(id) && item.scheduleType.toLowerCase().includes('leave')
+        ) ||
+        regularSchedules.value.find(item => {
+          const composedId = `${item.id}-${dayjs(item.startAt).format('YYYYMMDD')}`;
+          return composedId === String(id) && item.scheduleType.toLowerCase().includes('leave');
+        });
+    } else if (type === 'reservation') {
+      target = schedules.value.find(
+        item => String(item.id) === String(id) && item.scheduleType === 'RESERVATION'
+      );
+    }
 
     if (!target) return;
 
@@ -224,8 +244,6 @@
         isModalOpen.value = false;
         break;
     }
-    console.log('🧪 selectedReservation', selectedReservation.value);
-    console.log('🧪 modalType', modalType.value);
   };
 
   // 일정 조회 API 호출
@@ -248,14 +266,6 @@
       });
 
       await fetchRegularSchedules();
-      console.log('🧪 필터 파라미터', {
-        from,
-        to,
-        ...(searchText.value && { customerKeyword: searchText.value }),
-        ...(selectedService.value && { itemKeyword: selectedService.value }),
-        ...(selectedStaff.value ? { staffId: selectedStaff.value } : {}),
-        ...(getScheduleTypeParam() && { scheduleType: getScheduleTypeParam() }),
-      });
     } catch (err) {
       console.error('일정 조회 실패', err);
     }

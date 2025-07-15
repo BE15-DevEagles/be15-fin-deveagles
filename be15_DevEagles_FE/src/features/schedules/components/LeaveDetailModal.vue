@@ -46,28 +46,74 @@
             <div class="form-control-wrapper">
               <BaseForm
                 v-if="isEditMode"
-                v-model="edited.staffId"
-                type="select"
-                :options="staffOptions"
-                placeholder="담당자 선택"
+                type="text"
+                :model-value="leave.staffName"
+                :disabled="true"
+                style="pointer-events: none"
               />
-              <span v-else>{{ leave.staffName || '미지정' }}</span>
+              <span v-else>{{ leave.staffName }}</span>
             </div>
           </div>
 
           <div class="row">
             <label>날짜</label>
             <div class="form-control-wrapper">
-              <PrimeDatePicker
-                v-if="isEditMode && edited.type === 'leave'"
-                v-model="edited.date"
-                :show-time="false"
-                :show-button-bar="true"
-                :clearable="false"
-                hour-format="24"
-                placeholder="날짜를 선택하세요"
-              />
-              <span v-else>{{ displayStart }}</span>
+              <template v-if="isEditMode">
+                <PrimeDatePicker
+                  v-if="edited.type === 'leave'"
+                  v-model="edited.date"
+                  :show-time="false"
+                  :show-button-bar="true"
+                  :clearable="false"
+                  hour-format="24"
+                  placeholder="날짜를 선택하세요"
+                />
+
+                <!-- 반복 주기 선택 (정기 휴무 전용) -->
+                <BaseForm
+                  v-if="edited.type === 'regular_leave'"
+                  v-model="edited.repeat"
+                  type="select"
+                  :options="[
+                    { text: '반복 안함', value: 'none' },
+                    { text: '매달 반복', value: 'monthly' },
+                    { text: '요일 반복', value: 'weekly' },
+                  ]"
+                  placeholder="반복 주기 선택"
+                  style="margin-top: 8px; max-width: 200px"
+                />
+
+                <!-- 반복 주기에 따른 상세 선택 -->
+                <BaseForm
+                  v-if="edited.type === 'regular_leave' && edited.repeat === 'monthly'"
+                  v-model="edited.monthlyLeave"
+                  type="select"
+                  :options="monthlyDayOptions"
+                  placeholder="반복 일자 선택"
+                  style="margin-top: 8px; max-width: 200px"
+                />
+
+                <BaseForm
+                  v-if="edited.type === 'regular_leave' && edited.repeat === 'weekly'"
+                  v-model="edited.weeklyLeave"
+                  type="select"
+                  :options="[
+                    { text: '월요일', value: 'MON' },
+                    { text: '화요일', value: 'TUE' },
+                    { text: '수요일', value: 'WED' },
+                    { text: '목요일', value: 'THU' },
+                    { text: '금요일', value: 'FRI' },
+                    { text: '토요일', value: 'SAT' },
+                    { text: '일요일', value: 'SUN' },
+                  ]"
+                  placeholder="반복 요일 선택"
+                  style="margin-top: 8px; max-width: 180px"
+                />
+              </template>
+
+              <template v-else>
+                <span>{{ displayStart }}</span>
+              </template>
             </div>
           </div>
 
@@ -89,7 +135,7 @@
       <div class="modal-footer">
         <BaseButton type="error" @click="close">닫기</BaseButton>
         <template v-if="isEditMode">
-          <BaseButton type="primary" @click="saveEdit">저장</BaseButton>
+          <BaseButton type="primary" @click="handleSave">저장</BaseButton>
         </template>
         <template v-else>
           <div class="action-dropdown">
@@ -103,28 +149,70 @@
       </div>
     </div>
   </div>
+  <BaseToast ref="toast" />
+  <BaseConfirm
+    v-model="showDeleteConfirm"
+    title="정말 삭제하시겠습니까?"
+    message="해당 휴무를 삭제하면 복구할 수 없습니다.
+    계속 진행하시겠습니까?"
+    confirm-text="삭제"
+    cancel-text="취소"
+    confirm-type="error"
+    icon-type="error"
+    @confirm="confirmDelete"
+  />
+  <BaseConfirm
+    v-model="showEditConfirm"
+    title="변경 내용을 저장하시겠습니까?"
+    message="입력한 정보로 휴무를 수정하시겠습니까?"
+    confirm-text="수정"
+    cancel-text="취소"
+    confirm-type="primary"
+    icon-type="info"
+    @confirm="confirmEdit"
+  />
 </template>
 
 <script setup>
-  import { ref, defineProps, defineEmits, watch, computed, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
-  import { getStaffList, fetchScheduleDetail } from '@/features/schedules/api/schedules.js';
-
+  import {
+    fetchScheduleDetail,
+    getStaffList,
+    updateLeave,
+    updateRegularLeave,
+    switchLeaveType,
+    deleteLeaves,
+  } from '@/features/schedules/api/schedules.js';
+  import BaseToast from '@/components/common/BaseToast.vue';
+  import dayjs from 'dayjs';
+  import BaseConfirm from '@/components/common/BaseConfirm.vue';
+  const toast = ref(null);
+  const monthlyDayOptions = Array.from({ length: 31 }, (_, i) => ({
+    text: `${i + 1}일`,
+    value: i + 1,
+  }));
   const props = defineProps({
     modelValue: { type: Boolean, required: true },
     id: { type: Number, required: true },
     type: { type: String, required: true },
   });
   const emit = defineEmits(['update:modelValue']);
-
+  const showEditConfirm = ref(false);
   const isEditMode = ref(false);
   const showMenu = ref(false);
   const edited = ref({});
   const staffOptions = ref([]);
   const leave = ref(null);
+  const handleSave = () => {
+    showEditConfirm.value = true;
+  };
 
+  const confirmEdit = async () => {
+    await saveEdit();
+  };
   const close = () => {
     emit('update:modelValue', false);
     isEditMode.value = false;
@@ -157,10 +245,14 @@
           leave.value = {
             leaveTitle: data.leaveTitle ?? data.title ?? '',
             staffName: data.staffName ?? data.staff ?? '',
+            staffId: data.staffId ?? null,
             memo: data.memo ?? '',
             startAt: props.type === 'leave' ? (data.start ?? data.leaveDate ?? '') : undefined,
             repeatRule: props.type === 'regular_leave' ? (data.repeatRule ?? '') : undefined,
           };
+          console.log('🧪 fetched type:', props.type);
+          console.log('🧪 fetched repeatRule:', data.repeatRule);
+          console.log('🧪 fetched full data:', data);
         } catch (e) {
           console.error('❌ 휴무 상세 조회 실패', e);
         }
@@ -173,24 +265,139 @@
   const handleEdit = () => {
     isEditMode.value = true;
     showMenu.value = false;
+
+    const rawRule = leave.value.repeatRule;
+
+    let repeat = 'none';
+    let monthlyLeave = '';
+    let weeklyLeave = '';
+
+    // "매월 1일" → monthlyLeave = 1
+    if (rawRule?.startsWith('매월')) {
+      repeat = 'monthly';
+      const dayMatch = rawRule.match(/\d+/);
+      monthlyLeave = dayMatch ? Number(dayMatch[0]) : '';
+    }
+
+    // "매주 월요일" → weeklyLeave = 'MON'
+    else if (rawRule?.startsWith('매주')) {
+      repeat = 'weekly';
+      const weekdayMap = {
+        월요일: 'MON',
+        화요일: 'TUE',
+        수요일: 'WED',
+        목요일: 'THU',
+        금요일: 'FRI',
+        토요일: 'SAT',
+        일요일: 'SUN',
+      };
+      const matched = Object.entries(weekdayMap).find(([kor]) => rawRule.includes(kor));
+      weeklyLeave = matched?.[1] || '';
+    }
+
     edited.value = {
-      ...leave.value,
       staffId: leave.value.staffId,
       date: leave.value.startAt?.split('T')[0] || '',
       leaveTitle: leave.value.leaveTitle,
       memo: leave.value.memo,
       type: props.type,
+      repeat,
+      weeklyLeave,
+      monthlyLeave,
     };
   };
+
+  const showDeleteConfirm = ref(false);
+
   const handleDelete = () => {
     showMenu.value = false;
-    if (confirm('정말 삭제하시겠습니까?')) {
-      alert('삭제 요청 전송');
+    showDeleteConfirm.value = true;
+  };
+
+  const confirmDelete = async () => {
+    try {
+      const payload = [{ id: props.id, type: props.type }];
+      await deleteLeaves(payload);
+      toast.value.success('삭제되었습니다.');
+      close();
+    } catch (e) {
+      console.error('❌ 삭제 실패:', e);
+      toast.value.error('삭제 중 오류가 발생했습니다.');
     }
   };
-  const saveEdit = () => {
-    alert('수정 내용 저장:\n' + JSON.stringify(edited.value, null, 2));
-    isEditMode.value = false;
+
+  const formatDate = date => {
+    return dayjs(date).format('YYYY-MM-DD');
+  };
+
+  const saveEdit = async () => {
+    try {
+      const originalType = props.type;
+      const newType = edited.value.type;
+
+      // 전환이 아닌 경우
+      if (originalType === newType) {
+        if (newType === 'leave') {
+          const payload = {
+            staffId: edited.value.staffId,
+            leaveTitle: edited.value.leaveTitle,
+            leaveAt: formatDate(edited.value.date),
+            leaveMemo: edited.value.memo,
+          };
+          console.log('📦 payload:', payload);
+          await updateLeave(props.id, payload);
+        } else {
+          const payload = {
+            staffId: edited.value.staffId,
+            regularLeaveTitle: edited.value.leaveTitle,
+            weeklyLeave: edited.value.repeat === 'weekly' ? edited.value.weeklyLeave : null,
+            monthlyLeave: edited.value.repeat === 'monthly' ? edited.value.monthlyLeave : null,
+            regularLeaveMemo: edited.value.memo,
+          };
+          console.log('📦 payload:', payload);
+          await updateRegularLeave(props.id, payload);
+        }
+      } else {
+        // 전환 처리
+        const fromType = originalType === 'leave' ? 'LEAVE' : 'REGULAR_LEAVE';
+        const toType = newType === 'leave' ? 'LEAVE' : 'REGULAR_LEAVE';
+
+        const switchPayload = {
+          fromType,
+          fromId: props.id,
+          toType,
+          leaveRequest:
+            newType === 'leave'
+              ? {
+                  staffId: edited.value.staffId,
+                  leaveTitle: edited.value.leaveTitle,
+                  leaveAt: formatDate(edited.value.date),
+                  leaveMemo: edited.value.memo,
+                }
+              : null,
+          regularLeaveRequest:
+            newType === 'regular_leave'
+              ? {
+                  staffId: edited.value.staffId,
+                  regularLeaveTitle: edited.value.leaveTitle,
+                  weeklyLeave: edited.value.repeat === 'weekly' ? edited.value.weeklyLeave : null,
+                  monthlyLeave:
+                    edited.value.repeat === 'monthly' ? edited.value.monthlyLeave : null,
+                  regularLeaveMemo: edited.value.memo,
+                }
+              : null,
+        };
+
+        await switchLeaveType(switchPayload);
+      }
+
+      toast.value.success('수정되었습니다.');
+      isEditMode.value = false;
+      close();
+    } catch (e) {
+      console.error('❌ 수정 실패:', e);
+      toast.value.error('수정 중 오류가 발생했습니다.');
+    }
   };
 
   const leaveTypeLabel = computed(() => {
@@ -221,6 +428,14 @@
     height: 100vh;
     background-color: rgba(0, 0, 0, 0.3);
     z-index: 1000;
+  }
+
+  .form-group {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    width: 200px !important;
   }
 
   .modal-panel {

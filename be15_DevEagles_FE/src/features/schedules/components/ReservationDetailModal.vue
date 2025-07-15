@@ -17,13 +17,25 @@
               <div class="row">
                 <label>고객명</label>
                 <span v-if="!isEditMode">{{ reservation.customerName || '미등록 고객' }}</span>
-                <BaseForm v-else v-model="edited.customerName" type="text" />
+                <BaseForm
+                  v-else
+                  v-model="edited.customerName"
+                  type="text"
+                  readonly
+                  :value="edited.customerName || '미등록 고객'"
+                />
               </div>
               <!-- 연락처 -->
               <div class="row">
                 <label>연락처</label>
                 <span v-if="!isEditMode">{{ reservation.customerPhone || '미등록 고객' }}</span>
-                <BaseForm v-else v-model="edited.customerPhone" type="text" />
+                <BaseForm
+                  v-else
+                  v-model="edited.customerPhone"
+                  type="text"
+                  readonly
+                  :value="edited.customerPhone || '미등록 고객'"
+                />
               </div>
 
               <!-- 예약일 -->
@@ -52,7 +64,7 @@
                         :clearable="false"
                         hour-format="24"
                         placeholder="시간을 선택하세요"
-                        @update:model-value="updateDuration"
+                        @update:model-value="updateEditedEndTime"
                       />
                       <PrimeDatePicker
                         v-model="edited.endTime"
@@ -73,12 +85,40 @@
                 </div>
               </div>
 
-              <!-- 시술 -->
-              <div class="row">
-                <label>시술</label>
+              <!-- 시술/상품 -->
+              <div v-if="!isEditMode" class="row">
+                <label>시술/상품</label>
                 <span v-if="!isEditMode">{{ reservation.itemNames }}</span>
                 <BaseForm v-else v-model="edited.itemNames" type="text" />
               </div>
+              <!-- 시술/상품 -->
+              <div v-if="isEditMode" class="row">
+                <label class="label-wide">시술/상품</label>
+                <div class="selected-list">
+                  <div
+                    v-for="(item, index) in selectedServices"
+                    :key="index"
+                    class="selected-service"
+                  >
+                    <div class="service-card">
+                      <div class="card-left">
+                        <span class="service-name">({{ item.category }}) {{ item.name }}</span>
+                        <span class="service-meta">
+                          {{ item.duration }} / {{ item.price.toLocaleString() }} 원
+                        </span>
+                      </div>
+                      <button v-if="isEditMode" class="remove-btn" @click="removeService(index)">
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                  <BaseButton v-if="isEditMode" class="add-button" @click="showItemModal = true">
+                    + 상품 선택
+                  </BaseButton>
+                </div>
+              </div>
+
+              <SelectSecondaryItemModal v-model="showItemModal" @select="addServiceFromModal" />
 
               <!-- 담당자 -->
               <div class="row row-select">
@@ -87,10 +127,11 @@
                   <span v-if="!isEditMode">{{ reservation.staffName }}</span>
                   <BaseForm
                     v-else
-                    v-model="edited.staffName"
+                    v-model="edited.staffId"
                     type="select"
                     :options="staffOptions"
                     placeholder="담당자 선택"
+                    style="max-width: 400px"
                   />
                 </div>
               </div>
@@ -104,7 +145,7 @@
                     v-else
                     v-model="edited.reservationStatusName"
                     type="select"
-                    :options="statusOptions"
+                    :options="editableStatusOptions"
                     placeholder="예약 상태 선택"
                   />
                 </div>
@@ -136,12 +177,21 @@
           <div v-if="!readonly" class="modal-footer">
             <BaseButton type="error" @click="close">닫기</BaseButton>
             <template v-if="isEditMode">
-              <BaseButton type="primary" @click="saveEdit">저장</BaseButton>
+              <BaseButton type="primary" @click="handleSave">저장</BaseButton>
             </template>
             <template v-else>
               <div class="action-dropdown">
-                <BaseButton type="primary" @click="toggleMenu">수정 / 삭제</BaseButton>
-                <ul v-if="showMenu" class="dropdown-menu">
+                <BaseButton
+                  type="primary"
+                  :disabled="reservation.reservationStatusName === 'PAID'"
+                  @click="toggleMenu"
+                >
+                  수정 / 삭제
+                </BaseButton>
+                <ul
+                  v-if="showMenu && reservation.reservationStatusName !== 'PAID'"
+                  class="dropdown-menu"
+                >
                   <li @click="handleEdit">수정하기</li>
                   <li @click="openDeleteConfirm">삭제하기</li>
                 </ul>
@@ -164,18 +214,45 @@
     icon-type="error"
     @confirm="handleDelete"
   />
+  <BaseConfirm
+    v-model="showEditConfirm"
+    title="변경 내용을 저장하시겠습니까?"
+    message="입력한 정보로 예약을 수정하시겠습니까?"
+    confirm-text="수정"
+    cancel-text="취소"
+    confirm-type="primary"
+    icon-type="info"
+    @confirm="confirmEdit"
+  />
 </template>
 
 <script setup>
-  import { ref, defineProps, defineEmits, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
-  import { fetchReservationDetail, deleteReservation } from '@/features/schedules/api/schedules.js';
+  import {
+    fetchReservationDetail,
+    deleteReservation,
+    getStaffList,
+    updateReservation,
+  } from '@/features/schedules/api/schedules.js';
   import BaseToast from '@/components/common/BaseToast.vue';
   import BaseConfirm from '@/components/common/BaseConfirm.vue';
+  import SelectSecondaryItemModal from '@/features/schedules/components/SelectSecondaryItemModal.vue';
+  import dayjs from 'dayjs';
+  const showEditConfirm = ref(false);
 
+  const handleSave = () => {
+    showEditConfirm.value = true;
+  };
+  const confirmEdit = async () => {
+    await saveEdit();
+  };
+  const showItemModal = ref(false);
+  const selectedServices = ref([]);
   const toast = ref(null);
+
   const props = defineProps({
     modelValue: Boolean,
     id: Number,
@@ -226,17 +303,41 @@
     CBS: '매장 취소',
     PAID: '결제 완료',
   };
-
+  const form = ref({
+    customer: '',
+    customerId: null,
+    selectedCustomer: null,
+    staffId: '',
+    date: null,
+    startTime: new Date(0, 0, 0, 0, 0),
+    endTime: new Date(0, 0, 0, 0, 0),
+    duration: '',
+    note: '',
+    memo: '',
+    selectedItems: [],
+  });
   const reservationStatusLabel = computed(() => {
     const code = reservation.value?.reservationStatusName;
     return reservationStatusMap[code] ?? code ?? '';
   });
 
-  const staffOptions = [
-    { text: '디자이너 A', value: '디자이너 A' },
-    { text: '디자이너 B', value: '디자이너 B' },
-  ];
-
+  const staffOptions = ref([]);
+  const fetchStaffList = async () => {
+    try {
+      const res = await getStaffList({ isActive: true });
+      staffOptions.value = [
+        ...res.map(staff => ({
+          text: staff.staffName,
+          value: staff.staffId,
+        })),
+      ];
+    } catch (e) {
+      console.error('담당자 목록 조회 실패:', e);
+    }
+  };
+  onMounted(() => {
+    fetchStaffList();
+  });
   watch(
     [() => props.modelValue, () => props.id],
     async ([modelValue, id]) => {
@@ -251,7 +352,6 @@
             ...res,
             duration: calculateDuration(start, end),
           };
-
           edited.value = {
             customerName: res.customerName ?? '',
             customerPhone: res.customerPhone ?? '',
@@ -325,17 +425,79 @@
     isEditMode.value = false;
     showMenu.value = false;
   };
+  const removeService = index => {
+    selectedServices.value.splice(index, 1);
+    form.value.selectedItems.splice(index, 1);
+
+    if (isEditMode.value) {
+      updateEditedEndTime();
+    } else {
+      updateEndTimeAndDuration();
+    }
+  };
+  const updateEndTimeAndDuration = () => {
+    const start = form.value.startTime;
+    if (!(start instanceof Date) || isNaN(start)) return;
+
+    const totalMinutes = selectedServices.value.reduce((sum, item) => {
+      const parsed = parseInt(item.duration);
+      return sum + (isNaN(parsed) ? 0 : parsed);
+    }, 0);
+
+    const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+    const minutes = String(totalMinutes % 60).padStart(2, '0');
+    form.value.duration = `${hours}:${minutes}`;
+
+    const end = dayjs(start).add(totalMinutes, 'minute');
+    form.value.endTime = end.toDate();
+  };
+
+  const addServiceFromModal = item => {
+    selectedServices.value.push({
+      category: item.primaryItemName,
+      name: item.secondaryItemName,
+      selectedItems: item.secondaryItemId,
+      duration: item.timeTaken != null ? `${item.timeTaken}분` : '상품',
+      price: item.secondaryItemPrice,
+    });
+
+    form.value.selectedItems.push({ id: item.secondaryItemId });
+
+    if (isEditMode.value) {
+      updateEditedEndTime();
+    } else {
+      updateEndTimeAndDuration();
+    }
+  };
+
+  const updateEditedEndTime = () => {
+    const start = edited.value.startTime;
+    if (!(start instanceof Date) || isNaN(start)) return;
+
+    const totalMinutes = selectedServices.value.reduce((sum, item) => {
+      const parsed = parseInt(item.duration);
+      return sum + (isNaN(parsed) ? 0 : parsed);
+    }, 0);
+
+    const end = dayjs(start).add(totalMinutes, 'minute').toDate();
+    edited.value.endTime = end;
+    edited.value.duration = calculateDuration(start, end);
+  };
 
   const toggleMenu = () => (showMenu.value = !showMenu.value);
   const handleEdit = () => {
     const res = reservation.value;
     const start = new Date(res.reservationStartAt);
     const end = new Date(res.reservationEndAt);
+
+    const matched = staffOptions.value.find(opt => opt.text === res.staffName);
+    const staffId = matched?.value ?? '';
+
     edited.value = {
       customerName: res.customerName ?? '',
       customerPhone: res.customerPhone ?? '',
       itemNames: res.itemNames ?? '',
-      staffName: res.staffName ?? '',
+      staffId,
       reservationStatusName: res.reservationStatusName ?? '',
       staffMemo: res.staffMemo ?? '',
       reservationMemo: res.reservationMemo ?? '',
@@ -344,6 +506,7 @@
       endTime: end,
       duration: calculateDuration(start, end),
     };
+
     isEditMode.value = true;
   };
 
@@ -360,17 +523,53 @@
       toast.value?.error('삭제 중 오류가 발생했습니다.');
     }
   };
-
-  const saveEdit = () => {
-    alert('수정 요청: ' + JSON.stringify(edited.value, null, 2));
-    isEditMode.value = false;
+  const combineDateTime = (date, time) => {
+    const dateStr = dayjs(date).format('YYYY-MM-DD');
+    const timeStr = dayjs(time).format('HH:mm:ss');
+    return dayjs(`${dateStr}T${timeStr}`).format('YYYY-MM-DDTHH:mm:ss');
   };
 
+  const saveEdit = async () => {
+    try {
+      const payload = {
+        staffId: edited.value.staffId,
+        reservationStatusName: edited.value.reservationStatusName,
+        staffMemo: edited.value.staffMemo,
+        reservationMemo: edited.value.reservationMemo,
+        reservationStartAt: combineDateTime(edited.value.date, edited.value.startTime),
+        reservationEndAt: combineDateTime(edited.value.date, edited.value.endTime),
+        secondaryItemIds: selectedServices.value.map(item => item.selectedItems),
+      };
+
+      await updateReservation(props.id, payload);
+      toast.value?.success('예약이 수정되었습니다.');
+      isEditMode.value = false;
+      close();
+    } catch (e) {
+      console.error('예약 수정 실패:', e);
+      toast.value?.error('예약 수정 중 오류가 발생했습니다.');
+    }
+  };
+  const editableStatusOptions = computed(() => {
+    return statusOptions.filter(option => option.value !== 'PAID');
+  });
   const updateDuration = () => {
     if (edited.value.startTime instanceof Date && edited.value.endTime instanceof Date) {
       edited.value.duration = calculateDuration(edited.value.startTime, edited.value.endTime);
     }
   };
+  watch(
+    [() => reservation.value.staffName, staffOptions],
+    ([name, options]) => {
+      if (!name || !options.length) return;
+
+      const matched = options.find(opt => opt.text === name);
+      if (matched) {
+        edited.value.staffId = matched.value;
+      }
+    },
+    { immediate: true }
+  );
 </script>
 
 <style scoped>
@@ -382,6 +581,13 @@
     height: 100vh;
     background: rgba(0, 0, 0, 0.3);
     z-index: 1000;
+  }
+
+  .selected-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
   }
 
   .modal-panel {
@@ -489,6 +695,14 @@
     box-sizing: border-box;
   }
 
+  .form-group {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    width: 200px !important;
+  }
+
   .row input,
   .row textarea {
     border: 1px solid var(--color-gray-300);
@@ -497,12 +711,6 @@
 
   .row textarea {
     resize: vertical;
-  }
-
-  .form-control-wrapper {
-    flex: 1;
-    display: flex;
-    align-items: flex-start;
   }
 
   .form-control-wrapper :deep(.input) {
@@ -562,5 +770,64 @@
     font-size: 18px;
     font-weight: 500;
     color: var(--color-gray-500);
+  }
+
+  .card-left {
+    display: flex;
+    flex-direction: column;
+  }
+
+  :deep(.service-name) {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: var(--color-neutral-dark);
+    margin-bottom: 0;
+  }
+  .service-meta {
+    color: var(--color-gray-500);
+    font-size: 14px !important;
+    white-space: nowrap;
+  }
+
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--color-error-300);
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-left: 16px;
+  }
+
+  .form-group {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    width: 200px !important;
+  }
+
+  .add-button {
+    align-self: flex-start;
+    margin-top: 4px;
+    margin-left: 8px;
+  }
+
+  .selected-service {
+    width: 100%;
+    margin-left: 8px;
+  }
+
+  :deep(.service-card) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--color-neutral-white);
+    border: 1px solid var(--color-gray-300);
+    border-radius: 8px;
+    padding: 10px 16px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 600px;
   }
 </style>

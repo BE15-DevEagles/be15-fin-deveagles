@@ -186,3 +186,25 @@ export const createRegularPlan = async payload => {
   const response = await api.post('/schedules/regular-plans', payload);
   return response.data.data;
 };
+
+export const updateLeave = (id, payload) => api.put(`/schedules/leaves/${id}`, payload);
+
+export const updateRegularLeave = (id, payload) =>
+  api.put(`/schedules/regular-leaves/${id}`, payload);
+
+export const switchLeaveType = payload => api.post('/schedules/leaves/switch', payload);
+
+export const updateReservation = (reservationId, payload) =>
+  api.put(`/schedules/reservations/${reservationId}`, payload);
+
+export const updatePlan = (planId, payload) => {
+  return api.put(`/schedules/plans/${planId}`, payload);
+};
+
+export const updateRegularPlan = (regularPlanId, payload) => {
+  return api.put(`/schedules/regular-plans/${regularPlanId}`, payload);
+};
+
+export const switchScheduleType = payload => {
+  return api.post('/schedules/plans/switch', payload);
+};

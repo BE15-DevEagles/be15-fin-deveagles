@@ -34,6 +34,7 @@
   import Pagination from '@/components/common/Pagination.vue';
   import ReservationDetailModal from '@/features/schedules/components/ReservationDetailModal.vue';
   import { fetchReservationHistories } from '@/features/schedules/api/schedules.js';
+  import dayjs from 'dayjs';
 
   const columns = [
     { key: 'customerName', title: '고객 이름', width: '120px' },
@@ -61,7 +62,12 @@
         ...item,
         id: item.reservationId,
         customerName: item.customerName ?? '미등록 고객',
+        reservationStartAt: item.reservationStartAt
+          ? dayjs(item.reservationStartAt).format('YYYY-MM-DD HH:mm:ss')
+          : '',
+        historyAt: item.historyAt ? dayjs(item.historyAt).format('YYYY-MM-DD HH:mm:ss') : '',
       }));
+
       totalItems.value = res.pagination.totalItems;
     } catch (err) {
       console.error('예약 변경 이력 조회 실패:', err);

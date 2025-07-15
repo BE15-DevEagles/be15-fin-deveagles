@@ -81,7 +81,7 @@
   }
 
   .tab-wrapper button {
-    padding: 8px 16px;
+    padding: 8px 12px;
     border: 1px solid var(--color-gray-300);
     border-radius: 6px;
     background-color: white;

@@ -162,7 +162,6 @@
           return;
         }
       } else {
-        // ⏱ 정기 일정: 시간만 비교
         const start = new Date(data.startTime);
         const end = new Date(data.endTime);
         if (start >= end) {
