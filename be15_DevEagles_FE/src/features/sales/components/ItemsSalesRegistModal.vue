@@ -284,7 +284,6 @@
   const discountRateOptions = discountRates.map(rate => ({ value: rate, text: `${rate}%` }));
   const methods = ref([
     { key: 'prepaid', label: '선불권' },
-    { key: 'session_pass', label: '횟수권' },
     { key: 'card', label: '카드 결제' },
     { key: 'cash', label: '현금 결제' },
     { key: 'naver', label: '네이버페이' },

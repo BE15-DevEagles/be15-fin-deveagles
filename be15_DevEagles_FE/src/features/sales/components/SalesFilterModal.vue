@@ -18,7 +18,7 @@
           type="checkbox"
           :options="[
             { value: '상품', text: '상품' },
-            { value: '선불액·정기권', text: '선불액·정기권' },
+            { value: '회원권', text: '회원권' },
             { value: '환불', text: '환불' },
           ]"
         />
@@ -30,7 +30,7 @@
           v-model="selectedStaff"
           type="select"
           label="담당자"
-          :options="staffOptions.map(s => ({ value: s, text: s }))"
+          :options="staffOptions"
           placeholder="담당자 선택"
         />
       </div>
@@ -47,27 +47,26 @@
 </template>
 
 <script setup>
-  import { ref, watch } from 'vue';
+  import { ref, watch, onMounted } from 'vue';
   import BaseModal from '@/components/common/BaseModal.vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
+  import { getStaff } from '@/features/staffs/api/staffs.js';
 
   const props = defineProps({
     modelValue: Boolean,
   });
 
   const emit = defineEmits(['close', 'apply', 'update:modelValue']);
-
+  const selectedStaff = ref(null);
   const isVisible = ref(props.modelValue);
   const startDate = ref(null);
   const endDate = ref(null);
   const types = ref([]);
-  const selectedStaff = ref('');
+  const selectedStaffId = ref(null);
+  const staffOptions = ref([]); // [{ value: 1, text: '홍길동' }, ...]
 
-  const staffOptions = ['김경민', '홍길동', '김민지'];
-
-  // v-model sync
   watch(
     () => props.modelValue,
     val => {
@@ -78,23 +77,57 @@
     emit('update:modelValue', val);
   });
 
+  const fetchStaffs = async () => {
+    try {
+      const response = await getStaff({ page: 1, size: 100, isActive: true });
+      staffOptions.value = response.data.data.staffList.map(staff => ({
+        value: staff.staffId,
+        text: staff.staffName,
+      }));
+    } catch (e) {
+      console.error('담당자 목록 불러오기 실패', e);
+    }
+  };
+
+  onMounted(() => {
+    fetchStaffs();
+  });
+
   const close = () => {
     isVisible.value = false;
     emit('close');
   };
 
   const applyFilter = () => {
-    const adjustedEndDate = endDate.value
-      ? new Date(new Date(endDate.value).setHours(23, 59, 59, 999))
+    const formattedStart = startDate.value
+      ? new Date(startDate.value).toISOString().split('.')[0]
       : null;
 
+    const adjustedEnd = endDate.value
+      ? new Date(new Date(endDate.value).setHours(23, 59, 59, 999))
+      : null;
+    const formattedEnd = adjustedEnd ? new Date(adjustedEnd).toISOString().split('.')[0] : null;
+
+    const saleTypeMap = {
+      상품: 'ITEMS',
+      회원권: 'MEMBERSHIP',
+      환불: 'REFUND',
+    };
+
+    const mappedTypes = types.value.map(t => saleTypeMap[t]);
+
     emit('apply', {
-      startDate: startDate.value,
-      endDate: adjustedEndDate,
-      types: types.value,
-      staff: selectedStaff.value,
+      startDate: formattedStart,
+      endDate: formattedEnd,
+      types: mappedTypes,
+      staffId: selectedStaff.value,
+      staffName: getStaffNameById(selectedStaff.value),
     });
+
     close();
+  };
+  const getStaffNameById = id => {
+    return staffOptions.value.find(opt => opt.value === id)?.text || '';
   };
 </script>
 
