@@ -60,7 +60,7 @@ public enum ErrorCode implements ErrorCodeType {
   INVALID_MESSAGE_CANCEL_CONDITION("40014", "예약 취소가 불가능한 상태입니다", HttpStatus.BAD_REQUEST),
   AUTOMATIC_TEMPLATE_ALREADY_EXISTS(
       "40015", "이미 동일한 이벤트 타입으로 메시지가 등록 되어 있습니다.", HttpStatus.BAD_REQUEST),
-
+  INVALID_MESSAGE_RESEND_CONDITION("40015", "취소 상태인 메시지만 재전송할 수 있습니다.", HttpStatus.BAD_REQUEST),
   // 채팅 관련 에러 (41000번대)
   CHATROOM_NOT_FOUND("41001", "해당 채팅방을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
   WEBSOCKET_INVALID_TOKEN("41002", "WebSocket 연결 실패: 유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED),

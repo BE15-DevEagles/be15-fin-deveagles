@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -44,7 +45,7 @@ public class MessageCommandServiceImpl implements MessageCommandService {
     LocalDateTime now = LocalDateTime.now();
     LocalDateTime scheduledAt = resolveScheduledAt(smsRequest, now);
     boolean isReservation = MessageSendingType.RESERVATION.equals(smsRequest.messageSendingType());
-
+    System.out.println("ASDFASDFSDFASDFASDFASDAGSDGWERQEWRQWRQWQWR" + smsRequest);
     // 1. 고객 ID 원본 리스트
     List<Long> customerIds = smsRequest.customerIds();
 
@@ -66,13 +67,16 @@ public class MessageCommandServiceImpl implements MessageCommandService {
                 i -> {
                   Long customerId = distinctCustomerIds.get(i);
 
-                  // ✅ 메시지 치환: payload 생성 + 적용
+                  // ✅ 자동발송일 경우 payload 포함됨
                   Map<String, String> payload =
-                      messageVariableProcessor.buildPayload(customerId, shopId);
+                      Optional.ofNullable(smsRequest.payload())
+                          .orElseGet(
+                              () ->
+                                  messageVariableProcessor.buildPayload(customerId, shopId, null));
+                  System.out.println("Payload 값" + payload);
                   String resolvedContent =
                       messageVariableProcessor.resolveVariables(
                           smsRequest.messageContent(), payload);
-
                   Sms.SmsBuilder builder =
                       Sms.builder()
                           .shopId(shopId)
@@ -128,6 +132,50 @@ public class MessageCommandServiceImpl implements MessageCommandService {
     return saved.stream()
         .map(s -> new MessageSendResult(true, "예약 등록 완료", s.getMessageId()))
         .toList();
+  }
+
+  @Override
+  @Transactional
+  public MessageSendResult resendFailedMessage(Long shopId, Long messageId) {
+    shopCommandService.validateShopExists(shopId);
+
+    Sms sms =
+        smsRepository
+            .findByMessageIdAndShopId(messageId, shopId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.SMS_NOT_FOUND));
+
+    if (sms.getMessageDeliveryStatus() != MessageDeliveryStatus.FAIL) {
+      throw new BusinessException(ErrorCode.INVALID_MESSAGE_RESEND_CONDITION);
+    }
+
+    MessageSettings settings =
+        messageSettingRepository
+            .findByShopId(shopId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.MESSAGE_SETTINGS_NOT_FOUND));
+    String senderNumber = settings.getSenderNumber();
+
+    List<String> phoneNumbers =
+        customerQueryService.getCustomerPhoneNumbers(List.of(sms.getCustomerId()));
+    String phoneNumber = phoneNumbers.get(0);
+
+    // ✅ payload: 고객명만 포함되도록 기본값 생성
+    Map<String, String> payload =
+        messageVariableProcessor.buildPayload(sms.getCustomerId(), shopId, null);
+    String resolvedContent =
+        messageVariableProcessor.resolveVariables(sms.getMessageContent(), payload);
+
+    SmsSendUnit unit = new SmsSendUnit(sms.getMessageId(), phoneNumber);
+    List<MessageSendResult> results =
+        coolSmsClient.sendMany(senderNumber, resolvedContent, List.of(unit));
+    MessageSendResult result = results.get(0);
+
+    if (result.success()) {
+      markSmsAsSent(List.of(sms.getMessageId()));
+    } else {
+      markSmsAsFailed(List.of(sms.getMessageId()));
+    }
+
+    return result;
   }
 
   @Override

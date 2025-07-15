@@ -4,8 +4,12 @@ import com.deveagles.be15_deveagles_be.common.exception.BusinessException;
 import com.deveagles.be15_deveagles_be.common.exception.ErrorCode;
 import com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Customer;
 import com.deveagles.be15_deveagles_be.features.customers.command.domain.repository.CustomerRepository;
+import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerDetailResponse;
+import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerQueryService;
 import com.deveagles.be15_deveagles_be.features.membership.command.domain.repository.CustomerPrepaidPassRepository;
 import com.deveagles.be15_deveagles_be.features.membership.command.domain.repository.CustomerSessionPassRepository;
+import com.deveagles.be15_deveagles_be.features.messages.command.application.service.AutomaticMessageTriggerService;
+import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.AutomaticEventType;
 import com.deveagles.be15_deveagles_be.features.sales.command.application.dto.request.ItemSalesRequest;
 import com.deveagles.be15_deveagles_be.features.sales.command.application.dto.request.PaymentsInfo;
 import com.deveagles.be15_deveagles_be.features.sales.command.application.service.ItemSalesCommandService;
@@ -16,6 +20,8 @@ import com.deveagles.be15_deveagles_be.features.sales.command.domain.repository.
 import com.deveagles.be15_deveagles_be.features.sales.command.domain.repository.SalesRepository;
 import jakarta.transaction.Transactional;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +36,8 @@ public class ItemSalesCommandServiceImpl implements ItemSalesCommandService {
   private final CustomerRepository customerRepository;
   private final ItemSalesRepository itemSalesRepository;
   private final CustomerMembershipHistoryRepository customerMembershipHistoryRepository;
+  private final CustomerQueryService customerQueryService;
+  private final AutomaticMessageTriggerService automaticMessageTriggerService;
 
   @Transactional
   @Override
@@ -115,6 +123,20 @@ public class ItemSalesCommandServiceImpl implements ItemSalesCommandService {
                   .paymentsId(savedPaymentsId)
                   .customerPrepaidPassId(pass.getCustomerPrepaidPassId())
                   .build());
+
+          // ✅ 자동발신 트리거
+          Optional<CustomerDetailResponse> optionalCustomer =
+              customerQueryService.getCustomerDetail(request.getCustomerId(), request.getShopId());
+
+          optionalCustomer.ifPresent(
+              customer -> {
+                Map<String, String> payload =
+                    Map.of(
+                        "고객명", customer.getCustomerName(),
+                        "선불권금액", String.valueOf(pass.getRemainingAmount()));
+                automaticMessageTriggerService.triggerAutomaticSend(
+                    customer, AutomaticEventType.PREPAID_USED, payload);
+              });
         }
 
         case SESSION_PASS -> {
@@ -134,6 +156,18 @@ public class ItemSalesCommandServiceImpl implements ItemSalesCommandService {
                   .customerSessionPassId(pass.getCustomerSessionPassId())
                   .usedCount(useCount)
                   .build());
+
+          Optional<CustomerDetailResponse> optionalCustomer =
+              customerQueryService.getCustomerDetail(request.getCustomerId(), request.getShopId());
+          optionalCustomer.ifPresent(
+              customer -> {
+                Map<String, String> payload =
+                    Map.of(
+                        "고객명", customer.getCustomerName(),
+                        "횟수권횟수", String.valueOf(pass.getRemainingCount()));
+                automaticMessageTriggerService.triggerAutomaticSend(
+                    customer, AutomaticEventType.SESSION_PASS_USED, payload);
+              });
         }
       }
     }

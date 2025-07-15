@@ -74,6 +74,7 @@ public class MessageServiceAdapter {
               null,
               MessageKind.advertising,
               null,
+              null,
               null);
 
       // 메시지 발송
@@ -147,6 +148,7 @@ public class MessageServiceAdapter {
               null,
               null,
               MessageKind.advertising,
+              null,
               null,
               null);
 
