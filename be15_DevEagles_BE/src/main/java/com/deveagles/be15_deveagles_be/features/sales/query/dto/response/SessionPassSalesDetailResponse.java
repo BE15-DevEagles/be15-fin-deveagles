@@ -16,6 +16,7 @@ public class SessionPassSalesDetailResponse {
   // sales
   private Long salesId;
   private String salesDate;
+  private Long customerId;
   private String customerName;
   private String staffName;
   private Integer retailPrice;

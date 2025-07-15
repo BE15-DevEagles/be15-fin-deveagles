@@ -3,11 +3,37 @@
     <!-- 매출 테이블 -->
     <BaseTable
       :columns="columns"
-      :data="displaySales"
+      :data="sortedSales"
       :loading="loading"
       striped
       @row-click="openModal"
-    />
+    >
+      <!-- 판매일시 정렬 -->
+      <template #header-date>
+        <span class="sortable-header" @click="toggleSort('date')">
+          판매일시
+          <span class="sort-icon">
+            <template v-if="sortKey === 'date'">
+              {{ sortOrder === 'asc' ? '▲' : '▼' }}
+            </template>
+            <template v-else>⬍</template>
+          </span>
+        </span>
+      </template>
+
+      <!-- 고객명 정렬 -->
+      <template #header-customer>
+        <span class="sortable-header" @click="toggleSort('customer')">
+          고객명
+          <span class="sort-icon">
+            <template v-if="sortKey === 'customer'">
+              {{ sortOrder === 'asc' ? '▲' : '▼' }}
+            </template>
+            <template v-else>⬍</template>
+          </span>
+        </span>
+      </template>
+    </BaseTable>
 
     <!-- 페이지네이션 -->
     <BasePagination
@@ -19,21 +45,17 @@
       @page-change="handlePageChange"
     />
 
-    <!-- 상품 상세 모달 -->
+    <!-- 상세 모달들 -->
     <ItemSalesDetailModal
       v-if="detailModalVisible && selectedSalesItem?.salesType === 'ITEMS'"
       :sales-item="selectedSalesItem"
       @close="closeModal"
     />
-
-    <!-- 회원권 상세 모달 -->
     <MembershipSalesDetailModal
       v-if="detailModalVisible && selectedSalesItem?.salesType === 'MEMBERSHIP'"
       :sales-item="selectedSalesItem"
       @close="closeModal"
     />
-
-    <!-- 환불 상세 모달 -->
     <RefundDetailModal
       v-if="detailModalVisible && selectedSalesItem?.salesType === 'REFUND'"
       :sales-item="selectedSalesItem"
@@ -43,7 +65,7 @@
 </template>
 
 <script setup>
-  import { ref, watch } from 'vue';
+  import { ref, computed, watch } from 'vue';
   import BaseTable from '@/components/common/BaseTable.vue';
   import BasePagination from '@/components/common/Pagination.vue';
   import ItemSalesDetailModal from '@/features/sales/components/ItemSalesDetailModal.vue';
@@ -57,16 +79,50 @@
   });
 
   const displaySales = ref([]);
-  const originalSales = ref([]);
   const loading = ref(false);
-  const detailModalVisible = ref(false);
-  const selectedSalesItem = ref(null);
   const pageSize = 10;
 
   const pagination = ref({
     currentPage: 1,
     totalPages: 1,
     totalItems: 0,
+  });
+
+  const detailModalVisible = ref(false);
+  const selectedSalesItem = ref(null);
+
+  const sortKey = ref(null);
+  const sortOrder = ref('asc');
+
+  const toggleSort = key => {
+    if (sortKey.value === key) {
+      sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortKey.value = key;
+      sortOrder.value = 'asc';
+    }
+  };
+
+  const sortedSales = computed(() => {
+    const data = [...displaySales.value];
+    if (!sortKey.value) return data;
+
+    return data.sort((a, b) => {
+      const aVal = a[sortKey.value];
+      const bVal = b[sortKey.value];
+
+      if (sortKey.value === 'date') {
+        return sortOrder.value === 'asc'
+          ? new Date(aVal) - new Date(bVal)
+          : new Date(bVal) - new Date(aVal);
+      }
+
+      if (sortKey.value === 'customer') {
+        return sortOrder.value === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+
+      return 0;
+    });
   });
 
   const mapPaymentMethodToKorean = method => {
@@ -94,22 +150,15 @@
       const filters = {
         startDate: props.filterState?.startDate,
         endDate: props.filterState?.endDate,
-        staffName: props.filterState?.staff,
-        saleTypes: props.filterState?.types
-          ?.map(type => {
-            if (type === '상품') return 'ITEMS';
-            if (type === '선불액·정기권') return 'MEMBERSHIP';
-            if (type === '환불') return 'REFUND';
-            return null;
-          })
-          .filter(Boolean),
+        staffId: props.filterState?.staffId,
+        staffName: props.filterState?.staffName,
+        saleTypes: [...(props.filterState?.types || [])],
         customerKeyword: props.customerKeyword,
         page: pagination.value.currentPage,
         size: pageSize,
       };
 
       const result = await getSalesList(filters);
-      originalSales.value = result.list;
 
       displaySales.value = result.list.map(item => ({
         id: item.salesId,
@@ -187,12 +236,22 @@
   defineExpose({ fetchSalesList });
 </script>
 
-<style>
+<style scoped>
   .base-table-wrapper {
     background: white;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     padding: 24px;
     margin-bottom: 24px;
+  }
+  .sortable-header {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .sort-icon {
+    font-size: 12px;
+    color: #888;
   }
 </style>

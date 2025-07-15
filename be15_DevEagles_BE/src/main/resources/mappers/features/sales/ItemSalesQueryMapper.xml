@@ -10,6 +10,7 @@
         <!-- sales -->
         <id property="salesId" column="sales_id"/>
         <result property="salesDate" column="sales_date"/>
+        <result property="customerId" column="customer_id"/>
         <result property="customerName" column="customer_name"/>
         <result property="staffName" column="staff_name"/>
         <result property="retailPrice" column="retail_price"/>
@@ -21,6 +22,7 @@
 
         <!-- item_sales -->
         <result property="itemSalesId" column="item_sales_id"/>
+        <result property="secondaryItemId" column="secondary_item_id"/>
         <result property="secondaryItemName" column="secondary_item_name"/>
         <result property="itemDiscountRate" column="item_discount_rate"/>
         <result property="quantity" column="quantity"/>
@@ -37,6 +39,7 @@
             -- sales
             s.sales_id,
             s.sales_date,
+            s.customer_id,
             s.retail_price,
             s.discount_rate AS sales_discount_rate,
             s.discount_amount,
@@ -47,6 +50,7 @@
 
             -- item_sales
             i.item_sales_id,
+            i.secondary_item_id,
             si.secondary_item_name,
             i.discount_rate AS item_discount_rate,
             i.quantity,
