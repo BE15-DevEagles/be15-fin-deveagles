@@ -1,6 +1,7 @@
 <template>
   <div class="staff-container">
     <!-- 상단 헤더 -->
+    <h1 class="page-title">직원 목록</h1>
     <div class="staff-header">
       <BaseButton @click="goToCreate">+ 직원 추가</BaseButton>
       <div class="search-area">
@@ -172,6 +173,7 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
+    margin-top: 16px;
   }
 
   .search-area {

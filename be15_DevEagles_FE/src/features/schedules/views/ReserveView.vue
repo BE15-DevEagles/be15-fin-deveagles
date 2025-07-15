@@ -85,27 +85,46 @@
           <h3>💇 시술 메뉴를 선택해 주세요</h3>
           <div class="menu-tabs">
             <BaseButton
-              v-for="menu in menus"
-              :key="menu"
-              :class="[form.menu === menu ? 'btn btn-primary' : 'btn btn-outline btn-primary']"
-              @click="selectMenu(menu)"
+              v-for="item in primaryItems"
+              :key="item.primaryItemId"
+              :class="[
+                selectedPrimaryId === item.primaryItemId
+                  ? 'btn btn-primary'
+                  : 'btn btn-outline btn-primary',
+              ]"
+              @click="selectPrimary(item)"
             >
-              {{ menu }}
+              {{ item.primaryItemName }}
             </BaseButton>
+          </div>
+          <div v-if="allSelectedServices.length > 0" class="selected-tags">
+            <BaseBadge
+              v-for="(svc, idx) in allSelectedServices"
+              :key="svc.name + '-' + svc.primaryItemId"
+              :type="badgeColorMap[svc.primaryItemId] || 'neutral'"
+              pill
+              class="selected-tag"
+            >
+              {{ svc.name }}
+              <button class="remove-btn" @click.stop="removeService(svc.name)">×</button>
+            </BaseBadge>
           </div>
 
           <div class="service-box">
             <div
-              v-for="item in serviceOptions"
-              :key="item"
+              v-for="item in filteredSecondaryItems"
+              :key="item.secondaryItemId"
               class="service-item"
-              :class="{ selected: form.services.includes(item) }"
-              @click="toggleService(item)"
+              :class="{ selected: form.services.includes(item.secondaryItemName) }"
+              @click="toggleService(item.secondaryItemName)"
             >
-              {{ item }}
+              {{ item.secondaryItemName }}
+              ( {{ item.secondaryItemPrice.toLocaleString() }}원
+              <template v-if="item.timeTaken != null && item.timeTaken !== 0">
+                / {{ item.timeTaken }}분 </template
+              >)
             </div>
           </div>
-
           <div class="submit-area">
             <BaseButton type="primary" :disabled="!isValid" @click="submitReservation">
               예약하기
@@ -118,16 +137,32 @@
 </template>
 
 <script setup>
-  import { reactive, computed, watch, ref } from 'vue';
+  import { reactive, computed, watch, ref, onMounted } from 'vue';
   import { useRoute } from 'vue-router';
   import { useToast } from 'vue-toastification';
   import BaseButton from '@/components/common/BaseButton.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
+  import BaseBadge from '@/components/common/BaseBadge.vue';
+
+  // API
+  import {
+    getActiveSecondaryItems,
+    getAllPrimaryItems,
+  } from '@/features/schedules/api/schedules.js';
 
   const toast = useToast();
   const route = useRoute();
   const phoneInput = ref('');
+  const badgeColorMap = reactive({});
+  // 상품 상태
+  const primaryItems = ref([]);
+  const selectedPrimaryId = ref(null);
+  const allSecondaryItems = ref([]);
 
+  // 탭별 선택 상태
+  const selectedServicesMap = reactive({});
+
+  // 예약 form
   const form = reactive({
     designerId: route.params.id,
     customer: '',
@@ -135,12 +170,147 @@
     memo: '',
     date: null,
     time: '',
-    menu: '커트',
-    services: [],
+    menu: '',
+    services: [], // 현재 탭에서 보여줄 선택
   });
 
-  const activeMenu = ref('커트');
+  const allSelectedServices = computed(() => {
+    const result = [];
+    for (const pid in selectedServicesMap) {
+      selectedServicesMap[pid].forEach(name => {
+        result.push({
+          name,
+          primaryItemId: Number(pid),
+        });
+      });
+    }
+    return result;
+  });
 
+  // 초기 데이터
+  onMounted(async () => {
+    try {
+      primaryItems.value = await getAllPrimaryItems();
+      allSecondaryItems.value = await getActiveSecondaryItems();
+      // 예: 색상 타입을 반복해서 할당
+      const colorTypes = ['neutral', 'primary', 'secondary', 'success', 'warning', 'error'];
+      primaryItems.value.forEach((item, idx) => {
+        badgeColorMap[item.primaryItemId] = colorTypes[idx % colorTypes.length];
+      });
+      if (primaryItems.value.length > 0) {
+        selectedPrimaryId.value = primaryItems.value[0].primaryItemId;
+        form.menu = primaryItems.value[0].primaryItemName;
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('상품 목록 조회 중 오류가 발생했습니다.');
+    }
+  });
+
+  // 1차 선택
+  const selectPrimary = item => {
+    selectedPrimaryId.value = item.primaryItemId;
+    form.menu = item.primaryItemName;
+    form.services = selectedServicesMap[item.primaryItemId]
+      ? [...selectedServicesMap[item.primaryItemId]]
+      : [];
+  };
+
+  // 2차 목록
+  const filteredSecondaryItems = computed(() => {
+    if (!selectedPrimaryId.value) return [];
+    return allSecondaryItems.value.filter(item => item.primaryItemId === selectedPrimaryId.value);
+  });
+
+  // 2차 선택 토글
+  const toggleService = serviceName => {
+    const primaryId = selectedPrimaryId.value;
+    if (!selectedServicesMap[primaryId]) {
+      selectedServicesMap[primaryId] = [];
+    }
+    const arr = selectedServicesMap[primaryId];
+    const idx = arr.indexOf(serviceName);
+    if (idx === -1) {
+      arr.push(serviceName);
+    } else {
+      arr.splice(idx, 1);
+    }
+    form.services = [...arr];
+  };
+
+  // X 버튼으로 제거
+  const removeService = serviceName => {
+    // 모든 탭에서 해당 서비스 제거
+    for (const key in selectedServicesMap) {
+      const arr = selectedServicesMap[key];
+      const idx = arr.indexOf(serviceName);
+      if (idx !== -1) {
+        arr.splice(idx, 1);
+      }
+    }
+    // 현재 탭의 선택 목록도 다시 동기화
+    const currentArr = selectedServicesMap[selectedPrimaryId.value];
+    form.services = currentArr ? [...currentArr] : [];
+  };
+
+  // 시간 선택
+  const selectTime = time => {
+    form.time = time;
+  };
+
+  // 전화번호 입력 포맷팅
+  watch(phoneInput, val => {
+    let digits = val.replace(/\D/g, '');
+    if (val !== digits) toast.warning('숫자만 입력 가능합니다.');
+    if (digits.length > 11) {
+      digits = digits.slice(0, 11);
+      toast.warning('전화번호는 최대 11자리까지 입력 가능합니다.');
+    }
+    let formatted = '';
+    if (digits.length < 4) formatted = digits;
+    else if (digits.length < 7) formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    else formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+    phoneInput.value = formatted;
+    form.phone = formatted;
+  });
+
+  // 날짜 포맷
+  const formatDateOnly = date => {
+    const d = new Date(date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // 유효성 검사
+  const isValid = computed(() => {
+    return (
+      form.customer.trim() &&
+      /^\d{3}-\d{3,4}-\d{4}$/.test(form.phone) &&
+      form.date &&
+      form.time &&
+      form.menu &&
+      allSelectedServices.value.length > 0
+    );
+  });
+
+  // 예약하기
+  const submitReservation = () => {
+    if (!isValid.value) {
+      toast.warning('모든 필수 항목을 입력해주세요.');
+      return;
+    }
+    const payload = {
+      ...form,
+      services: allSelectedServices.value, // 전체 선택된 서비스 전송
+      date: form.date ? formatDateOnly(form.date) : '',
+    };
+    toast.success('예약 정보가 정상적으로 준비되었습니다.');
+    alert('예약 정보:\n' + JSON.stringify(payload, null, 2));
+  };
+
+  // 시간대
   const times = {
     am: ['10:00', '10:30', '11:00', '11:30'],
     pm: [
@@ -157,82 +327,6 @@
       '17:00',
       '17:30',
     ],
-  };
-
-  const menus = ['커트', '펌', '클리닉', '컬러'];
-
-  const serviceOptionsMap = {
-    커트: ['남성 커트', '여성 커트', '샴푸', '(미취학) 아동컷', '레이어드 커트'],
-    펌: ['베이직 펌', '볼륨 펌'],
-    클리닉: ['모발 케어', '두피 케어'],
-    컬러: ['전체 염색', '부분 염색'],
-  };
-
-  const serviceOptions = computed(() => serviceOptionsMap[activeMenu.value] || []);
-
-  const selectMenu = menu => {
-    activeMenu.value = menu;
-    form.menu = menu;
-  };
-
-  const toggleService = item => {
-    const idx = form.services.indexOf(item);
-    if (idx === -1) form.services.push(item);
-    else form.services.splice(idx, 1);
-  };
-
-  const selectTime = time => {
-    form.time = time;
-  };
-
-  watch(phoneInput, val => {
-    let digits = val.replace(/\D/g, '');
-    if (val !== digits) toast.warning('숫자만 입력 가능합니다.');
-    if (digits.length > 11) {
-      digits = digits.slice(0, 11);
-      toast.warning('전화번호는 최대 11자리까지 입력 가능합니다.');
-    }
-
-    let formatted = '';
-    if (digits.length < 4) formatted = digits;
-    else if (digits.length < 7) formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
-    else formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-    phoneInput.value = formatted;
-    form.phone = formatted;
-  });
-
-  const formatDateOnly = date => {
-    const d = new Date(date);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const isValid = computed(() => {
-    return (
-      form.customer.trim() &&
-      /^\d{3}-\d{3,4}-\d{4}$/.test(form.phone) &&
-      form.date &&
-      form.time &&
-      form.menu &&
-      form.services.length > 0
-    );
-  });
-
-  const submitReservation = () => {
-    if (!isValid.value) {
-      toast.warning('모든 필수 항목을 입력해주세요.');
-      return;
-    }
-
-    const payload = {
-      ...form,
-      date: form.date ? formatDateOnly(form.date) : '',
-    };
-
-    toast.success('예약 정보가 정상적으로 준비되었습니다.');
-    alert('예약 정보:\n' + JSON.stringify(payload, null, 2));
   };
 </script>
 
@@ -273,6 +367,32 @@
   .logo-img {
     height: 60px;
     width: auto;
+  }
+  .selected-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .selected-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding-right: 8px;
+  }
+
+  .selected-tag .remove-btn {
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    color: inherit;
+  }
+
+  .selected-tag .remove-btn:hover {
+    color: var(--color-error-500);
   }
 
   .reservation-wrapper {
