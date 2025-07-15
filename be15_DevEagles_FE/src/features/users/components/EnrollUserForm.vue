@@ -1,7 +1,7 @@
 <template>
   <h2 class="font-section-title signup-title">회원가입</h2>
 
-  <div class="form-fields">
+  <form class="form-fields">
     <div class="label-row">
       <label for="loginId">
         아이디
@@ -14,6 +14,7 @@
       placeholder="사용하실 아이디를 입력해주세요."
       type="text"
       :error="errors.loginId"
+      autocomplete="loginId"
       @blur="idChecked"
       @focus="clearError('loginId')"
     />
@@ -30,6 +31,7 @@
       placeholder="E-mail 주소를 입력해주세요."
       type="email"
       :error="errors.email"
+      autocomplete="new-email"
       @blur="emailChecked"
       @focus="clearError('email')"
     />
@@ -47,6 +49,7 @@
       placeholder="비밀번호를 입력해주세요."
       type="password"
       :error="errors.password"
+      autocomplete="new-password"
       @blur="passwordChecked"
       @focus="clearError('password')"
     />
@@ -56,6 +59,7 @@
       placeholder="비밀번호를 한 번 더 입력해주세요."
       type="password"
       :error="errors.checkPwd"
+      autocomplete="new-password"
       @blur="checkPwdChecked"
       @focus="clearError('checkPwd')"
     />
@@ -91,7 +95,7 @@
       @blur="phoneChecked"
       @focus="clearError('phoneNumber')"
     />
-  </div>
+  </form>
 </template>
 <script setup>
   import BaseForm from '@/components/common/BaseForm.vue';
@@ -103,7 +107,7 @@
     isRequired: Function,
   });
 
-  const emit = defineEmits(['update:modelValue']);
+  const emit = defineEmits(['update:modelValue', 'email-check']);
 
   const form = computed({
     get: () => props.modelValue,
