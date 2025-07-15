@@ -2,7 +2,7 @@ export const scheduleRoutes = [
   {
     path: '/reserve/:shopId/staff',
     name: 'reserveDesigner',
-    component: () => import('@/features/schedules/views/DesignerListView.vue'),
+    component: () => import('@/features/schedules/views/StaffListView.vue'),
   },
 
   {

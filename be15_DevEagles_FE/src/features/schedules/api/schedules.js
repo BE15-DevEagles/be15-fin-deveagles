@@ -208,3 +208,8 @@ export const updateRegularPlan = (regularPlanId, payload) => {
 export const switchScheduleType = payload => {
   return api.post('/schedules/plans/switch', payload);
 };
+
+export const getStaffDetail = async staffId => {
+  const response = await api.get(`/staffs/${staffId}`);
+  return response.data.data;
+};
