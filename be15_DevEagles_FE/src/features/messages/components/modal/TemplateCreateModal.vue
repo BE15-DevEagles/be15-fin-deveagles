@@ -1,13 +1,16 @@
 <script setup>
   import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
+  import TemplatesAPI from '@/features/messages/api/templates.js';
+
   import BaseModal from '@/components/common/BaseModal.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import BaseButton from '@/components/common/BaseButton.vue';
 
   const props = defineProps({
     modelValue: Boolean,
+    grades: Array,
   });
-  const emit = defineEmits(['update:modelValue', 'submit']);
+  const emit = defineEmits(['update:modelValue', 'success']);
 
   const visible = computed({
     get: () => props.modelValue,
@@ -16,32 +19,29 @@
 
   const name = ref('');
   const content = ref('');
-  const grade = ref('전체');
-  const tags = ref('');
   const type = ref('안내');
+  const selectedGradeId = ref(null);
+
   const showDropdown = ref(false);
   const contentWrapper = ref(null);
   const dropdownWrapper = ref(null);
 
   const variables = [
     '#{고객명}',
-    '#{잔여선불충전액}',
-    '#{잔여포인트}',
-    '#{상점명}',
+    '#{예약날짜}',
+    '#{횟수권잔여횟수}',
+    '#{선불권잔여금액}',
+    '#{프로필링크}',
     '#{인스타url}',
+    '#{상점명}',
   ];
 
   function insertVariable(variable) {
     const textarea = contentWrapper.value?.querySelector('textarea');
     if (!textarea) return;
-
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const before = content.value.slice(0, start);
-    const after = content.value.slice(end);
-
-    content.value = before + variable + after;
-
+    content.value = content.value.slice(0, start) + variable + content.value.slice(end);
     nextTick(() => {
       textarea.focus();
       textarea.selectionStart = textarea.selectionEnd = start + variable.length;
@@ -51,41 +51,45 @@
   function toggleDropdown() {
     showDropdown.value = !showDropdown.value;
   }
-
   function handleClickOutside(event) {
     if (dropdownWrapper.value && !dropdownWrapper.value.contains(event.target)) {
       showDropdown.value = false;
     }
   }
-
-  onMounted(() => {
-    window.addEventListener('click', handleClickOutside);
-  });
-  onBeforeUnmount(() => {
-    window.removeEventListener('click', handleClickOutside);
-  });
+  onMounted(() => window.addEventListener('click', handleClickOutside));
+  onBeforeUnmount(() => window.removeEventListener('click', handleClickOutside));
 
   function close() {
     visible.value = false;
+    name.value = '';
+    content.value = '';
+    type.value = '안내';
+    selectedGradeId.value = null;
   }
 
-  function submit() {
+  async function submit() {
     if (!name.value || !content.value) return;
 
-    emit('submit', {
-      id: Date.now(),
-      name: name.value,
-      content: content.value,
-      grade: grade.value,
-      tags: tags.value
-        .split(',')
-        .map(t => t.trim())
-        .filter(Boolean),
-      type: type.value,
-      createdAt: new Date().toISOString().slice(0, 10),
-    });
+    const typeEnum = {
+      안내: 'announcement',
+      광고: 'advertising',
+      기타: 'etc',
+    };
 
-    close();
+    const payload = {
+      templateName: name.value,
+      templateContent: content.value,
+      templateType: typeEnum[type.value] ?? 'announcement',
+      customerGradeId: selectedGradeId.value || null,
+    };
+
+    try {
+      await TemplatesAPI.createTemplate(payload);
+      emit('success');
+      close();
+    } catch (error) {
+      alert('템플릿 등록에 실패했습니다.');
+    }
   }
 </script>
 
@@ -97,12 +101,8 @@
       <div class="form-group relative z-0">
         <div class="form-label-area">
           <label class="form-label">내용</label>
-
           <div ref="dropdownWrapper" class="dropdown-wrapper">
-            <BaseButton size="xs" type="ghost" @click.stop="toggleDropdown">
-              변수 삽입 ▼
-            </BaseButton>
-
+            <BaseButton size="xs" type="ghost" @click.stop="toggleDropdown">변수 삽입 ▼</BaseButton>
             <div v-if="showDropdown" class="dropdown-list">
               <div
                 v-for="v in variables"
@@ -115,7 +115,6 @@
             </div>
           </div>
         </div>
-
         <div ref="contentWrapper">
           <BaseForm
             v-model="content"
@@ -137,19 +136,15 @@
         ]"
       />
 
-      <BaseForm
-        v-model="grade"
-        label="대상 등급"
-        type="select"
-        :options="[
-          { value: '전체', text: '전체' },
-          { value: 'VIP', text: 'VIP' },
-          { value: '단골', text: '단골' },
-          { value: '신규', text: '신규' },
-        ]"
-      />
-
-      <BaseForm v-model="tags" label="태그 (쉼표로 구분)" placeholder="예: 여름,이벤트,첫방문" />
+      <div class="form-row">
+        <label class="form-label">대상 등급</label>
+        <select v-model="selectedGradeId" class="form-input">
+          <option :value="null">전체</option>
+          <option v-for="grade in grades" :key="grade.id" :value="grade.id">
+            {{ grade.name }}
+          </option>
+        </select>
+      </div>
 
       <div class="flex justify-end mt-4">
         <BaseButton type="error" @click="close">취소</BaseButton>
@@ -180,12 +175,33 @@
     border-radius: 6px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
     z-index: 999;
-
-    min-width: max-content;
-    white-space: nowrap;
     padding: 4px 0;
   }
   .insert-item {
     @apply py-1 px-2 text-sm hover:bg-gray-100 rounded cursor-pointer;
+  }
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #222;
+  }
+  .form-input {
+    height: 40px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    padding: 0 12px;
+    background: #fff;
+    transition: border 0.2s;
+  }
+  .form-input:focus {
+    outline: none;
+    border-color: #364f6b;
+    background: #f8fafd;
   }
 </style>
