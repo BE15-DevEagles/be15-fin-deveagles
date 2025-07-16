@@ -3,6 +3,7 @@ package com.deveagles.be15_deveagles_be.features.customers.command.infrastructur
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
@@ -20,6 +21,7 @@ import com.deveagles.be15_deveagles_be.features.customers.command.application.dt
 import com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Customer;
 import com.deveagles.be15_deveagles_be.features.customers.command.domain.repository.CustomerRepository;
 import com.deveagles.be15_deveagles_be.features.customers.command.infrastructure.repository.CustomerJpaRepository;
+import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerDetailResponse;
 import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerQueryService;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.service.AutomaticMessageTriggerService;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.AutomaticEventType;
@@ -120,6 +122,8 @@ class CustomerCommandServiceImplTest {
     void createCustomer_Success() {
       // Given
       when(customerRepository.save(any(Customer.class))).thenReturn(customer);
+      when(customerQueryService.getCustomerDetail(anyLong(), anyLong()))
+          .thenReturn(Optional.of(CustomerDetailResponse.builder().customerId(1L).build()));
 
       // When
       CustomerCommandResponse response = customerCommandService.createCustomer(request);
@@ -180,6 +184,8 @@ class CustomerCommandServiceImplTest {
               .notificationConsent(request.notificationConsent())
               .build();
       when(customerRepository.save(any(Customer.class))).thenReturn(customer);
+      when(customerQueryService.getCustomerDetail(anyLong(), anyLong()))
+          .thenReturn(Optional.of(CustomerDetailResponse.builder().customerId(1L).build()));
 
       // when
       CustomerCommandResponse response = customerCommandService.createCustomer(request);
