@@ -1,131 +1,90 @@
-<template>
-  <div class="template-list-view">
-    <!-- 상단 헤더 -->
-    <div class="template-list-header">
-      <h2 class="font-section-title text-dark">템플릿 보관함</h2>
-      <BaseButton type="primary" size="sm" @click="openCreateModal">
-        <PlusIcon class="icon" /> 템플릿 등록
-      </BaseButton>
-    </div>
-    <BaseCard>
-      <BaseTable :columns="columns" :data="paginatedTemplates">
-        <template #body>
-          <TemplateItem
-            v-for="template in paginatedTemplates"
-            :key="template.id"
-            :template="template"
-            :column-widths="columnWidths"
-            @edit="openEditModal"
-            @delete="openDeleteModal"
-            @open-detail="openDetailModal"
-          />
-        </template>
-      </BaseTable>
-    </BaseCard>
-
-    <Pagination
-      v-if="totalPages > 1"
-      :current-page="currentPage"
-      :total-pages="totalPages"
-      :total-items="allTemplates.length"
-      :items-per-page="itemsPerPage"
-      @page-change="onPageChange"
-    />
-
-    <TemplateCreateModal v-model="showCreateModal" @submit="handleCreate" />
-    <TemplateEditModal v-model="showEditModal" :template="editTarget" @submit="handleEdit" />
-    <TemplateDeleteModal v-model="showDeleteModal" @confirm="confirmDelete" />
-    <TemplateDetailModal v-model="showDetailModal" :template="detailTarget" />
-
-    <BaseToast ref="toast" />
-  </div>
-</template>
-
 <script setup>
-  import { ref, computed } from 'vue';
-  import { defineAsyncComponent } from 'vue';
+  import { ref, onMounted } from 'vue';
+  import TemplatesAPI from '@/features/messages/api/templates.js';
+  import GradesAPI from '@/features/customer/api/grades.js';
+  import { PlusIcon } from 'lucide-vue-next';
 
   import BaseButton from '@/components/common/BaseButton.vue';
+  import BaseCard from '@/components/common/BaseCard.vue';
   import BaseTable from '@/components/common/BaseTable.vue';
   import Pagination from '@/components/common/Pagination.vue';
   import BaseToast from '@/components/common/BaseToast.vue';
-  import TemplateItem from '@/features/messages/components/TemplateItem.vue';
-  import { PlusIcon } from 'lucide-vue-next';
-  import BaseCard from '@/components/common/BaseCard.vue';
 
-  const TemplateCreateModal = defineAsyncComponent(
-    () => import('@/features/messages/components/modal/TemplateCreateModal.vue')
-  );
-  const TemplateEditModal = defineAsyncComponent(
-    () => import('@/features/messages/components/modal/TemplateEditModal.vue')
-  );
-  const TemplateDeleteModal = defineAsyncComponent(
-    () => import('@/features/messages/components/modal/TemplateDeleteModal.vue')
-  );
-  const TemplateDetailModal = defineAsyncComponent(
-    () => import('@/features/messages/components/modal/TemplateDetailModal.vue')
-  );
+  import TemplateCreateModal from '@/features/messages/components/modal/TemplateCreateModal.vue';
+  import TemplateEditModal from '@/features/messages/components/modal/TemplateEditModal.vue';
+  import TemplateDeleteModal from '@/features/messages/components/modal/TemplateDeleteModal.vue';
+  import TemplateDetailModal from '@/features/messages/components/modal/TemplateDetailModal.vue';
+  import EditIcon from '@/components/icons/EditIcon.vue';
+  import TrashIcon from '@/components/icons/TrashIcon.vue';
 
-  const allTemplates = ref([
-    {
-      id: 1,
-      name: '예약 안내',
-      type: '안내',
-      content: '고객님 예약이 확정되었습니다.',
-      createdAt: '2024-06-10',
-    },
-    {
-      id: 2,
-      name: '시술 전 안내',
-      type: '안내',
-      content: '시술 전 주의사항을 꼭 읽어보시고 방문해 주세요... (생략)',
-      createdAt: '2024-06-11',
-    },
-    {
-      id: 3,
-      name: '리뷰 요청',
-      type: '광고',
-      content: '시술이 만족스러우셨다면 리뷰를 남겨주세요.',
-      createdAt: '2024-06-13',
-    },
-  ]);
-
+  const templates = ref([]);
   const currentPage = ref(1);
   const itemsPerPage = 10;
-  const totalPages = computed(() => Math.ceil(allTemplates.value.length / itemsPerPage));
-  const paginatedTemplates = computed(() => {
-    const start = (currentPage.value - 1) * itemsPerPage;
-    return allTemplates.value.slice(start, start + itemsPerPage);
-  });
-  function onPageChange(page) {
-    currentPage.value = page;
-  }
+  const totalItems = ref(0);
+  const totalPages = ref(0);
+  const loading = ref(false);
 
-  const columns = [
-    { key: 'name', title: '템플릿명', width: '20%', headerClass: 'text-center' },
-    { key: 'type', title: '유형', width: '10%', headerClass: 'text-center' },
-    { key: 'content', title: '내용', width: '40%', headerClass: 'text-center' },
-    { key: 'createdAt', title: '등록일자', width: '20%', headerClass: 'text-center' },
-    { key: 'actions', title: '관리', width: '10%', headerClass: 'text-center' },
-  ];
-
-  const columnWidths = {
-    name: '20%',
-    type: '10%',
-    content: '40%',
-    createdAt: '20%',
-    actions: '10%',
-  };
+  const grades = ref([]);
 
   const showCreateModal = ref(false);
   const showEditModal = ref(false);
   const showDeleteModal = ref(false);
   const showDetailModal = ref(false);
 
-  const editTarget = ref({ id: null, name: '', content: '', type: '', createdAt: '' });
+  const editTarget = ref(null);
   const deleteTarget = ref(null);
   const detailTarget = ref(null);
   const toast = ref(null);
+
+  const typeLabelMap = {
+    advertising: '광고',
+    announcement: '안내',
+    etc: '기타',
+  };
+
+  const tableColumns = [
+    { key: 'templateName', title: '템플릿명', width: '20%', headerClass: 'text-center' },
+    { key: 'templateType', title: '유형', width: '10%', headerClass: 'text-center' },
+    { key: 'templateContent', title: '내용', width: '40%', headerClass: 'text-center' },
+    { key: 'createdAt', title: '등록일자', width: '20%', headerClass: 'text-center' },
+    { key: 'actions', title: '관리', width: '10%', headerClass: 'text-center' },
+  ];
+
+  async function fetchTemplates() {
+    loading.value = true;
+    try {
+      const params = {
+        page: currentPage.value - 1,
+        size: itemsPerPage,
+      };
+      const result = await TemplatesAPI.getTemplates(params);
+      templates.value = result.data.content;
+      totalPages.value = result.data.pagination.totalPages;
+      totalItems.value = result.data.pagination.totalItems;
+      currentPage.value = result.data.pagination.currentPage + 1;
+    } catch (e) {
+      toast.value?.error('템플릿 목록 조회에 실패했습니다.');
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchGrades() {
+    try {
+      grades.value = await GradesAPI.getGradesByShop();
+    } catch {
+      toast.value?.error('등급 조회 실패');
+    }
+  }
+
+  onMounted(async () => {
+    await Promise.all([fetchTemplates(), fetchGrades()]);
+  });
+
+  function onPageChange(page) {
+    currentPage.value = page;
+    fetchTemplates();
+  }
 
   function openCreateModal() {
     showCreateModal.value = true;
@@ -142,27 +101,88 @@
     detailTarget.value = template;
     showDetailModal.value = true;
   }
-
-  function handleCreate(newTemplate) {
-    allTemplates.value.unshift(newTemplate);
-    toast.value?.success('템플릿이 등록되었습니다.', { type: 'success' });
-    showCreateModal.value = false;
-  }
-  function handleEdit(updatedTemplate) {
-    const index = allTemplates.value.findIndex(t => t.id === updatedTemplate.id);
-    if (index !== -1) {
-      allTemplates.value[index] = { ...updatedTemplate };
-      toast.value?.success('템플릿이 수정되었습니다.', { type: 'success' });
-    }
-    showEditModal.value = false;
-  }
-  function confirmDelete() {
-    if (!deleteTarget.value) return;
-    allTemplates.value = allTemplates.value.filter(t => t.id !== deleteTarget.value.id);
-    toast.value?.success('템플릿이 삭제되었습니다.', { type: 'success' });
-    showDeleteModal.value = false;
-  }
 </script>
+
+<template>
+  <div class="template-list-view">
+    <div class="template-list-header">
+      <h2 class="font-section-title text-dark">템플릿 보관함</h2>
+      <BaseButton type="primary" size="sm" @click="openCreateModal">
+        <PlusIcon class="icon" /> 템플릿 등록
+      </BaseButton>
+    </div>
+
+    <BaseCard>
+      <BaseTable :columns="tableColumns" :data="templates" :loading="loading" hover>
+        <template #cell-templateName="{ item }">
+          <div class="text-center">{{ item.templateName }}</div>
+        </template>
+
+        <template #cell-templateType="{ item }">
+          <div class="text-center">
+            <span class="badge">{{ typeLabelMap[item.templateType] || '기타' }}</span>
+          </div>
+        </template>
+
+        <template #cell-templateContent="{ item }">
+          <div class="text-center clickable" @click="openDetailModal(item)">
+            <div class="truncate">{{ item.templateContent }}</div>
+          </div>
+        </template>
+
+        <template #cell-createdAt="{ item }">
+          <div class="text-center">
+            {{ item.createdAt ? item.createdAt.slice(0, 10) : '-' }}
+          </div>
+        </template>
+
+        <template #cell-actions="{ item }">
+          <div class="action-cell text-center">
+            <BaseButton size="xs" icon aria-label="수정" @click="openEditModal(item)">
+              <EditIcon class="icon" />
+            </BaseButton>
+            <BaseButton size="xs" icon aria-label="삭제" @click="openDeleteModal(item)">
+              <TrashIcon class="icon" />
+            </BaseButton>
+          </div>
+        </template>
+
+        <template #empty>
+          <div class="empty-state">
+            <p class="text-gray-500">등록된 템플릿이 없습니다.</p>
+            <BaseButton type="primary" @click="openCreateModal"> 템플릿 생성하기 </BaseButton>
+          </div>
+        </template>
+      </BaseTable>
+    </BaseCard>
+
+    <Pagination
+      v-if="totalPages > 1"
+      :current-page="currentPage"
+      :total-pages="totalPages"
+      :total-items="totalItems"
+      :items-per-page="itemsPerPage"
+      @page-change="onPageChange"
+    />
+
+    <TemplateCreateModal v-model="showCreateModal" :grades="grades" @success="fetchTemplates" />
+
+    <TemplateEditModal
+      v-if="editTarget"
+      v-model="showEditModal"
+      :template="editTarget"
+      :grades="grades"
+      @success="fetchTemplates"
+    />
+    <TemplateDeleteModal
+      v-model="showDeleteModal"
+      :template="deleteTarget"
+      @deleted="fetchTemplates"
+    />
+    <TemplateDetailModal v-model="showDetailModal" :template="detailTarget" :grades="grades" />
+    <BaseToast ref="toast" />
+  </div>
+</template>
 
 <style scoped>
   .template-list-view {
@@ -175,5 +195,28 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 1.5rem;
+  }
+  .truncate {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .clickable {
+    cursor: pointer;
+    color: var(--color-primary-main);
+  }
+  .action-cell {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .badge {
+    display: inline-block;
+    background-color: var(--color-gray-100);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
   }
 </style>

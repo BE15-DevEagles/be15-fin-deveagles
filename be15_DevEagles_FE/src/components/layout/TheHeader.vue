@@ -652,8 +652,12 @@
 
       const sortedResults = sortSuggestions(results, keyword);
       searchSuggestions.value = sortedResults;
+      // activeIndex는 제안 목록이 새로 표시될 때만 -1로 초기화
+      // 이미 표시 중인 경우 (예: 키보드 탐색 중)에는 유지
+      if (!showSuggestions.value) {
+        activeIndex.value = -1;
+      }
       showSuggestions.value = sortedResults.length > 0;
-      activeIndex.value = -1;
     } catch (err) {
       console.warn('[Header] 검색 오류', err);
       searchSuggestions.value = [];
@@ -664,18 +668,15 @@
   };
 
   const executeSearch = () => {
-    const keyword = searchQuery.value?.trim();
-    if (!keyword) return;
-
-    router
-      .push({
-        name: 'CustomerList',
-        query: { keyword },
-      })
-      .catch(err => {
-        console.warn('[Header] 라우팅 오류', err);
-      });
-    showSuggestions.value = false;
+    if (activeIndex.value >= 0 && searchSuggestions.value.length > 0) {
+      selectSuggestion(searchSuggestions.value[activeIndex.value]);
+    } else {
+      // 검색창에서 엔터 시 고객 목록으로 이동하지 않고 검색 결과만 표시
+      // 이미 fetchAutocomplete에서 검색 결과를 보여주고 있으므로,
+      // 여기서는 검색창을 초기화하고 제안 목록을 닫는 역할만 수행
+      searchQuery.value = '';
+      showSuggestions.value = false;
+    }
   };
 
   const metadataStore = useMetadataStore();

@@ -213,11 +213,18 @@ router.beforeEach((to, from, next) => {
     '/sign-up',
     '/verify-reset',
     '/edit-pwd',
-    '/reserve/**',
-    '/p/:shopId',
+    /^\/reserve(\/.*)?$/,
+    /^\/p\/\d+$/,
   ];
-  const authRequired = !publicPages.includes(to.path);
 
+  const isPublicPage = publicPages.some(page => {
+    if (page instanceof RegExp) {
+      return page.test(to.path);
+    }
+    return page === to.path;
+  });
+
+  const authRequired = !isPublicPage;
   if (authRequired && !authStore.isAuthenticated) {
     return next('/login');
   }

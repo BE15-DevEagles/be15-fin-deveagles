@@ -39,27 +39,34 @@
         <div v-if="errors.phone" class="error-message">{{ errors.phone }}</div>
       </div>
       <div class="form-row">
-        <label class="form-label">성별</label>
-        <select v-model="form.gender" class="form-input">
+        <label class="form-label">성별<span class="required">*</span></label>
+        <select
+          v-model="form.gender"
+          class="form-input"
+          :class="{ 'input-error': errors.gender }"
+          @blur="validateField('gender')"
+        >
           <option value="" disabled>성별 선택</option>
           <option value="남성">남성</option>
           <option value="여성">여성</option>
         </select>
+        <div v-if="errors.gender" class="error-message">{{ errors.gender }}</div>
       </div>
       <div class="form-row">
+        <label class="form-label">생년월일<span class="required">*</span></label>
         <PrimeDatePicker
           v-model="form.birthdate"
-          label="생일"
           :max-date="new Date(today)"
           placeholder="생일을 선택하세요"
           :disabled="false"
-          :error="''"
+          :error="errors.birthdate"
         />
+        <div v-if="errors.birthdate" class="error-message">{{ errors.birthdate }}</div>
       </div>
       <div class="form-row">
         <label class="form-label">담당자</label>
         <select v-model="form.staffId" class="form-input">
-          <option :value="null" disabled>담당자 선택</option>
+          <option value="" disabled>담당자 선택</option>
           <option :value="null">담당자 없음</option>
           <option v-for="staff in staffOptions" :key="staff.id" :value="staff.id">
             {{ staff.name }}
@@ -67,9 +74,14 @@
         </select>
       </div>
       <div class="form-row">
-        <label class="form-label">유입경로</label>
-        <select v-model="form.channelId" class="form-input">
-          <option :value="null" disabled>유입경로 선택</option>
+        <label class="form-label">유입경로<span class="required">*</span></label>
+        <select
+          v-model="form.channelId"
+          class="form-input"
+          :class="{ 'input-error': errors.channelId }"
+          @blur="validateField('channelId')"
+        >
+          <option value="" disabled>유입경로 선택</option>
           <option
             v-for="channel in acquisitionChannelOptions"
             :key="channel.id"
@@ -78,6 +90,7 @@
             {{ channel.channelName }}
           </option>
         </select>
+        <div v-if="errors.channelId" class="error-message">{{ errors.channelId }}</div>
       </div>
       <div class="form-row">
         <label class="form-label">태그</label>
@@ -115,7 +128,7 @@
           :class="{ 'input-error': errors.grade }"
           @blur="validateField('grade')"
         >
-          <option :value="null" disabled>등급 선택</option>
+          <option value="" disabled>등급 선택</option>
           <option v-for="grade in gradeOptions" :key="grade.id" :value="grade.id">
             {{ grade.name }}
           </option>
@@ -189,16 +202,16 @@
     phone: '',
     gender: '',
     birthdate: '',
-    staffId: null,
-    channelId: null,
+    staffId: '',
+    channelId: '',
     tags: [],
     memo: '',
-    customerGradeId: null,
+    customerGradeId: '',
     marketingConsent: false,
     notificationConsent: false,
   });
   const form = ref(initialForm());
-  const errors = ref({ name: '', phone: '', grade: '' });
+  const errors = ref({ name: '', phone: '', grade: '', birthdate: '', channelId: '', gender: '' });
 
   function validateField(field) {
     if (field === 'name') errors.value.name = !form.value.name.trim() ? '이름을 입력해주세요' : '';
@@ -208,15 +221,30 @@
         errors.value.phone = '올바른 형식으로 작성해주세요';
       else errors.value.phone = '';
     }
+    if (field === 'gender') errors.value.gender = !form.value.gender ? '성별을 선택해주세요' : '';
     if (field === 'grade')
       errors.value.grade = !form.value.customerGradeId ? '등급을 선택해주세요' : '';
+    if (field === 'birthdate')
+      errors.value.birthdate = !form.value.birthdate ? '생년월일을 입력해주세요' : '';
+    if (field === 'channelId')
+      errors.value.channelId = !form.value.channelId ? '유입경로를 선택해주세요' : '';
   }
 
   function validateAndSubmit() {
     validateField('name');
     validateField('phone');
     validateField('grade');
-    if (!errors.value.name && !errors.value.phone && !errors.value.grade) {
+    validateField('birthdate');
+    validateField('channelId');
+    validateField('gender');
+    if (
+      !errors.value.name &&
+      !errors.value.phone &&
+      !errors.value.grade &&
+      !errors.value.birthdate &&
+      !errors.value.channelId &&
+      !errors.value.gender
+    ) {
       const payload = { ...form.value };
 
       // 필드명 매핑
@@ -225,21 +253,32 @@
       payload.phoneNumber = payload.phone?.replace(/-/g, '');
       delete payload.phone;
 
-      if (!payload.customerGradeId) {
-        const defaultGrade = gradeOptions.value.find(g => g.name === '기본등급');
-        if (defaultGrade) {
-          payload.customerGradeId = defaultGrade.id;
-        }
+      // gender enum 변환 및 null 처리
+      if (payload.gender === '남성') {
+        payload.gender = 'M';
+      } else if (payload.gender === '여성') {
+        payload.gender = 'F';
+      } else if (payload.gender === '') {
+        payload.gender = null;
       }
+
+      // birthdate 포맷팅 및 null 처리
       if (payload.birthdate) {
         const d = new Date(payload.birthdate);
         payload.birthdate = d.toISOString().split('T')[0];
+      } else {
+        payload.birthdate = null;
       }
+
+      // Optional fields: '' -> null
+      if (payload.staffId === '') payload.staffId = null;
+      if (payload.channelId === '') payload.channelId = null;
+      if (payload.memo.trim() === '') {
+        payload.memo = null;
+      }
+
       // 태그는 숫자 ID 배열로 전송
       payload.tags = Array.isArray(payload.tags) ? payload.tags : [];
-      // gender enum 변환
-      if (payload.gender === '남성') payload.gender = 'M';
-      else if (payload.gender === '여성') payload.gender = 'F';
 
       // staff_name, grade 속성 제거
       delete payload.staff_name;
@@ -256,7 +295,7 @@
   }
   function resetForm() {
     form.value = initialForm();
-    errors.value = { name: '', phone: '', grade: '' };
+    errors.value = { name: '', phone: '', grade: '', birthdate: '', channelId: '', gender: '' };
   }
 
   onMounted(async () => {

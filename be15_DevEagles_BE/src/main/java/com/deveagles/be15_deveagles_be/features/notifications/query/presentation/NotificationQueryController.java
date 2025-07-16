@@ -26,15 +26,15 @@ public class NotificationQueryController {
 
   private final NotificationQueryService notificationQueryService;
 
-  @Operation(summary = "알림 목록 조회", description = "특정 매장의 알림 목록을 최신순으로 페이징하여 조회합니다.")
+  @Operation(summary = "알림 목록 조회", description = "현재 로그인한 사용자의 알림 목록을 페이징하여 조회합니다.")
   @GetMapping
-  public ResponseEntity<Page<NotificationResponse>> getMyNotifications(
-      @Parameter(hidden = true) @AuthenticationPrincipal CustomUser customUser,
+  public ResponseEntity<Page<NotificationResponse>> getNotifications(
+      @AuthenticationPrincipal CustomUser customUser,
       @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
           Pageable pageable) {
-
+    Long shopId = customUser.getShopId();
     Page<NotificationResponse> notifications =
-        notificationQueryService.getNotificationsByShop(customUser.getShopId(), pageable);
+        notificationQueryService.getNotificationsByShop(shopId, pageable);
     return ResponseEntity.ok(notifications);
   }
 

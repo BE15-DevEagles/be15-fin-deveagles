@@ -204,7 +204,7 @@
     <SenderInfoModal v-model="showSenderModal" @confirm="confirmSender" />
     <AlimtalkConfirmModal v-model="showAlimtalkModal" @confirm="confirmAlimtalk" />
     <PointChargeModal v-model="showChargeModal" @confirm="handleConfirmCharge" />
-    <AutoSendSettingModal v-model="showAutoSendModal" v-model:items="autoSendItems" />
+    <AutoSendSettingModal v-model="showAutoSendModal" />
     <BaseToast ref="toastRef" />
   </section>
 </template>

@@ -3,6 +3,7 @@ import { useAuthStore } from '@/store/auth';
 import {
   getMyNotifications,
   markNotificationAsRead,
+  markAllNotificationsAsRead,
 } from '@/features/notifications/api/notifications.js';
 import { useToast } from '@/composables/useToast';
 
@@ -34,7 +35,7 @@ export function useNotifications() {
     if (isLoading.value || historicalNotifications.value.length > 0) return;
     isLoading.value = true;
     try {
-      const response = await getMyNotifications({ page: 0, size: 20 });
+      const response = await getMyNotifications({ page: 0, size: 10 });
       historicalNotifications.value = response.data.content || [];
     } catch (err) {
       console.error('과거 알림 조회 실패:', err);
@@ -90,6 +91,22 @@ export function useNotifications() {
     }
   };
 
+  const handleMarkAllAsRead = async () => {
+    if (unreadCount.value === 0) return;
+
+    try {
+      allNotifications.value.forEach(notification => {
+        if (!notification.read) {
+          notification.read = true;
+        }
+      });
+
+      await markAllNotificationsAsRead();
+    } catch (error) {
+      console.error('모두 읽음 처리 실패:', error);
+    }
+  };
+
   watch(
     () => authStore.isAuthenticated,
     isAuth => {
@@ -114,5 +131,6 @@ export function useNotifications() {
     isLoading,
     isSseConnected,
     handleMarkAsRead,
+    handleMarkAllAsRead,
   };
 }

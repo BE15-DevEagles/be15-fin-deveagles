@@ -63,4 +63,8 @@ public class NotificationCommandService {
 
     notification.markAsRead();
   }
+
+  public void markAllAsRead(Long shopId) {
+    notificationRepository.markAllAsReadByShopId(shopId);
+  }
 }

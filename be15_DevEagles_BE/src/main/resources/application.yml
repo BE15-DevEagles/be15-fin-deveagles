@@ -186,6 +186,9 @@ coolsms:
   apiKey: ${SMS_API_KEY}
   apiSecret: ${SMS_SECRET_API_KEY}
 
+webhook:
+  ai-url: ${AI_CHAT_WEBHOOK}
+
 # 개발환경 로그 레벨
 logging:
   level:
@@ -215,6 +218,11 @@ springdoc:
     enabled: true
   api-docs:
     enabled: true
+
+# AES (암호화)
+aes:
+  key: ${AES_SECRET_KEY}
+  iv: ${AES_IV}
 
 ---
 # 운영 환경 설정
@@ -286,3 +294,7 @@ jwt:
   expiration: 1800000
   refresh-expiration: 604800000
 
+# AES (암호화)
+aes:
+  key: ${AES_SECRET_KEY}
+  iv: ${AES_IV}

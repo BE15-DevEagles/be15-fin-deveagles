@@ -40,8 +40,6 @@
 
 <style scoped>
   .chat-messages {
-    max-height: 340px;
-    overflow-y: auto;
     padding: 0.5rem 0;
     display: flex;
     flex-direction: column;

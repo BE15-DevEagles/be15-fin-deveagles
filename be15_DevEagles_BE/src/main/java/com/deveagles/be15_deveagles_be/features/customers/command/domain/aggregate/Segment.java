@@ -31,11 +31,11 @@ public class Segment {
   @Column(name = "segment_title", nullable = false, length = 30)
   private String segmentTitle;
 
-  @Column(name = "segment_tag", nullable = false, length = 10)
+  @Column(name = "segment_tag", nullable = false, length = 20)
   private String segmentTag;
 
   @Column(name = "color_code", nullable = false, length = 20)
-  private String colorCode;
+  private String colorCode = "#00BFFF";
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
@@ -57,9 +57,15 @@ public class Segment {
   }
 
   public boolean isLifecycleSegment() {
-    return segmentTag.equals("new")
-        || segmentTag.equals("growing")
-        || segmentTag.equals("loyal")
-        || segmentTag.equals("vip");
+    return "new".equalsIgnoreCase(segmentTag)
+        || "growing".equalsIgnoreCase(segmentTag)
+        || "loyal".equalsIgnoreCase(segmentTag)
+        || "vip".equalsIgnoreCase(segmentTag)
+        || "dormant".equalsIgnoreCase(segmentTag)
+        || "new_followup".equalsIgnoreCase(segmentTag)
+        || "new_at_risk".equalsIgnoreCase(segmentTag)
+        || "reactivation_needed".equalsIgnoreCase(segmentTag)
+        || "growing_delayed".equalsIgnoreCase(segmentTag)
+        || "loyal_delayed".equalsIgnoreCase(segmentTag);
   }
 }
