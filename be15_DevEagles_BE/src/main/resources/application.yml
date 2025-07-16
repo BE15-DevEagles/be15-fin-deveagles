@@ -186,6 +186,9 @@ coolsms:
   apiKey: ${SMS_API_KEY}
   apiSecret: ${SMS_SECRET_API_KEY}
 
+webhook:
+  ai-url: ${AI_CHAT_WEBHOOK}
+
 # 개발환경 로그 레벨
 logging:
   level:

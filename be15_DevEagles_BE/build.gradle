@@ -38,6 +38,8 @@ repositories {
 }
 
 dependencies {
+
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
     // mongodb
     implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
     // websocket
