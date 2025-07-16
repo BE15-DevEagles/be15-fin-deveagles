@@ -21,6 +21,8 @@ export const useAuthStore = defineStore('auth', () => {
   const userStatus = ref(null);
   const grade = ref(null);
 
+  const isInitialized = ref(false);
+
   const isAuthenticated = computed(
     () => !!accessToken.value && Date.now() < (expirationTime.value || 0)
   );
@@ -65,6 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (token) {
       await setAuth(token);
     }
+    isInitialized.value = true;
   }
 
   return {
@@ -77,6 +80,7 @@ export const useAuthStore = defineStore('auth', () => {
     profileUrl,
     expirationTime,
     isAuthenticated,
+    isInitialized,
     setAuth,
     clearAuth,
     initAuth,

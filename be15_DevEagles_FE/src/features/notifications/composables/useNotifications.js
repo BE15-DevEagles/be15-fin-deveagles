@@ -32,7 +32,7 @@ export function useNotifications() {
   });
 
   const fetchHistorical = async () => {
-    if (isLoading.value || historicalNotifications.value.length > 0) return;
+    if (isLoading.value) return;
     isLoading.value = true;
     try {
       const response = await getMyNotifications({ page: 0, size: 10 });
@@ -46,9 +46,12 @@ export function useNotifications() {
 
   const connect = () => {
     const accessToken = authStore.accessToken;
-    if (!accessToken || (eventSource && eventSource.readyState !== EventSource.CLOSED)) {
+    if (!accessToken) return;
+
+    if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
       return;
     }
+
     const sseUrl = `${import.meta.env.VITE_API_BASE_URL}/notifications/subscribe?token=${accessToken}`;
     eventSource = new EventSource(sseUrl);
 
@@ -58,7 +61,6 @@ export function useNotifications() {
     eventSource.addEventListener('notification', event => {
       try {
         realtimeNotifications.value.unshift(JSON.parse(event.data));
-        // 새로운 알림이 오면 토스트 메시지를 띄웁니다.
         showToast('새로운 알림이 있습니다.');
       } catch (e) {
         console.error('SSE 데이터 파싱 오류', e);
@@ -67,7 +69,10 @@ export function useNotifications() {
     eventSource.onerror = () => {
       isSseConnected.value = false;
       if (eventSource) eventSource.close();
-      setTimeout(connect, 5000);
+      // 재연결 시도
+      setTimeout(() => {
+        if (authStore.isAuthenticated) connect();
+      }, 5000);
     };
   };
 
@@ -76,6 +81,9 @@ export function useNotifications() {
       eventSource.close();
       eventSource = null;
     }
+    historicalNotifications.value = [];
+    realtimeNotifications.value = [];
+    isSseConnected.value = false;
   };
 
   const handleMarkAsRead = async notification => {
@@ -93,14 +101,12 @@ export function useNotifications() {
 
   const handleMarkAllAsRead = async () => {
     if (unreadCount.value === 0) return;
-
     try {
       allNotifications.value.forEach(notification => {
         if (!notification.read) {
           notification.read = true;
         }
       });
-
       await markAllNotificationsAsRead();
     } catch (error) {
       console.error('모두 읽음 처리 실패:', error);
@@ -108,16 +114,17 @@ export function useNotifications() {
   };
 
   watch(
-    () => authStore.isAuthenticated,
-    isAuth => {
-      if (isAuth) {
+    [() => authStore.isInitialized, () => authStore.isAuthenticated],
+    ([initialized, authenticated]) => {
+      if (!initialized) {
+        return;
+      }
+
+      if (authenticated) {
         connect();
         fetchHistorical();
       } else {
         disconnect();
-        historicalNotifications.value = [];
-        realtimeNotifications.value = [];
-        isSseConnected.value = false;
       }
     },
     { immediate: true }
