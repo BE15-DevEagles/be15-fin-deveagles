@@ -2,6 +2,7 @@ package com.deveagles.be15_deveagles_be.features.customers.command.infrastructur
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -500,5 +502,48 @@ class CustomerCommandServiceImplTest {
         .createdAt(LocalDateTime.now())
         .modifiedAt(LocalDateTime.now())
         .build();
+  }
+
+  @Test
+  @DisplayName("createUnknownCustomer -  미등록 고객 정보가 저장된다")
+  void createUnknownCustomer_성공() {
+    // given
+    Long shopId = 1L;
+
+    Object GenderType;
+    CreateCustomerRequest request =
+        new CreateCustomerRequest(
+            3L,
+            2L,
+            "미등록-여자",
+            "01000000000",
+            null, // channelId
+            LocalDate.now(), // marketingConsent
+            Customer.Gender.F, // notificationConsent
+            false,
+            false,
+            5L,
+            null);
+
+    ArgumentCaptor<Customer> customerCaptor = ArgumentCaptor.forClass(Customer.class);
+
+    // when
+    customerCommandService.createUnknownCustomer(shopId, request);
+
+    // then
+    verify(customerRepository).save(customerCaptor.capture());
+
+    Customer savedCustomer = customerCaptor.getValue();
+    assertEquals(shopId, savedCustomer.getShopId());
+    assertEquals(request.customerGradeId(), savedCustomer.getCustomerGradeId());
+    assertEquals(request.customerName(), savedCustomer.getCustomerName());
+    assertEquals(request.gender(), savedCustomer.getGender());
+    assertEquals(request.birthdate(), savedCustomer.getBirthdate());
+    assertEquals(request.channelId(), savedCustomer.getChannelId());
+    assertEquals(request.marketingConsent(), savedCustomer.getMarketingConsent());
+    assertEquals(request.notificationConsent(), savedCustomer.getNotificationConsent());
+    assertEquals(request.phoneNumber(), savedCustomer.getPhoneNumber());
+    assertEquals(request.memo(), savedCustomer.getMemo());
+    assertEquals(request.staffId(), savedCustomer.getStaffId());
   }
 }
