@@ -397,8 +397,10 @@
   }
 
   function openDetail(item) {
+    if (!item || !item.id) {
+      return;
+    }
     selectedReservation.value = item.id;
-    console.log('🔍 선택된 예약 ID:', selectedReservation.value);
     isDetailOpen.value = true;
   }
 

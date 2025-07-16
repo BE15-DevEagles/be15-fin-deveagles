@@ -253,6 +253,9 @@
   }
 
   function handleRowClick(item) {
+    if (!item || !item.id) {
+      return;
+    }
     selectedReservation.value = item.id;
     isDetailOpen.value = true;
   }

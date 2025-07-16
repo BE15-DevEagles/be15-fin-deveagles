@@ -90,6 +90,9 @@
   const selectedReservation = ref(null);
 
   function openDetailModal(item) {
+    if (!item || !item.id) {
+      return;
+    }
     selectedReservation.value = item.id;
     isModalOpen.value = true;
   }

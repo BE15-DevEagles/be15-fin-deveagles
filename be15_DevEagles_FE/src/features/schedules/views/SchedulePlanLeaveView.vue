@@ -65,6 +65,7 @@
           cancel-text="취소"
           confirm-type="error"
           icon-type="warning"
+          :z-index="3000"
           @confirm="handleConfirmedDelete"
         >
           선택한 일정을 삭제하시겠습니까?<br />
@@ -462,6 +463,9 @@
   };
 
   const handleRowClick = async (row, event) => {
+    if (!row || typeof row !== 'object') {
+      return;
+    }
     if (event?.target?.type === 'checkbox') return;
 
     const { type, id } = row;
