@@ -22,12 +22,7 @@ import com.deveagles.be15_deveagles_be.features.customers.query.service.Customer
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -634,5 +629,16 @@ public class CustomerQueryServiceImpl implements CustomerQueryService {
               return SegmentCustomersResponse.of(segmentTag, segmentTitle, customerIds);
             })
         .collect(Collectors.toList());
+  }
+
+  @Override
+  public List<CustomerResponse> getUnregisteredCustomers(Long shopId) {
+    List<String> names = Arrays.asList("미등록-남자", "미등록-여자");
+    log.info("미등록 고객 리스트 조회 요청 - 매장ID: {}, 이름: {}", shopId, names);
+
+    List<Customer> customers =
+        customerJpaRepository.findByShopIdAndCustomerNameInAndDeletedAtIsNull(shopId, names);
+
+    return customers.stream().map(CustomerResponse::from).toList();
   }
 }

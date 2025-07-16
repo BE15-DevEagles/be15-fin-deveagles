@@ -64,4 +64,6 @@ public interface CustomerQueryService {
   SegmentCustomersResponse getCustomersBySegmentId(Long segmentId);
 
   List<SegmentCustomersResponse> getCustomersByMultipleSegmentTags(List<String> segmentTags);
+
+  List<CustomerResponse> getUnregisteredCustomers(Long shopId);
 }
