@@ -64,7 +64,8 @@
             r.reservation_status_name AS reservationStatusName,
             r.staff_memo AS staffMemo,
             r.reservation_memo AS reservationMemo,
-            GROUP_CONCAT(si.secondary_item_name SEPARATOR ',') AS itemNames
+            GROUP_CONCAT(si.secondary_item_name SEPARATOR ',') AS itemNames,
+            GROUP_CONCAT(rd.secondary_item_id SEPARATOR ',') AS secondaryItemIds
         FROM reservation r
                  LEFT JOIN customer c ON r.customer_id = c.customer_id
                  LEFT JOIN staff s ON r.staff_id = s.staff_id

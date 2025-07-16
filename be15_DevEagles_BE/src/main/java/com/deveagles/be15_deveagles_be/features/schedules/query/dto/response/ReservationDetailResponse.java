@@ -12,4 +12,5 @@ public record ReservationDetailResponse(
     String reservationStatusName,
     String staffMemo,
     String reservationMemo,
-    String itemNames) {}
+    String itemNames,
+    String secondaryItemIds) {}

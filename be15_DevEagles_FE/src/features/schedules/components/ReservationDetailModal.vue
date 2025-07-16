@@ -39,56 +39,65 @@
               </div>
 
               <!-- 예약일 -->
+              <!-- 예약일 -->
               <div class="row">
                 <label>예약일</label>
+
+                <!-- 보기 모드 -->
                 <span v-if="!isEditMode">
                   {{ formattedDate }} {{ formattedStartTime }} - {{ formattedEndTime }} ({{
                     reservation.duration
                   }})
                 </span>
+
+                <!-- 수정 모드 -->
                 <div v-else class="date-time-edit">
-                  <div class="row">
-                    <div class="date-row-inline">
-                      <PrimeDatePicker
-                        v-model="edited.date"
-                        :show-time="false"
-                        :show-button-bar="true"
-                        :clearable="false"
-                        hour-format="24"
-                      />
-                      <PrimeDatePicker
-                        v-model="edited.startTime"
-                        :show-time="true"
-                        :time-only="true"
-                        :show-button-bar="true"
-                        :clearable="false"
-                        hour-format="24"
-                        placeholder="시간을 선택하세요"
-                        @update:model-value="updateEditedEndTime"
-                      />
-                      <PrimeDatePicker
-                        v-model="edited.endTime"
-                        :show-time="true"
-                        :time-only="true"
-                        :show-button-bar="true"
-                        :clearable="false"
-                        hour-format="24"
-                        placeholder="시간을 선택하세요"
-                        @update:model-value="updateDuration"
-                      />
-                      <div class="duration-inline">
-                        <p>소요 시간:</p>
-                        <input class="duration-input" :value="edited.duration" readonly />
-                      </div>
-                    </div>
+                  <div class="date-row-inline">
+                    <PrimeDatePicker
+                      v-model="edited.date"
+                      :show-time="false"
+                      :show-button-bar="true"
+                      :clearable="false"
+                      style="width: 200px"
+                      hour-format="24"
+                    />
+                    <PrimeDatePicker
+                      v-model="edited.startTime"
+                      :show-time="true"
+                      :time-only="true"
+                      :show-button-bar="true"
+                      :clearable="false"
+                      hour-format="24"
+                      placeholder="시간을 선택하세요"
+                      style="width: 160px"
+                      @update:model-value="updateEditedEndTime"
+                    />
+                    <PrimeDatePicker
+                      v-model="edited.endTime"
+                      :show-time="true"
+                      :time-only="true"
+                      :show-button-bar="true"
+                      :clearable="false"
+                      hour-format="24"
+                      placeholder="시간을 선택하세요"
+                      style="width: 160px"
+                      @update:model-value="updateDuration"
+                    />
                   </div>
                 </div>
+              </div>
+
+              <div v-if="isEditMode" class="row">
+                <label>소요 시간</label>
+                <BaseForm v-model="edited.duration" type="text" readonly />
               </div>
 
               <!-- 시술/상품 -->
               <div v-if="!isEditMode" class="row">
                 <label>시술/상품</label>
-                <span v-if="!isEditMode">{{ reservation.itemNames }}</span>
+                <span v-if="!isEditMode">
+                  {{ reservation.itemNames ? reservation.itemNames.replace(/,/g, ', ') : '' }}</span
+                >
                 <BaseForm v-else v-model="edited.itemNames" type="text" />
               </div>
               <!-- 시술/상품 -->
@@ -118,7 +127,11 @@
                 </div>
               </div>
 
-              <SelectSecondaryItemModal v-model="showItemModal" @select="addServiceFromModal" />
+              <SelectSecondaryItemModal
+                v-model="showItemModal"
+                :selected-ids="selectedServices.map(s => s.selectedItems)"
+                @select="addServiceFromModal"
+              />
 
               <!-- 담당자 -->
               <div class="row row-select">
@@ -236,11 +249,14 @@
     deleteReservation,
     getStaffList,
     updateReservation,
+    getActiveSecondaryItems,
+    getAllPrimaryItems,
   } from '@/features/schedules/api/schedules.js';
   import BaseToast from '@/components/common/BaseToast.vue';
   import BaseConfirm from '@/components/common/BaseConfirm.vue';
   import SelectSecondaryItemModal from '@/features/schedules/components/SelectSecondaryItemModal.vue';
   import dayjs from 'dayjs';
+
   const showEditConfirm = ref(false);
 
   const handleSave = () => {
@@ -365,6 +381,25 @@
             endTime: end,
             duration: calculateDuration(start, end),
           };
+          const secondaryMaster = await getActiveSecondaryItems();
+          const primaryMaster = await getAllPrimaryItems();
+          const idList = (res.secondaryItemIds || '').split(',').map(id => Number(id));
+
+          selectedServices.value = idList.map(id => {
+            const found = secondaryMaster.find(s => s.secondaryItemId === id);
+            const primary = found
+              ? primaryMaster.find(p => p.primaryItemId === found.primaryItemId)
+              : null;
+            return {
+              category: primary?.primaryItemName || '',
+              name: found?.secondaryItemName || '',
+              selectedItems: id,
+              duration: found?.timeTaken != null ? `${found.timeTaken}분` : '상품',
+              price: found?.secondaryItemPrice || 0,
+            };
+          });
+
+          form.value.selectedItems = idList.map(id => ({ id }));
           isLoaded.value = true;
         } catch (e) {
           console.error('❌ 상세 조회 실패:', e);
@@ -616,14 +651,14 @@
     gap: 8px;
     flex-wrap: nowrap;
     flex: 1;
-    margin-left: 24px;
+    margin-left: 0px;
   }
 
   .duration-inline {
     display: flex;
     align-items: center;
-    gap: 4px;
-    white-space: nowrap;
+    margin-top: 8px;
+    gap: 6px;
   }
 
   .duration-label {
@@ -783,6 +818,7 @@
     color: var(--color-neutral-dark);
     margin-bottom: 0;
   }
+
   .service-meta {
     color: var(--color-gray-500);
     font-size: 14px !important;

@@ -36,7 +36,7 @@
             OR c.phone_number LIKE CONCAT('%', #{req.customerKeyword}, '%'))
         </if>
         <if test="req.from != null and req.to != null">
-            AND r.reservation_start_at BETWEEN #{req.from} AND #{req.to}
+            AND DATE(r.reservation_start_at) BETWEEN #{req.from} AND #{req.to}
         </if>
         GROUP BY r.reservation_id
         ORDER BY r.reservation_start_at ASC
