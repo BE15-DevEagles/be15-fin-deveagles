@@ -8,6 +8,7 @@
 
   const props = defineProps({
     modelValue: Boolean,
+    grades: Array,
   });
   const emit = defineEmits(['update:modelValue', 'success']);
 
@@ -18,9 +19,9 @@
 
   const name = ref('');
   const content = ref('');
-  const grade = ref('전체');
-  const tags = ref('');
   const type = ref('안내');
+  const selectedGradeId = ref(null);
+
   const showDropdown = ref(false);
   const contentWrapper = ref(null);
   const dropdownWrapper = ref(null);
@@ -60,6 +61,10 @@
 
   function close() {
     visible.value = false;
+    name.value = '';
+    content.value = '';
+    type.value = '안내';
+    selectedGradeId.value = null;
   }
 
   async function submit() {
@@ -75,8 +80,7 @@
       templateName: name.value,
       templateContent: content.value,
       templateType: typeEnum[type.value] ?? 'announcement',
-      customerGradeId: null,
-      tagId: null,
+      customerGradeId: selectedGradeId.value || null,
     };
 
     try {
@@ -132,25 +136,21 @@
         ]"
       />
 
-      <BaseForm
-        v-model="grade"
-        label="대상 등급"
-        type="select"
-        :options="[
-          { value: '전체', text: '전체' },
-          { value: 'VIP', text: 'VIP' },
-          { value: '단골', text: '단골' },
-          { value: '신규', text: '신규' },
-        ]"
-      />
-
-      <BaseForm v-model="tags" label="태그 (쉼표로 구분)" placeholder="예: 여름,이벤트,첫방문" />
+      <div class="form-row">
+        <label class="form-label">대상 등급</label>
+        <select v-model="selectedGradeId" class="form-input">
+          <option :value="null">전체</option>
+          <option v-for="grade in grades" :key="grade.id" :value="grade.id">
+            {{ grade.name }}
+          </option>
+        </select>
+      </div>
 
       <div class="flex justify-end mt-4">
         <BaseButton type="error" @click="close">취소</BaseButton>
-        <BaseButton type="primary" :disabled="!name || !content" class="ml-3" @click="submit"
-          >등록</BaseButton
-        >
+        <BaseButton type="primary" :disabled="!name || !content" class="ml-3" @click="submit">
+          등록
+        </BaseButton>
       </div>
     </div>
   </BaseModal>
@@ -179,5 +179,29 @@
   }
   .insert-item {
     @apply py-1 px-2 text-sm hover:bg-gray-100 rounded cursor-pointer;
+  }
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #222;
+  }
+  .form-input {
+    height: 40px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    padding: 0 12px;
+    background: #fff;
+    transition: border 0.2s;
+  }
+  .form-input:focus {
+    outline: none;
+    border-color: #364f6b;
+    background: #f8fafd;
   }
 </style>

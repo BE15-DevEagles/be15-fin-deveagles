@@ -1,6 +1,7 @@
 <script setup>
   import { ref, onMounted } from 'vue';
   import TemplatesAPI from '@/features/messages/api/templates.js';
+  import GradesAPI from '@/features/customer/api/grades.js';
   import { PlusIcon } from 'lucide-vue-next';
 
   import BaseButton from '@/components/common/BaseButton.vue';
@@ -23,11 +24,7 @@
   const totalPages = ref(0);
   const loading = ref(false);
 
-  const typeLabelMap = {
-    advertising: '광고',
-    announcement: '안내',
-    etc: '기타',
-  };
+  const grades = ref([]);
 
   const showCreateModal = ref(false);
   const showEditModal = ref(false);
@@ -38,6 +35,12 @@
   const deleteTarget = ref(null);
   const detailTarget = ref(null);
   const toast = ref(null);
+
+  const typeLabelMap = {
+    advertising: '광고',
+    announcement: '안내',
+    etc: '기타',
+  };
 
   const tableColumns = [
     { key: 'templateName', title: '템플릿명', width: '20%', headerClass: 'text-center' },
@@ -58,15 +61,24 @@
       templates.value = result.data.content;
       totalPages.value = result.data.pagination.totalPages;
       totalItems.value = result.data.pagination.totalItems;
-      currentPage.value = result.data.pagination.currentPage + 1; // ← 0-based → 1-based
+      currentPage.value = result.data.pagination.currentPage + 1;
     } catch (e) {
       toast.value?.error('템플릿 목록 조회에 실패했습니다.');
     } finally {
       loading.value = false;
     }
   }
-  onMounted(() => {
-    fetchTemplates();
+
+  async function fetchGrades() {
+    try {
+      grades.value = await GradesAPI.getGradesByShop();
+    } catch {
+      toast.value?.error('등급 조회 실패');
+    }
+  }
+
+  onMounted(async () => {
+    await Promise.all([fetchTemplates(), fetchGrades()]);
   });
 
   function onPageChange(page) {
@@ -153,11 +165,13 @@
       @page-change="onPageChange"
     />
 
-    <TemplateCreateModal v-model="showCreateModal" @success="fetchTemplates" />
+    <TemplateCreateModal v-model="showCreateModal" :grades="grades" @success="fetchTemplates" />
+
     <TemplateEditModal
       v-if="editTarget"
       v-model="showEditModal"
       :template="editTarget"
+      :grades="grades"
       @success="fetchTemplates"
     />
     <TemplateDeleteModal
@@ -165,8 +179,7 @@
       :template="deleteTarget"
       @deleted="fetchTemplates"
     />
-    <TemplateDetailModal v-model="showDetailModal" :template="detailTarget" />
-
+    <TemplateDetailModal v-model="showDetailModal" :template="detailTarget" :grades="grades" />
     <BaseToast ref="toast" />
   </div>
 </template>

@@ -8,11 +8,8 @@
 
   const props = defineProps({
     modelValue: Boolean,
-    template: {
-      type: Object,
-      required: false,
-      default: null,
-    },
+    template: Object,
+    grades: Array,
   });
   const emit = defineEmits(['update:modelValue', 'success']);
 
@@ -23,15 +20,13 @@
 
   const name = ref('');
   const content = ref('');
-  const grade = ref('');
-  const tags = ref([]);
   const type = ref('');
+  const selectedGradeId = ref(null);
 
   const showDropdown = ref(false);
   const contentWrapper = ref(null);
   const dropdownWrapper = ref(null);
 
-  // 템플릿 내용 변수
   const variables = [
     '#{고객명}',
     '#{예약날짜}',
@@ -66,14 +61,13 @@
   onBeforeUnmount(() => window.removeEventListener('click', handleClickOutside));
 
   watch(
-    () => props.modelValue,
-    val => {
-      if (val && props.template?.templateId) {
-        name.value = props.template.templateName ?? '';
-        content.value = props.template.templateContent ?? '';
-        type.value = props.template.templateType ?? '';
-        grade.value = props.template.grade ?? '';
-        tags.value = props.template.tags ?? [];
+    () => props.template,
+    template => {
+      if (template) {
+        name.value = template.templateName ?? '';
+        content.value = template.templateContent ?? '';
+        type.value = template.templateType ?? 'announcement';
+        selectedGradeId.value = template.customerGradeId ?? null;
       }
     },
     { immediate: true }
@@ -91,8 +85,7 @@
       templateName: name.value,
       templateContent: content.value,
       templateType: type.value,
-      grade: grade.value,
-      tags: tags.value,
+      customerGradeId: selectedGradeId.value || null,
     };
 
     try {
@@ -149,26 +142,15 @@
         placeholder="유형 선택"
       />
 
-      <BaseForm
-        v-model="grade"
-        type="select"
-        label="대상 등급"
-        :options="[
-          { value: '', text: '전체' },
-          { value: 'VIP', text: 'VIP' },
-          { value: '단골', text: '단골' },
-          { value: '신규', text: '신규' },
-        ]"
-        placeholder="등급 선택"
-      />
-
-      <BaseForm
-        v-model="tags"
-        type="multiselect"
-        label="고객 태그"
-        :options="['재방문', '신규', '이탈위험']"
-        placeholder="고객 태그 선택"
-      />
+      <div class="form-row">
+        <label class="form-label">대상 등급</label>
+        <select v-model="selectedGradeId" class="form-input">
+          <option :value="null">전체</option>
+          <option v-for="grade in grades" :key="grade.id" :value="grade.id">
+            {{ grade.name }}
+          </option>
+        </select>
+      </div>
 
       <div class="action-buttons mt-4 d-flex justify-content-end gap-2">
         <BaseButton type="ghost" @click="close">취소</BaseButton>
@@ -202,5 +184,29 @@
   }
   .insert-item {
     @apply py-1 px-2 text-sm hover:bg-gray-100 rounded cursor-pointer;
+  }
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #222;
+  }
+  .form-input {
+    height: 40px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    padding: 0 12px;
+    background: #fff;
+    transition: border 0.2s;
+  }
+  .form-input:focus {
+    outline: none;
+    border-color: #364f6b;
+    background: #f8fafd;
   }
 </style>
