@@ -6,7 +6,7 @@ import api from '@/plugins/axios.js';
  * @param {object} params - 페이징 정보 (page, size)
  * @returns {Promise} 페이징된 알림 목록 API 응답
  */
-export const getMyNotifications = params => {
+export const getMyNotifications = (params = { page: 0, size: 10 }) => {
   // GET /api/v1/notifications?page={page}&size={size}
   return api.get(`/notifications`, { params });
 };
@@ -18,4 +18,8 @@ export const getMyNotifications = params => {
  */
 export const markNotificationAsRead = notificationId => {
   return api.patch(`/notifications/${notificationId}/read`);
+};
+
+export const markAllNotificationsAsRead = () => {
+  return api.put('/notifications/read-all');
 };

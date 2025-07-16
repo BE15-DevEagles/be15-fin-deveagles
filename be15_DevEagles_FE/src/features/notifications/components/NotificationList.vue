@@ -8,7 +8,8 @@
   });
   const emit = defineEmits(['update:modelValue']);
 
-  const { allNotifications, isLoading, handleMarkAsRead } = useNotifications();
+  const { allNotifications, isLoading, handleMarkAsRead, handleMarkAllAsRead, unreadCount } =
+    useNotifications();
 
   const getNotificationDetails = type => {
     switch (type) {
@@ -43,8 +44,17 @@
     <template #default>
       <div class="notification-wrapper">
         <div class="notification-header">
-          <span class="icon">🔔</span>
-          <h3 class="title">새 알림</h3>
+          <div class="header-left">
+            <span class="icon">🔔</span>
+            <h3 class="title">새 알림</h3>
+          </div>
+          <button
+            class="mark-all-read-btn"
+            :disabled="unreadCount === 0"
+            @click="handleMarkAllAsRead"
+          >
+            모두 읽음
+          </button>
         </div>
 
         <div class="notification-scroll custom-scrollbar">
@@ -98,9 +108,37 @@
   .notification-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
-    padding: 16px;
+    padding: 12px 16px;
     border-bottom: 1px solid #e5e7eb;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mark-all-read-btn {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-primary-500);
+    background-color: transparent;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .mark-all-read-btn:hover:not(:disabled) {
+    background-color: var(--color-primary-50);
+  }
+
+  .mark-all-read-btn:disabled {
+    color: var(--color-gray-400);
+    cursor: not-allowed;
   }
 
   .title {
