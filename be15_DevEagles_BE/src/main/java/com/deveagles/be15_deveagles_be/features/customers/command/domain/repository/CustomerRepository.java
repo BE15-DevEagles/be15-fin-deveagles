@@ -19,4 +19,10 @@ public interface CustomerRepository {
   void delete(Customer customer);
 
   boolean existsByPhoneNumberAndShopId(String phoneNumber, Long shopId);
+
+  List<Customer> findAll();
+
+  long count();
+
+  List<Customer> findAllWithPagination(int page, int size);
 }

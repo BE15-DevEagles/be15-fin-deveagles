@@ -240,12 +240,101 @@ class DatabaseManager:
             )
             """
             
+            # Create original source tables for ETL consistency
+            create_customer_sql = """
+            CREATE TABLE IF NOT EXISTS customer (
+                customer_id BIGINT PRIMARY KEY, 
+                customer_name VARCHAR(100), 
+                phone_number VARCHAR(11),
+                visit_count INTEGER, 
+                total_revenue INTEGER, 
+                recent_visit_date DATE, 
+                birthdate DATE,
+                noshow_count INTEGER, 
+                gender VARCHAR(1), 
+                marketing_consent BOOLEAN, 
+                channel_id BIGINT,
+                created_at TIMESTAMP, 
+                modified_at TIMESTAMP, 
+                shop_id BIGINT, 
+                shop_name VARCHAR(255),
+                industry_id BIGINT, 
+                extracted_at TIMESTAMP
+            )
+            """
+            
+            create_shop_sql = """
+            CREATE TABLE IF NOT EXISTS shop (
+                shop_id BIGINT PRIMARY KEY, 
+                shop_name VARCHAR(255), 
+                owner_id BIGINT, 
+                address VARCHAR(500),
+                detail_address VARCHAR(500), 
+                phone_number VARCHAR(20), 
+                business_number VARCHAR(20),
+                industry_id BIGINT, 
+                incentive_status BOOLEAN, 
+                reservation_term INTEGER,
+                shop_description TEXT, 
+                created_at TIMESTAMP, 
+                modified_at TIMESTAMP, 
+                extracted_at TIMESTAMP
+            )
+            """
+            
+            create_reservation_sql = """
+            CREATE TABLE IF NOT EXISTS reservation (
+                reservation_id BIGINT PRIMARY KEY, 
+                staff_id BIGINT, 
+                shop_id BIGINT, 
+                customer_id BIGINT,
+                reservation_status_name VARCHAR(20), 
+                staff_memo TEXT, 
+                reservation_memo TEXT,
+                reservation_start_at TIMESTAMP, 
+                reservation_end_at TIMESTAMP, 
+                created_at TIMESTAMP,
+                modified_at TIMESTAMP, 
+                shop_name VARCHAR(255), 
+                customer_name VARCHAR(100), 
+                extracted_at TIMESTAMP
+            )
+            """
+            
+            create_sales_sql = """
+            CREATE TABLE IF NOT EXISTS sales (
+                sales_id BIGINT PRIMARY KEY, 
+                customer_id BIGINT, 
+                staff_id BIGINT, 
+                shop_id BIGINT,
+                reservation_id BIGINT, 
+                discount_rate INTEGER, 
+                retail_price INTEGER, 
+                discount_amount INTEGER,
+                total_amount INTEGER, 
+                sales_memo VARCHAR(255), 
+                sales_date TIMESTAMP, 
+                is_refunded BOOLEAN,
+                created_at TIMESTAMP, 
+                modified_at TIMESTAMP, 
+                customer_name VARCHAR(100), 
+                gender VARCHAR(1),
+                birthdate DATE, 
+                shop_name VARCHAR(255), 
+                extracted_at TIMESTAMP
+            )
+            """
+            
             # Execute all table creation queries
             self._analytics_conn.execute(create_customer_analytics_sql)
             self._analytics_conn.execute(create_visit_analytics_sql)
             self._analytics_conn.execute(create_etl_metadata_sql)
             self._analytics_conn.execute(create_preferences_sql)
             self._analytics_conn.execute(create_tags_sql)
+            self._analytics_conn.execute(create_customer_sql)
+            self._analytics_conn.execute(create_shop_sql)
+            self._analytics_conn.execute(create_reservation_sql)
+            self._analytics_conn.execute(create_sales_sql)
             
             # Initialize metadata
             self._analytics_conn.execute("""
@@ -254,7 +343,11 @@ class DatabaseManager:
                     ('customer_analytics', 'initialized'),
                     ('visit_analytics', 'initialized'),
                     ('customer_service_preferences', 'initialized'),
-                    ('customer_service_tags', 'initialized')
+                    ('customer_service_tags', 'initialized'),
+                    ('customer', 'initialized'),
+                    ('shop', 'initialized'),
+                    ('reservation', 'initialized'),
+                    ('sales', 'initialized')
             """)
             
             logger.info("Analytics tables initialized successfully")

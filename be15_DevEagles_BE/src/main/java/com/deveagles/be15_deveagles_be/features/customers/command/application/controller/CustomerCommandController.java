@@ -6,6 +6,7 @@ import com.deveagles.be15_deveagles_be.features.customers.command.application.dt
 import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.request.UpdateCustomerRequest;
 import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.response.CustomerCommandResponse;
 import com.deveagles.be15_deveagles_be.features.customers.command.application.service.CustomerCommandService;
+import com.deveagles.be15_deveagles_be.features.customers.command.application.service.CustomerSegmentUpdateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -38,6 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class CustomerCommandController {
 
   private final CustomerCommandService customerCommandService;
+  private final CustomerSegmentUpdateService customerSegmentUpdateService;
 
   @Operation(summary = "고객 생성", description = "새로운 고객을 등록합니다.")
   @ApiResponses({
@@ -62,9 +64,14 @@ public class CustomerCommandController {
         request.customerName(),
         request.phoneNumber(),
         user.getShopId());
-
-    CustomerCommandResponse response = customerCommandService.createCustomer(request);
-    return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    try {
+      CustomerCommandResponse response = customerCommandService.createCustomer(request);
+      return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    } catch (Exception e) {
+      log.error("고객 생성 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.failure("INTERNAL_ERROR", "고객 생성 중 오류 발생: " + e.getMessage()));
+    }
   }
 
   @Operation(summary = "고객 정보 수정", description = "기존 고객의 정보를 수정합니다.")
@@ -87,24 +94,27 @@ public class CustomerCommandController {
       @Parameter(description = "고객 수정 정보", required = true) @Valid @RequestBody
           UpdateCustomerRequest request) {
     log.info("고객 정보 수정 요청 - 고객ID: {}, 이름: {}", customerId, request.customerName());
-
-    // customerId를 request에 설정
-    UpdateCustomerRequest updatedRequest =
-        new UpdateCustomerRequest(
-            customerId,
-            request.customerName(),
-            request.phoneNumber(),
-            request.memo(),
-            request.gender(),
-            request.channelId(),
-            request.staffId(),
-            request.customerGradeId(),
-            request.birthdate(),
-            request.marketingConsent(),
-            request.notificationConsent());
-
-    CustomerCommandResponse response = customerCommandService.updateCustomer(updatedRequest);
-    return ResponseEntity.ok(ApiResponse.success(response));
+    try {
+      UpdateCustomerRequest updatedRequest =
+          new UpdateCustomerRequest(
+              customerId,
+              request.customerName(),
+              request.phoneNumber(),
+              request.memo(),
+              request.gender(),
+              request.channelId(),
+              request.staffId(),
+              request.customerGradeId(),
+              request.birthdate(),
+              request.marketingConsent(),
+              request.notificationConsent());
+      CustomerCommandResponse response = customerCommandService.updateCustomer(updatedRequest);
+      return ResponseEntity.ok(ApiResponse.success(response));
+    } catch (Exception e) {
+      log.error("고객 정보 수정 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.failure("INTERNAL_ERROR", "고객 정보 수정 중 오류 발생: " + e.getMessage()));
+    }
   }
 
   @Operation(summary = "고객 삭제", description = "고객을 소프트 삭제합니다.")
@@ -124,9 +134,14 @@ public class CustomerCommandController {
       @AuthenticationPrincipal CustomUser user,
       @Parameter(description = "고객 ID", required = true) @PathVariable Long customerId) {
     log.info("고객 삭제 요청 - 고객ID: {}, 매장ID: {}", customerId, user.getShopId());
-
-    customerCommandService.deleteCustomer(customerId, user.getShopId());
-    return ResponseEntity.ok(ApiResponse.success("고객이 성공적으로 삭제되었습니다."));
+    try {
+      customerCommandService.deleteCustomer(customerId, user.getShopId());
+      return ResponseEntity.ok(ApiResponse.success("고객이 성공적으로 삭제되었습니다."));
+    } catch (Exception e) {
+      log.error("고객 삭제 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.failure("INTERNAL_ERROR", "고객 삭제 중 오류 발생: " + e.getMessage()));
+    }
   }
 
   @Operation(summary = "마케팅 동의 변경", description = "고객의 마케팅 수신 동의 상태를 변경합니다.")
@@ -145,10 +160,15 @@ public class CustomerCommandController {
       @Parameter(description = "고객 ID", required = true) @PathVariable Long customerId,
       @Parameter(description = "마케팅 동의 여부", required = true) @RequestParam Boolean consent) {
     log.info("마케팅 동의 변경 요청 - 고객ID: {}, 매장ID: {}, 동의: {}", customerId, user.getShopId(), consent);
-
-    CustomerCommandResponse response =
-        customerCommandService.updateMarketingConsent(customerId, user.getShopId(), consent);
-    return ResponseEntity.ok(ApiResponse.success(response));
+    try {
+      CustomerCommandResponse response =
+          customerCommandService.updateMarketingConsent(customerId, user.getShopId(), consent);
+      return ResponseEntity.ok(ApiResponse.success(response));
+    } catch (Exception e) {
+      log.error("마케팅 동의 변경 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.failure("INTERNAL_ERROR", "마케팅 동의 변경 중 오류 발생: " + e.getMessage()));
+    }
   }
 
   @Operation(summary = "알림 동의 변경", description = "고객의 알림 수신 동의 상태를 변경합니다.")
@@ -167,10 +187,15 @@ public class CustomerCommandController {
       @Parameter(description = "고객 ID", required = true) @PathVariable Long customerId,
       @Parameter(description = "알림 동의 여부", required = true) @RequestParam Boolean consent) {
     log.info("알림 동의 변경 요청 - 고객ID: {}, 매장ID: {}, 동의: {}", customerId, user.getShopId(), consent);
-
-    CustomerCommandResponse response =
-        customerCommandService.updateNotificationConsent(customerId, user.getShopId(), consent);
-    return ResponseEntity.ok(ApiResponse.success(response));
+    try {
+      CustomerCommandResponse response =
+          customerCommandService.updateNotificationConsent(customerId, user.getShopId(), consent);
+      return ResponseEntity.ok(ApiResponse.success(response));
+    } catch (Exception e) {
+      log.error("알림 동의 변경 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.failure("INTERNAL_ERROR", "알림 동의 변경 중 오류 발생: " + e.getMessage()));
+    }
   }
 
   @Operation(summary = "방문 추가", description = "고객의 방문 정보를 추가합니다.")
@@ -189,10 +214,15 @@ public class CustomerCommandController {
       @Parameter(description = "고객 ID", required = true) @PathVariable Long customerId,
       @Parameter(description = "매출액", required = true) @RequestParam Integer revenue) {
     log.info("방문 추가 요청 - 고객ID: {}, 매장ID: {}, 매출: {}", customerId, user.getShopId(), revenue);
-
-    CustomerCommandResponse response =
-        customerCommandService.addVisit(customerId, user.getShopId(), revenue);
-    return ResponseEntity.ok(ApiResponse.success(response));
+    try {
+      CustomerCommandResponse response =
+          customerCommandService.addVisit(customerId, user.getShopId(), revenue);
+      return ResponseEntity.ok(ApiResponse.success(response));
+    } catch (Exception e) {
+      log.error("방문 추가 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.failure("INTERNAL_ERROR", "방문 추가 중 오류 발생: " + e.getMessage()));
+    }
   }
 
   @Operation(summary = "노쇼 추가", description = "고객의 노쇼 정보를 추가합니다.")
@@ -210,9 +240,28 @@ public class CustomerCommandController {
       @AuthenticationPrincipal CustomUser user,
       @Parameter(description = "고객 ID", required = true) @PathVariable Long customerId) {
     log.info("노쇼 추가 요청 - 고객ID: {}, 매장ID: {}", customerId, user.getShopId());
+    try {
+      CustomerCommandResponse response =
+          customerCommandService.addNoshow(customerId, user.getShopId());
+      return ResponseEntity.ok(ApiResponse.success(response));
+    } catch (Exception e) {
+      log.error("노쇼 추가 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.failure("INTERNAL_ERROR", "노쇼 추가 중 오류 발생: " + e.getMessage()));
+    }
+  }
 
-    CustomerCommandResponse response =
-        customerCommandService.addNoshow(customerId, user.getShopId());
-    return ResponseEntity.ok(ApiResponse.success(response));
+  @Operation(summary = "고객 세그먼트 전체 업데이트(관리자)", description = "고객 세그먼트 일괄 업데이트를 수동으로 트리거합니다.")
+  @PostMapping("/segments/update")
+  public ResponseEntity<ApiResponse<String>> updateAllCustomerSegmentsManually() {
+    log.info("고객 세그먼트 수동 업데이트 요청");
+    try {
+      customerSegmentUpdateService.updateAllCustomerSegments();
+      return ResponseEntity.ok(ApiResponse.success("고객 세그먼트가 성공적으로 업데이트되었습니다."));
+    } catch (Exception e) {
+      log.error("고객 세그먼트 수동 업데이트 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.failure("INTERNAL_ERROR", "고객 세그먼트 업데이트 중 오류 발생: " + e.getMessage()));
+    }
   }
 }

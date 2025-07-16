@@ -6,14 +6,19 @@
 
 import pandas as pd
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')  # GUI 없이 이미지만 생성
-import matplotlib.pyplot as plt
-import seaborn as sns
+
+try:
+    import matplotlib
+    matplotlib.use('Agg')  # GUI 없이 이미지만 생성
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import matplotlib.font_manager as fm
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
 from datetime import datetime, timedelta
 import warnings
 import os
-import matplotlib.font_manager as fm
 
 # --- 한글 폰트 설정 (Windows / Linux 모두 대응) ---
 font_candidates = [
