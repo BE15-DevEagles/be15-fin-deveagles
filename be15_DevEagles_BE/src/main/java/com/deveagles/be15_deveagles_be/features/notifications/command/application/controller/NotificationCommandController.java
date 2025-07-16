@@ -36,4 +36,12 @@ public class NotificationCommandController {
 
     return ResponseEntity.noContent().build();
   }
+
+  @Operation(summary = "모든 알림 읽음 처리", description = "현재 로그인한 사용자의 모든 알림을 읽음 상태로 일괄 변경합니다.")
+  @PutMapping("/read-all")
+  public ResponseEntity<Void> markAllAsRead(@AuthenticationPrincipal CustomUser customUser) {
+    Long shopId = customUser.getShopId();
+    notificationCommandService.markAllAsRead(shopId);
+    return ResponseEntity.noContent().build();
+  }
 }
