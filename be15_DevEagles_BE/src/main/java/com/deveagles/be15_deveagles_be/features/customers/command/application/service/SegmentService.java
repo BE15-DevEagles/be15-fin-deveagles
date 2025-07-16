@@ -22,6 +22,4 @@ public interface SegmentService {
   List<Long> getCustomerIdsBySegmentTags(List<String> segmentTags);
 
   Segment createSegmentIfNotExists(String segmentTag, String segmentTitle, String colorCode);
-
-  void initializeDefaultSegments();
 }

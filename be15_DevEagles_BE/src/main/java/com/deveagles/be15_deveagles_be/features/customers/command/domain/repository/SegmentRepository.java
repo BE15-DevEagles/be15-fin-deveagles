@@ -25,6 +25,7 @@ public interface SegmentRepository extends JpaRepository<Segment, Long> {
   @Query("SELECT s FROM Segment s WHERE s.segmentTag LIKE %:keyword%")
   List<Segment> findRiskSegments(@Param("keyword") String keyword);
 
-  @Query("SELECT s FROM Segment s WHERE s.segmentTag IN ('new', 'growing', 'loyal', 'vip')")
+  @Query(
+      "SELECT s FROM Segment s WHERE s.segmentTag IN ('new', 'growing', 'loyal', 'vip', 'dormant', 'new_followup', 'new_at_risk', 'reactivation_needed', 'growing_delayed', 'loyal_delayed')")
   List<Segment> findLifecycleSegments();
 }

@@ -40,6 +40,7 @@ public enum ErrorCode implements ErrorCodeType {
   CUSTOMER_ACCESS_DENIED("30004", "해당 고객에 대한 접근 권한이 없습니다", HttpStatus.FORBIDDEN),
   CUSTOMER_INVALID_PHONE_NUMBER("30005", "유효하지 않은 전화번호 형식입니다", HttpStatus.BAD_REQUEST),
   CUSTOMER_INVALID_BIRTHDATE("30006", "유효하지 않은 생년월일입니다", HttpStatus.BAD_REQUEST),
+  SEGMENT_NOT_FOUND("30007", "세그먼트를 찾을 수 없습니다", HttpStatus.NOT_FOUND),
 
   // 메시지 관련 에러 (40000번대)
   MESSAGE_SETTINGS_ALREADY_EXISTS("40001", "이미 메시지 설정이 존재합니다.", HttpStatus.BAD_REQUEST),

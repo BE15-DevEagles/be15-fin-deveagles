@@ -14,6 +14,8 @@ public interface SegmentByCustomerRepository
 
   List<SegmentByCustomer> findBySegmentId(Long segmentId);
 
+  List<SegmentByCustomer> findBySegmentIdIn(List<Long> segmentIds);
+
   boolean existsByCustomerIdAndSegmentId(Long customerId, Long segmentId);
 
   @Modifying
@@ -51,4 +53,15 @@ public interface SegmentByCustomerRepository
       "SELECT sbc.customerId FROM SegmentByCustomer sbc JOIN Segment s ON sbc.segmentId = s.id "
           + "WHERE s.segmentTag IN :segmentTags")
   List<Long> findCustomerIdsBySegmentTags(@Param("segmentTags") List<String> segmentTags);
+
+  @Query(
+      "SELECT sbc FROM SegmentByCustomer sbc JOIN Segment s ON sbc.segmentId = s.id "
+          + "WHERE sbc.customerId = :customerId AND s.segmentTag IN ('new', 'growing', 'loyal', 'vip', 'inactive')")
+  List<SegmentByCustomer> findLifecycleSegmentsByCustomerId(@Param("customerId") Long customerId);
+
+  @Modifying
+  @Query(
+      "DELETE FROM SegmentByCustomer sbc WHERE sbc.segmentId IN "
+          + "(SELECT s.id FROM Segment s WHERE s.segmentTag IN ('new', 'growing', 'loyal', 'vip', 'dormant', 'new_followup', 'new_at_risk', 'reactivation_needed', 'growing_delayed', 'loyal_delayed'))")
+  void deleteAllLifecycleSegments();
 }
