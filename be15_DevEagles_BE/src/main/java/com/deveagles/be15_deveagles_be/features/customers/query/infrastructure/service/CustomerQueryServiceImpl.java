@@ -22,12 +22,7 @@ import com.deveagles.be15_deveagles_be.features.customers.query.service.Customer
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +45,12 @@ public class CustomerQueryServiceImpl implements CustomerQueryService {
   private final CustomerDetailQueryRepository customerDetailQueryRepository;
   private final CustomerListQueryRepository customerListQueryRepository;
   private final JPAQueryFactory queryFactory;
+  private final com.deveagles.be15_deveagles_be.features.customers.command.domain.repository
+          .SegmentByCustomerRepository
+      segmentByCustomerRepository;
+  private final com.deveagles.be15_deveagles_be.features.customers.command.domain.repository
+          .SegmentRepository
+      segmentRepository;
 
   // 기본 조회
   @Override
@@ -551,5 +552,93 @@ public class CustomerQueryServiceImpl implements CustomerQueryService {
     }
 
     return customers.stream().map(Customer::getPhoneNumber).toList();
+  }
+
+  @Override
+  public SegmentCustomersResponse getCustomersBySegmentTag(String segmentTag) {
+    log.info("세그먼트 태그별 고객 조회: {}", segmentTag);
+
+    // 세그먼트 정보 조회
+    var segment =
+        segmentRepository
+            .findBySegmentTag(segmentTag)
+            .orElseThrow(
+                () ->
+                    new BusinessException(
+                        ErrorCode.SEGMENT_NOT_FOUND, "세그먼트를 찾을 수 없습니다: " + segmentTag));
+
+    // 해당 세그먼트의 고객 ID 목록 조회
+    List<Long> customerIds = segmentByCustomerRepository.findCustomerIdsBySegmentTag(segmentTag);
+
+    log.info("세그먼트 '{}' 고객 수: {}", segmentTag, customerIds.size());
+
+    return SegmentCustomersResponse.of(
+        segment.getSegmentTag(), segment.getSegmentTitle(), customerIds);
+  }
+
+  @Override
+  public SegmentCustomersResponse getCustomersBySegmentId(Long segmentId) {
+    log.info("세그먼트 ID별 고객 조회: {}", segmentId);
+
+    // 세그먼트 정보 조회
+    var segment =
+        segmentRepository
+            .findById(segmentId)
+            .orElseThrow(
+                () ->
+                    new BusinessException(
+                        ErrorCode.SEGMENT_NOT_FOUND, "세그먼트를 찾을 수 없습니다: " + segmentId));
+
+    // 해당 세그먼트의 고객 ID 목록 조회
+    List<Long> customerIds = segmentByCustomerRepository.findCustomerIdsBySegmentId(segmentId);
+
+    log.info("세그먼트 '{}' 고객 수: {}", segment.getSegmentTag(), customerIds.size());
+
+    return SegmentCustomersResponse.of(
+        segment.getSegmentTag(), segment.getSegmentTitle(), customerIds);
+  }
+
+  @Override
+  public List<SegmentCustomersResponse> getCustomersByMultipleSegmentTags(
+      List<String> segmentTags) {
+    log.info("다중 세그먼트 태그별 고객 조회: {}", segmentTags);
+
+    // 세그먼트 정보들 조회
+    var segments = segmentRepository.findBySegmentTagIn(segmentTags);
+    Map<String, String> segmentTitleMap =
+        segments.stream()
+            .collect(
+                Collectors.toMap(
+                    segment -> segment.getSegmentTag(), segment -> segment.getSegmentTitle()));
+
+    // 각 세그먼트별 고객 ID 조회
+    return segmentTags.stream()
+        .map(
+            segmentTag -> {
+              String segmentTitle = segmentTitleMap.get(segmentTag);
+              if (segmentTitle == null) {
+                log.warn("세그먼트를 찾을 수 없습니다: {}", segmentTag);
+                return SegmentCustomersResponse.of(
+                    segmentTag, "Unknown Segment", Collections.emptyList());
+              }
+
+              List<Long> customerIds =
+                  segmentByCustomerRepository.findCustomerIdsBySegmentTag(segmentTag);
+              log.info("세그먼트 '{}' 고객 수: {}", segmentTag, customerIds.size());
+
+              return SegmentCustomersResponse.of(segmentTag, segmentTitle, customerIds);
+            })
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  public List<CustomerResponse> getUnregisteredCustomers(Long shopId) {
+    List<String> names = Arrays.asList("미등록-남자", "미등록-여자");
+    log.info("미등록 고객 리스트 조회 요청 - 매장ID: {}, 이름: {}", shopId, names);
+
+    List<Customer> customers =
+        customerJpaRepository.findByShopIdAndCustomerNameInAndDeletedAtIsNull(shopId, names);
+
+    return customers.stream().map(CustomerResponse::from).toList();
   }
 }

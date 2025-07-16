@@ -10,6 +10,7 @@ import com.deveagles.be15_deveagles_be.features.customers.command.application.se
 import com.deveagles.be15_deveagles_be.features.customers.command.application.service.CustomerTagService;
 import com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Customer;
 import com.deveagles.be15_deveagles_be.features.customers.command.domain.repository.CustomerRepository;
+import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerDetailResponse;
 import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerQueryService;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.service.AutomaticMessageTriggerService;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.AutomaticEventType;
@@ -60,10 +61,12 @@ public class CustomerCommandServiceImpl implements CustomerCommandService {
                   customerTagService.addTagToCustomer(savedCustomer.getId(), tagId, currentShopId));
     }
 
-    log.info(
-        "자동 발송 메시지 실행 - 이벤트: {}, 고객ID: {}", AutomaticEventType.NEW_CUSTOMER, savedCustomer.getId());
+    CustomerDetailResponse customerDto =
+        customerQueryService
+            .getCustomerDetail(savedCustomer.getId(), currentShopId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND));
     automaticMessageTriggerService.triggerAutomaticSend(
-        savedCustomer, AutomaticEventType.NEW_CUSTOMER);
+        customerDto, AutomaticEventType.NEW_CUSTOMER, null);
 
     return CustomerCommandResponse.from(savedCustomer);
   }
@@ -178,6 +181,27 @@ public class CustomerCommandServiceImpl implements CustomerCommandService {
     log.info("고객 노쇼 추가됨: ID={}", customerId);
 
     return CustomerCommandResponse.from(updatedCustomer);
+  }
+
+  @Override
+  public void createUnknownCustomer(Long shopId, CreateCustomerRequest request) {
+
+    Customer customer =
+        Customer.builder()
+            .shopId(shopId)
+            .customerGradeId(request.customerGradeId())
+            .customerName(request.customerName())
+            .gender(request.gender())
+            .birthdate(request.birthdate())
+            .channelId(request.channelId())
+            .marketingConsent(request.marketingConsent())
+            .notificationConsent(request.notificationConsent())
+            .phoneNumber(request.phoneNumber())
+            .memo(request.memo())
+            .staffId(request.staffId())
+            .build();
+
+    customerRepository.save(customer);
   }
 
   // SecurityContext에서 현재 사용자의 shopId 가져오기

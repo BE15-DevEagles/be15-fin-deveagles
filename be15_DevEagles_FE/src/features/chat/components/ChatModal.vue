@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+  import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
   import ChatMessages from './ChatMessages.vue';
   import ChatInput from './ChatInput.vue';
   import ChatListView from './ChatListView.vue';
@@ -20,6 +20,7 @@
   const chatStore = useChatStore();
   const currentView = ref('home');
   const containerRef = ref(null);
+  const scrollArea = ref(null); // ✅ 스크롤 대상
 
   function handleClickOutside(event) {
     if (containerRef.value && !containerRef.value.contains(event.target)) {
@@ -37,6 +38,19 @@
     document.removeEventListener('mousedown', handleClickOutside);
   });
 
+  // ✅ 메시지 변경될 때마다 스크롤 맨 아래로 이동
+  watch(
+    () => chatStore.messages,
+    () => {
+      nextTick(() => {
+        if (scrollArea.value) {
+          scrollArea.value.scrollTop = scrollArea.value.scrollHeight;
+        }
+      });
+    },
+    { deep: true }
+  );
+
   async function openNewChat() {
     try {
       const res = await createChatRoom();
@@ -46,14 +60,13 @@
       chatStore.clearMessages();
       currentView.value = 'chat';
 
-      // ✅ 중복 구독 방지
       if (chatStore.subscribedRoomId !== roomId) {
         safeSubscribeToRoom(roomId, msg => {
           const from =
             String(msg.senderId) === String(auth.userId) ? 'me' : msg.isCustomer ? 'user' : 'bot';
           chatStore.addMessage({ from, text: msg.content });
         });
-        chatStore.setSubscribedRoomId(roomId); // ✅ 현재 구독 중인 방 설정
+        chatStore.setSubscribedRoomId(roomId);
       }
 
       await sendGreetingMessage(roomId);
@@ -65,7 +78,6 @@
 
   function handleSend(text) {
     const isStaff = auth.userId === 17;
-
     const msg = {
       roomId: chatStore.currentRoomId,
       senderId: auth.userId,
@@ -107,14 +119,13 @@
       chatStore.clearMessages();
       currentView.value = 'chat';
 
-      // ✅ 구독 여부 확인
       if (chatStore.subscribedRoomId !== chatRoomId) {
         safeSubscribeToRoom(chatRoomId, msg => {
           const from =
             String(msg.senderId) === String(auth.userId) ? 'me' : msg.isCustomer ? 'user' : 'bot';
           chatStore.addMessage({ from, text: msg.content });
         });
-        chatStore.setSubscribedRoomId(chatRoomId); // ✅ 저장
+        chatStore.setSubscribedRoomId(chatRoomId);
       }
 
       const res = await getChatMessages(chatRoomId);
@@ -143,7 +154,7 @@
       <button class="chat-modal-close" @click="$emit('close')">✖</button>
     </div>
 
-    <div class="chat-modal-body">
+    <div ref="scrollArea" class="chat-modal-body">
       <div v-if="currentView === 'home'">
         <p class="chat-greeting">안녕하세요 😊 Beautifly 상담센터입니다.</p>
         <div class="home-action">
@@ -227,9 +238,10 @@
   }
   .chat-modal-body {
     flex: 1;
-    overflow-y: hidden;
+    overflow-y: auto;
     background-color: #f7f9fc;
     padding: 1rem;
+    padding-bottom: 12px; /* 입력창 가리지 않도록 여유 공간 확보 */
   }
   .chat-modal-footer {
     border-top: 1px solid #e0e0e0;

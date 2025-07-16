@@ -5,6 +5,7 @@
   import customersAPI from '@/features/customer/api/customers.js';
   import GradesAPI from '@/features/customer/api/grades.js';
   import TagsAPI from '@/features/customer/api/tags.js';
+  import TemplatesAPI from '@/features/messages/api/templates.js';
 
   import MessageItem from '../components/MessageItem.vue';
   import MessageStats from '../components/MessageStats.vue';
@@ -13,8 +14,8 @@
   import ReservationSendModal from '../components/modal/ReservationSendModal.vue';
   import TemplateSelectDrawer from '@/features/messages/components/drawer/TemplateSelectDrawer.vue';
   import CustomerSelectDrawer from '@/features/messages/components/drawer/CustomerSelectDrawer.vue';
-  import MessageDetailModal from '@/features/messages/components/modal/MessageDetailModal.vue';
-  import EditReservationModal from '@/features/messages/components/modal/EditReservationModal.vue';
+  import MessageDetailModal from '../components/modal/MessageDetailModal.vue';
+  import EditReservationModal from '../components/modal/EditReservationModal.vue';
 
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseTable from '@/components/common/BaseTable.vue';
@@ -24,19 +25,10 @@
   import BaseModal from '@/components/common/BaseModal.vue';
 
   const messages = ref([]);
-  const totalElements = ref(0);
-  const totalPages = ref(0);
-  const currentPage = ref(1);
-  const itemsPerPage = 10;
-  const isLoading = ref(false);
-
   const allMessages = ref([]);
-  const availableCoupons = ref([]);
-  const allCustomers = ref([]);
-  const customerGrades = ref([]);
-  const tags = ref([]);
-
   const selectedCustomers = ref([]);
+  const selectedMessage = ref(null);
+  const messageToEdit = ref(null);
   const messageToSend = ref({
     content: '',
     link: '',
@@ -45,6 +37,17 @@
     tags: [],
     customers: [],
   });
+
+  const availableCoupons = ref([]);
+  const allCustomers = ref([]);
+  const customerGrades = ref([]);
+  const tags = ref([]);
+
+  const templateList = ref({
+    content: [],
+    pagination: { currentPage: 0, totalPages: 1, totalItems: 0 },
+  });
+
   const showSendModal = ref(false);
   const showSendConfirm = ref(false);
   const showReserveModal = ref(false);
@@ -54,10 +57,14 @@
   const showDetailModal = ref(false);
   const showEditModal = ref(false);
 
-  const selectedMessage = ref(null);
-  const triggerElement = ref(null);
-  const messageToEdit = ref(null);
   const toast = ref(null);
+  const triggerElement = ref(null);
+
+  const totalElements = ref(0);
+  const totalPages = ref(0);
+  const currentPage = ref(1);
+  const itemsPerPage = 10;
+  const isLoading = ref(false);
   const statusFilter = ref('all');
 
   const columns = [
@@ -104,122 +111,124 @@
       }
       allMessages.value = tempAll;
     } catch (e) {
-      console.error('📉 통계 메시지 로드 실패', e);
+      console.error('통계 메시지 로드 실패', e);
     }
   }
-
-  function handlePageChange(page) {
-    currentPage.value = page;
-  }
-
-  function onStatusChange(value) {
-    statusFilter.value = value;
-    currentPage.value = 1;
-  }
-
-  watch([currentPage, statusFilter], () => loadMessages());
 
   function handleDelete(msg, event) {
     selectedMessage.value = msg;
     triggerElement.value = event.currentTarget;
     showDeleteConfirm.value = true;
   }
-
   function cancelDelete() {
     showDeleteConfirm.value = false;
   }
-
   function confirmDelete() {
     messages.value = messages.value.filter(m => m.id !== selectedMessage.value.id);
     showDeleteConfirm.value = false;
   }
 
-  function handleSendRequest(payload, sendingType) {
+  function handleSendRequest(payload, type) {
     messageToSend.value = {
-      ...payload,
+      content: payload.messageContent,
+      link: payload.link,
+      coupon: payload.coupon,
+      grades: payload.grades,
+      tags: payload.tags,
+      customerIds: payload.customerIds,
+      messageKind: payload.messageKind,
+      messageType: payload.messageType,
+      messageSendingType: payload.messageSendingType,
     };
 
-    if (sendingType === 'IMMEDIATE') {
-      nextTick(() => {
-        showSendConfirm.value = true;
-      });
-    } else if (sendingType === 'RESERVATION') {
-      nextTick(() => {
-        showReserveModal.value = true;
-      });
-    }
+    nextTick(() => {
+      if (type === 'IMMEDIATE') showSendConfirm.value = true;
+      else if (type === 'RESERVATION') showReserveModal.value = true;
+    });
   }
-
   function handleSendConfirm() {
+    const payload = {
+      ...messageToSend.value,
+      messageContent: messageToSend.value.content, // ✅ 이 줄을 반드시 추가!
+    };
+
     messagesAPI
-      .sendMessage(messageToSend.value) // ✅ customerIds 포함된 payload
+      .sendMessage(payload)
       .then(() => {
-        toast.value?.success('메시지가 성공적으로 발송되었습니다.');
+        toast.value?.success('메시지 발송 성공');
         showSendConfirm.value = false;
         loadMessages();
         loadAllMessagesForStats();
       })
-      .catch(() => {
-        toast.value?.error('메시지 전송에 실패했습니다.');
-      });
+      .catch(() => toast.value?.error('메시지 발송 실패'));
   }
-
-  function handleReserveRequest(content) {
-    messageToSend.value = { ...content };
-    showReserveModal.value = true;
-  }
-
   function handleReserveConfirm(payload) {
     messagesAPI
       .sendMessage(payload)
       .then(() => {
-        toast.value?.success('예약 메시지가 성공적으로 등록되었습니다.');
+        toast.value?.success('예약 메시지 성공');
         showReserveModal.value = false;
         loadMessages();
         loadAllMessagesForStats();
       })
-      .catch(() => {
-        toast.value?.error('예약 메시지 등록에 실패했습니다.');
-      });
+      .catch(() => toast.value?.error('예약 메시지 실패'));
   }
 
   function handleOpenTemplateDrawer() {
+    loadTemplatesForDrawer(1);
     showTemplateDrawer.value = true;
   }
-
   function handleOpenCustomerDrawer() {
     showCustomerDrawer.value = true;
   }
-
   function handleTemplateSelect(template) {
-    messageToSend.value.content = template.content;
+    messageToSend.value = {
+      ...messageToSend.value,
+      content: template.templateContent,
+      templateId: template.templateId,
+      grades: template.grades || [],
+      tags: template.tags || [],
+      link: template.link || '',
+      coupon: template.coupon || null,
+    };
     showTemplateDrawer.value = false;
   }
-
   function handleCustomerSelect(customers) {
     selectedCustomers.value = customers;
     showCustomerDrawer.value = false;
   }
-
   function handleShowDetail(msg) {
     selectedMessage.value = msg;
     showDetailModal.value = true;
   }
-
   function handleEditMessage(msg) {
     messageToEdit.value = null;
-    nextTick(async () => {
+    nextTick(() => {
       messageToEdit.value = msg;
       showEditModal.value = true;
     });
   }
-
   function handleEditConfirm(updated) {
     const idx = messages.value.findIndex(m => m.id === updated.id);
     if (idx !== -1) messages.value[idx] = { ...messages.value[idx], ...updated };
     showEditModal.value = false;
-    toast.value?.success('예약 메시지가 수정되었습니다.');
+    toast.value?.success('수정 완료');
   }
+  function handlePageChange(page) {
+    currentPage.value = page;
+  }
+
+  async function loadTemplatesForDrawer(page = 1) {
+    try {
+      const res = await TemplatesAPI.getTemplates({ page: page - 1, size: 10 });
+      templateList.value = res.data;
+    } catch (err) {
+      console.error('🔥 템플릿 페이지 로딩 실패:', err);
+      toast.value?.error('템플릿 불러오기 실패');
+    }
+  }
+
+  watch([currentPage, statusFilter], loadMessages);
 
   onMounted(async () => {
     await Promise.allSettled([
@@ -236,7 +245,7 @@
       GradesAPI.getGradesByShop().then(res => (customerGrades.value = res)),
       TagsAPI.getTagsByShop().then(res => (tags.value = res)),
     ]);
-
+    await loadTemplatesForDrawer(1);
     await loadMessages();
     await nextTick();
     await loadAllMessagesForStats();
@@ -308,7 +317,10 @@
       <TemplateSelectDrawer
         v-if="showTemplateDrawer"
         v-model="showTemplateDrawer"
+        :templates="templateList.content"
+        :pagination="templateList.pagination"
         @select="handleTemplateSelect"
+        @page-change="loadTemplatesForDrawer"
       />
     </Teleport>
 

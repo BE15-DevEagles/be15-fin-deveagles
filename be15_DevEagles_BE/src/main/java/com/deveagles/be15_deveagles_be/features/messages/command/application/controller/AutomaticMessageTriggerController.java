@@ -3,11 +3,13 @@ package com.deveagles.be15_deveagles_be.features.messages.command.application.co
 import com.deveagles.be15_deveagles_be.common.dto.ApiResponse;
 import com.deveagles.be15_deveagles_be.features.auth.command.application.model.CustomUser;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.dto.request.AutomaticCreateRequest;
+import com.deveagles.be15_deveagles_be.features.messages.command.application.dto.response.AutomaticTemplateResponse;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.service.AutomaticMessageTriggerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "자동 발송 관리", description = "자동 발송 관련 설정, 수정, 조회 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/message/auto-message/{shopId}")
+@RequestMapping("/message/auto-message")
 public class AutomaticMessageTriggerController {
   private final AutomaticMessageTriggerService automaticMessageTriggerService;
 
@@ -37,5 +39,14 @@ public class AutomaticMessageTriggerController {
         customUser.getShopId(), automaticCreateRequest);
 
     return ResponseEntity.ok(ApiResponse.success(null));
+  }
+
+  @GetMapping
+  public ResponseEntity<ApiResponse<List<AutomaticTemplateResponse>>> getTemplates(
+      @AuthenticationPrincipal CustomUser customUser) {
+    Long shopId = customUser.getShopId(); // ✅ 여기서 가져옴
+    List<AutomaticTemplateResponse> templates =
+        automaticMessageTriggerService.getAutomaticMessages(shopId);
+    return ResponseEntity.ok(ApiResponse.success(templates));
   }
 }

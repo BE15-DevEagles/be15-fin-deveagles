@@ -225,13 +225,29 @@ def create_duckdb_tables(**context):
         birthdate DATE, shop_name VARCHAR(255), extracted_at TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS customer_analytics (
-        customer_id INTEGER PRIMARY KEY, name VARCHAR, phone VARCHAR, birth_date DATE,
-        gender VARCHAR, first_visit_date DATE, last_visit_date DATE, total_visits INTEGER DEFAULT 0,
-        total_amount DECIMAL(15,2) DEFAULT 0.0, avg_visit_amount DECIMAL(15,2) DEFAULT 0.0,
-        lifecycle_days INTEGER DEFAULT 0, days_since_last_visit INTEGER DEFAULT 0,
-        visit_frequency DECIMAL(5,2) DEFAULT 0.0, visits_3m INTEGER DEFAULT 0,
-        amount_3m DECIMAL(15,2) DEFAULT 0.0, segment VARCHAR DEFAULT 'new',
-        updated_at TIMESTAMP
+        customer_id INTEGER PRIMARY KEY,
+        name VARCHAR,
+        phone VARCHAR,
+        email VARCHAR,
+        birth_date DATE,
+        gender VARCHAR,
+        first_visit_date DATE,
+        last_visit_date DATE,
+        total_visits INTEGER DEFAULT 0,
+        total_amount DECIMAL(15,2) DEFAULT 0.0,
+        avg_visit_amount DECIMAL(15,2) DEFAULT 0.0,
+        lifecycle_days INTEGER DEFAULT 0,
+        days_since_last_visit INTEGER DEFAULT 0,
+        visit_frequency DECIMAL(5,2) DEFAULT 0.0,
+        preferred_services VARCHAR,
+        preferred_employees VARCHAR,
+        visits_3m INTEGER DEFAULT 0,
+        amount_3m DECIMAL(15,2) DEFAULT 0.0,
+        segment VARCHAR DEFAULT 'new',
+        segment_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        churn_risk_score DECIMAL(5,2) DEFAULT 0.0,
+        churn_risk_level VARCHAR DEFAULT 'low',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS etl_metadata (
         table_name VARCHAR(50), last_updated TIMESTAMP, records_count BIGINT,
@@ -319,13 +335,29 @@ def build_customer_analytics(**context):
     
     create_table_query = """
     CREATE TABLE IF NOT EXISTS customer_analytics (
-        customer_id INTEGER PRIMARY KEY, name VARCHAR, phone VARCHAR, birth_date DATE,
-        gender VARCHAR, first_visit_date DATE, last_visit_date DATE, total_visits INTEGER DEFAULT 0,
-        total_amount DECIMAL(15,2) DEFAULT 0.0, avg_visit_amount DECIMAL(15,2) DEFAULT 0.0,
-        lifecycle_days INTEGER DEFAULT 0, days_since_last_visit INTEGER DEFAULT 0,
-        visit_frequency DECIMAL(5,2) DEFAULT 0.0, visits_3m INTEGER DEFAULT 0,
-        amount_3m DECIMAL(15,2) DEFAULT 0.0, segment VARCHAR DEFAULT 'new',
-        updated_at TIMESTAMP
+        customer_id INTEGER PRIMARY KEY,
+        name VARCHAR,
+        phone VARCHAR,
+        email VARCHAR,
+        birth_date DATE,
+        gender VARCHAR,
+        first_visit_date DATE,
+        last_visit_date DATE,
+        total_visits INTEGER DEFAULT 0,
+        total_amount DECIMAL(15,2) DEFAULT 0.0,
+        avg_visit_amount DECIMAL(15,2) DEFAULT 0.0,
+        lifecycle_days INTEGER DEFAULT 0,
+        days_since_last_visit INTEGER DEFAULT 0,
+        visit_frequency DECIMAL(5,2) DEFAULT 0.0,
+        preferred_services VARCHAR,
+        preferred_employees VARCHAR,
+        visits_3m INTEGER DEFAULT 0,
+        amount_3m DECIMAL(15,2) DEFAULT 0.0,
+        segment VARCHAR DEFAULT 'new',
+        segment_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        churn_risk_score DECIMAL(5,2) DEFAULT 0.0,
+        churn_risk_level VARCHAR DEFAULT 'low',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """
 
@@ -343,11 +375,21 @@ def build_customer_analytics(**context):
         FROM sales
         WHERE is_refunded = false
         GROUP BY customer_id
+    ),
+    customer_preferences AS (
+        SELECT
+            customer_id,
+            STRING_AGG(DISTINCT CASE WHEN total_amount > 0 THEN 'service_' || sales_id END, ',') as preferred_services,
+            STRING_AGG(DISTINCT CASE WHEN staff_id IS NOT NULL THEN 'staff_' || staff_id END, ',') as preferred_employees
+        FROM sales
+        WHERE is_refunded = false
+        GROUP BY customer_id
     )
     SELECT 
         c.customer_id,
         c.customer_name as name,
         c.phone_number as phone,
+        '' as email,
         c.birthdate as birth_date,
         c.gender,
         cs.first_visit_date,
@@ -356,18 +398,24 @@ def build_customer_analytics(**context):
         COALESCE(cs.total_amount, 0) as total_amount,
         CASE WHEN COALESCE(cs.total_visits, 0) > 0 THEN cs.total_amount / cs.total_visits ELSE 0 END as avg_visit_amount,
         DATE_DIFF('day', c.created_at, CURRENT_DATE) as lifecycle_days,
-        DATE_DIFF('day', cs.last_visit_date, CURRENT_DATE) as days_since_last_visit,
+        COALESCE(DATE_DIFF('day', cs.last_visit_date, CURRENT_DATE), 9999) as days_since_last_visit,
         CASE 
             WHEN DATE_DIFF('day', cs.first_visit_date, cs.last_visit_date) > 0 
             THEN (cs.total_visits - 1) * 30.0 / DATE_DIFF('day', cs.first_visit_date, cs.last_visit_date)
             ELSE 0 
         END as visit_frequency,
+        COALESCE(cp.preferred_services, '') as preferred_services,
+        COALESCE(cp.preferred_employees, '') as preferred_employees,
         COALESCE(cs.visits_3m, 0) as visits_3m,
         COALESCE(cs.amount_3m, 0) as amount_3m,
         'new' as segment,
+        CURRENT_TIMESTAMP as segment_updated_at,
+        0.0 as churn_risk_score,
+        'low' as churn_risk_level,
         CURRENT_TIMESTAMP as updated_at
     FROM customer c
-    LEFT JOIN customer_sales cs ON c.customer_id = cs.customer_id;
+    LEFT JOIN customer_sales cs ON c.customer_id = cs.customer_id
+    LEFT JOIN customer_preferences cp ON c.customer_id = cp.customer_id;
     """
     
     try:

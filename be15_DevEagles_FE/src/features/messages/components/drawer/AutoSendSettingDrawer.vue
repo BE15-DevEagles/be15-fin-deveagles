@@ -3,6 +3,7 @@
   import BaseDrawer from '@/components/common/BaseDrawer.vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseToggleSwitch from '@/components/common/BaseToggleSwitch.vue';
+  import AutoSendAPI from '@/features/messages/api/autoSend.js';
 
   const props = defineProps({
     modelValue: Boolean,
@@ -16,26 +17,27 @@
     set: val => emit('update:modelValue', val),
   });
 
-  const message = ref('');
-  const enabled = ref(false);
-  const sendTime = ref('immediate');
+  const templateContent = ref('');
+  const isActive = ref(true);
+  const sendTime = ref('immediate'); // UI에만 사용 중
 
-  const timeOptions = [
-    { value: 'immediate', label: '차감 즉시' },
-    { value: '1min', label: '1분 후' },
-    { value: '5min', label: '5분 후' },
-    { value: 'custom', label: '직접 설정' },
+  const variableOptions = [
+    '#{고객명}',
+    '#{예약확정일}',
+    '#{예약날짜}',
+    '#{예약변경일}',
+    '#{예약취소일}',
+    '#{선불권금액}',
+    '#{횟수권횟수}',
   ];
-
-  const variableOptions = ['#{고객명}', '#{방문일}', '#{매장명}', '#{연락처}'];
   const showVariableDropdown = ref(false);
 
   watch(
     () => props.item,
     val => {
       if (val) {
-        message.value = val.message || '';
-        enabled.value = val.enabled ?? true;
+        templateContent.value = val.message || '';
+        isActive.value = val.isActive ?? true;
         sendTime.value = val.sendTime || 'immediate';
       }
     },
@@ -44,25 +46,41 @@
 
   function insertVariable(variable) {
     const textarea = document.getElementById('auto-message-textarea');
-    const cursorPos = textarea?.selectionStart ?? message.value.length;
-    const textBefore = message.value.substring(0, cursorPos);
-    const textAfter = message.value.substring(cursorPos);
-    message.value = textBefore + variable + textAfter;
+    const cursorPos = textarea?.selectionStart ?? templateContent.value.length;
+    const textBefore = templateContent.value.substring(0, cursorPos);
+    const textAfter = templateContent.value.substring(cursorPos);
+    templateContent.value = textBefore + variable + textAfter;
     nextTick(() => {
       textarea?.focus();
       textarea?.setSelectionRange(cursorPos + variable.length, cursorPos + variable.length);
     });
   }
 
-  function handleSave() {
-    emit('save', {
-      parentIndex: props.item.parentIndex,
-      messageIndex: props.item.messageIndex ?? null, // 신규일 경우 null
-      message: message.value,
-      enabled: enabled.value,
-      sendTime: sendTime.value,
-    });
-    show.value = false;
+  async function handleSave() {
+    try {
+      const isNew = props.item.messageIndex == null;
+
+      if (isNew) {
+        await AutoSendAPI.createTemplate({
+          automaticEventType: props.item.triggerType,
+          templateContent: templateContent.value,
+          isActive: isActive.value,
+        });
+      }
+
+      emit('save', {
+        parentIndex: props.item.parentIndex,
+        messageIndex: props.item.messageIndex ?? null,
+        message: templateContent.value,
+        isActive: isActive.value,
+        triggerType: props.item.triggerType,
+      });
+
+      show.value = false;
+    } catch (err) {
+      console.error('자동발송 메시지 저장 실패', err.message);
+      alert(err.message); // 추후 Toast로 대체 가능
+    }
   }
 
   function handleClickOutside(e) {
@@ -75,7 +93,6 @@
   onMounted(() => {
     document.addEventListener('click', handleClickOutside);
   });
-
   onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
   });
@@ -86,24 +103,16 @@
     <div class="drawer-body">
       <p class="drawer-label">{{ item.label }} 메시지를 수정하세요</p>
 
-      <!-- 전송 시간 -->
-      <label class="field-label">전송 시간</label>
-      <select v-model="sendTime" class="select-box">
-        <option v-for="option in timeOptions" :key="option.value" :value="option.value">
-          {{ option.label }}
-        </option>
-      </select>
-
       <!-- 자동발송 토글 -->
-      <div class="flex justify-between items-center mt-4">
+      <div class="flex justify-between items-center mb-4">
         <label class="field-label mb-0">자동발송 활성화</label>
         <div class="ml-2">
-          <BaseToggleSwitch v-model="enabled" />
+          <BaseToggleSwitch v-model="isActive" />
         </div>
       </div>
 
       <!-- 메시지 입력과 변수 삽입 -->
-      <div class="mt-4">
+      <div class="mt-2">
         <div class="flex justify-between items-end">
           <label class="field-label mb-0">메시지 내용</label>
           <div class="dropdown-wrapper relative inline-block">
@@ -139,7 +148,7 @@
 
         <textarea
           id="auto-message-textarea"
-          v-model="message"
+          v-model="templateContent"
           class="w-full p-2 border border-gray-300 rounded-md mt-2"
           rows="5"
           placeholder="메시지 내용을 입력하세요"
@@ -170,16 +179,6 @@
     font-size: 0.875rem;
     font-weight: 600;
     color: #111827;
-  }
-
-  .select-box {
-    width: 100%;
-    padding: 0.5rem;
-    font-size: 0.875rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    margin-bottom: 1.25rem;
-    background-color: white;
   }
 
   textarea {

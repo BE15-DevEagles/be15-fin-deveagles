@@ -16,5 +16,7 @@ public interface MessageCommandService {
   void updateReservationMessage(
       UpdateReservationRequest updateReservationRequest, Long shopId, Long messageId);
 
+  MessageSendResult resendFailedMessage(Long shopId, Long messageId);
+
   void cancelScheduledMessage(Long messageId, Long shopId);
 }

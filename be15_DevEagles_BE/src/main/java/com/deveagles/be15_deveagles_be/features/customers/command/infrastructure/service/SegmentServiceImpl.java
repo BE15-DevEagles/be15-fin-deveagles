@@ -166,29 +166,4 @@ public class SegmentServiceImpl implements SegmentService {
 
     return savedSegment;
   }
-
-  @Override
-  public void initializeDefaultSegments() {
-    log.info("기본 세그먼트 초기화 시작");
-
-    // 고객 생애주기 세그먼트
-    createSegmentIfNotExists("new", "신규 고객", "#00BFFF");
-    createSegmentIfNotExists("growing", "성장 고객", "#32CD32");
-    createSegmentIfNotExists("loyal", "충성 고객", "#FFD700");
-    createSegmentIfNotExists("vip", "VIP 고객", "#FF69B4");
-    createSegmentIfNotExists("inactive", "비활성 고객", "#808080");
-
-    // 위험 세그먼트
-    createSegmentIfNotExists("churn_risk_high", "고위험 이탈", "#FF4444");
-    createSegmentIfNotExists("churn_risk_medium", "중위험 이탈", "#FF8800");
-    createSegmentIfNotExists("churn_risk_low", "저위험 이탈", "#FFAA00");
-
-    // 특별 케어 세그먼트
-    createSegmentIfNotExists("vip_attention_needed", "VIP 관심 필요", "#8844FF");
-    createSegmentIfNotExists("pattern_break_detected", "패턴 이상 감지", "#FF6600");
-    createSegmentIfNotExists("reactivation_needed", "재활성화 필요", "#FF0000");
-    createSegmentIfNotExists("first_visit_follow_up", "첫 방문 팔로업", "#0088FF");
-
-    log.info("기본 세그먼트 초기화 완료");
-  }
 }

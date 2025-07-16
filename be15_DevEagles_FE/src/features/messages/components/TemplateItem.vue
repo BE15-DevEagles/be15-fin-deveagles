@@ -27,14 +27,23 @@
   function handleDetailOpen() {
     emit('open-detail', props.template);
   }
+
+  // 템플릿 유형 매핑
+  const typeLabelMap = {
+    advertising: '광고',
+    announcement: '안내',
+    etc: '기타',
+  };
 </script>
 
 <template>
   <tr>
-    <td class="text-center" :style="{ width: columnWidths.name }">{{ template.name }}</td>
+    <td class="text-center" :style="{ width: columnWidths.name }">
+      {{ template.templateName }}
+    </td>
 
     <td class="text-center" :style="{ width: columnWidths.type }">
-      <span class="badge">{{ template.type }}</span>
+      <span class="badge">{{ typeLabelMap[template.templateType] || '기타' }}</span>
     </td>
 
     <td
@@ -43,12 +52,12 @@
       @click="handleDetailOpen"
     >
       <div class="truncate">
-        {{ template.content }}
+        {{ template.templateContent }}
       </div>
     </td>
 
     <td class="text-center" :style="{ width: columnWidths.createdAt }">
-      {{ template.createdAt }}
+      {{ template.createdAt ? template.createdAt.slice(0, 10) : '-' }}
     </td>
 
     <td class="text-center" :style="{ width: columnWidths.actions }">
@@ -71,15 +80,18 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
   .clickable {
     cursor: pointer;
     color: var(--color-primary-main);
   }
+
   .action-cell {
     display: flex;
     justify-content: center;
     gap: 0.5rem;
   }
+
   .badge {
     display: inline-block;
     background-color: var(--color-gray-100);

@@ -3,8 +3,12 @@ package com.deveagles.be15_deveagles_be.features.schedules.command.application.s
 import com.deveagles.be15_deveagles_be.common.events.ReservationCreatedEvent;
 import com.deveagles.be15_deveagles_be.common.exception.BusinessException;
 import com.deveagles.be15_deveagles_be.common.exception.ErrorCode;
+import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerDetailResponse;
 import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerIdResponse;
 import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerQueryService;
+import com.deveagles.be15_deveagles_be.features.messages.command.application.service.AutomaticMessageTriggerService;
+import com.deveagles.be15_deveagles_be.features.messages.command.application.service.MessageVariableProcessor;
+import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.AutomaticEventType;
 import com.deveagles.be15_deveagles_be.features.schedules.command.application.dto.request.CreateReservationFullRequest;
 import com.deveagles.be15_deveagles_be.features.schedules.command.application.dto.request.CreateReservationRequest;
 import com.deveagles.be15_deveagles_be.features.schedules.command.application.dto.request.UpdateReservationRequest;
@@ -16,7 +20,9 @@ import com.deveagles.be15_deveagles_be.features.schedules.command.domain.reposit
 import com.deveagles.be15_deveagles_be.features.schedules.command.domain.repository.ReservationRepository;
 import jakarta.transaction.Transactional;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -30,6 +36,8 @@ public class ReservationService {
   private final ReservationDetailRepository reservationDetailRepository;
   private final CustomerQueryService customerQueryService;
   private final ApplicationEventPublisher eventPublisher;
+  private final AutomaticMessageTriggerService automaticMessageTriggerService;
+  private final MessageVariableProcessor messageVariableProcessor;
 
   @Transactional
   public Long createReservation(CreateReservationRequest request) {
@@ -119,7 +127,8 @@ public class ReservationService {
     if (!reservation.getShopId().equals(shopId)) {
       throw new BusinessException(ErrorCode.RESERVATION_NOT_FOUND);
     }
-
+    // 이전 상태/시간 백업
+    ReservationStatusName prevStatus = reservation.getReservationStatusName();
     reservation.update(
         request.staffId(),
         ReservationStatusName.valueOf(request.reservationStatusName()),
@@ -128,6 +137,37 @@ public class ReservationService {
         request.reservationStartAt(),
         request.reservationEndAt());
 
+    ReservationStatusName newStatus = reservation.getReservationStatusName();
+    Long customerId = reservation.getCustomerId();
+    if (customerId != null) {
+      Optional<CustomerDetailResponse> optionalCustomer =
+          customerQueryService.getCustomerDetail(customerId, shopId);
+
+      if (optionalCustomer.isPresent()) {
+        CustomerDetailResponse customerDto = optionalCustomer.get();
+
+        Map<String, String> payload =
+            messageVariableProcessor.buildPayload(
+                customerDto.getCustomerId(),
+                customerDto.getShopId(),
+                Map.of(
+                    "예약날짜",
+                    reservation
+                        .getReservationStartAt()
+                        .format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))));
+
+        if (prevStatus != ReservationStatusName.CONFIRMED
+            && newStatus == ReservationStatusName.CONFIRMED) {
+          automaticMessageTriggerService.triggerAutomaticSend(
+              customerDto, AutomaticEventType.RESERVATION_CREATED, payload);
+        } else if ((prevStatus != ReservationStatusName.CBS
+                && prevStatus != ReservationStatusName.CBC)
+            && (newStatus == ReservationStatusName.CBS || newStatus == ReservationStatusName.CBC)) {
+          automaticMessageTriggerService.triggerAutomaticSend(
+              customerDto, AutomaticEventType.RESERVATION_CANCELLED, payload);
+        }
+      }
+    }
     reservationDetailRepository.deleteByReservationId(reservationId);
     List<ReservationDetail> newDetails =
         request.secondaryItemIds().stream()
@@ -172,8 +212,50 @@ public class ReservationService {
       if (reservation.getReservationStatusName() == ReservationStatusName.PAID) {
         throw new BusinessException(ErrorCode.MODIFY_NOT_ALLOWED_FOR_PAID_RESERVATION);
       }
-
+      ReservationStatusName prevStatus = reservation.getReservationStatusName();
       reservation.changeStatus(request.reservationStatusName());
+      ReservationStatusName newStatus = reservation.getReservationStatusName();
+
+      // 고객 ID가 없는 경우 자동발신 스킵
+      Long customerId = reservation.getCustomerId();
+      if (customerId == null) {
+        continue;
+      }
+
+      // 상태 변경이 확정 or 취소일 경우 자동발신 처리
+      boolean isConfirmedTransition =
+          prevStatus != ReservationStatusName.CONFIRMED
+              && newStatus == ReservationStatusName.CONFIRMED;
+
+      boolean isCancelledTransition =
+          (prevStatus != ReservationStatusName.CBS && prevStatus != ReservationStatusName.CBC)
+              && (newStatus == ReservationStatusName.CBS || newStatus == ReservationStatusName.CBC);
+
+      if (isConfirmedTransition || isCancelledTransition) {
+        Optional<CustomerDetailResponse> optionalCustomer =
+            customerQueryService.getCustomerDetail(customerId, shopId);
+
+        if (optionalCustomer.isPresent()) {
+          CustomerDetailResponse customerDto = optionalCustomer.get();
+
+          Map<String, String> payload =
+              messageVariableProcessor.buildPayload(
+                  customerDto.getCustomerId(),
+                  customerDto.getShopId(),
+                  Map.of(
+                      "예약날짜",
+                      reservation
+                          .getReservationStartAt()
+                          .format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))));
+
+          AutomaticEventType eventType =
+              isConfirmedTransition
+                  ? AutomaticEventType.RESERVATION_CREATED
+                  : AutomaticEventType.RESERVATION_CANCELLED;
+
+          automaticMessageTriggerService.triggerAutomaticSend(customerDto, eventType, payload);
+        }
+      }
     }
   }
 }

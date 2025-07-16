@@ -19,6 +19,8 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -382,6 +384,18 @@ class CustomerQueryServiceImplTest {
         .build();
   }
 
+  private Customer createUnregisteredCustomer(Long id, String name, Customer.Gender gender) {
+    return Customer.builder()
+        .id(id)
+        .shopId(1L)
+        .customerName(name)
+        .gender(gender)
+        .phoneNumber("01000000000")
+        .createdAt(LocalDateTime.now())
+        .modifiedAt(LocalDateTime.now())
+        .build();
+  }
+
   private CustomerDetailResponse createTestCustomerDetailResponse() {
     return CustomerDetailResponse.builder()
         .customerId(1L)
@@ -524,5 +538,83 @@ class CustomerQueryServiceImplTest {
         .hasMessageContaining("고객을 찾을 수 없습니다");
 
     then(customerJpaRepository).should().findAllById(customerIds);
+  }
+
+  @Test
+  @DisplayName("미등록 고객 목록 조회 성공 - 남자, 여자 모두 조회")
+  void getUnregisteredCustomers_Success_BothExist() {
+    // given
+    Long shopId = 1L;
+    List<String> unregisteredNames = Arrays.asList("미등록-남자", "미등록-여자");
+
+    Customer maleCustomer = createUnregisteredCustomer(2L, "미등록-남자", Customer.Gender.M);
+    Customer femaleCustomer = createUnregisteredCustomer(3L, "미등록-여자", Customer.Gender.F);
+
+    given(
+            customerJpaRepository.findByShopIdAndCustomerNameInAndDeletedAtIsNull(
+                shopId, unregisteredNames))
+        .willReturn(List.of(maleCustomer, femaleCustomer));
+
+    // when
+    List<CustomerResponse> response = customerQueryService.getUnregisteredCustomers(shopId);
+
+    // then
+    assertThat(response).hasSize(2);
+    assertThat(response)
+        .extracting(CustomerResponse::customerName)
+        .containsExactlyInAnyOrder("미등록-남자", "미등록-여자");
+
+    then(customerJpaRepository)
+        .should()
+        .findByShopIdAndCustomerNameInAndDeletedAtIsNull(shopId, unregisteredNames);
+  }
+
+  @Test
+  @DisplayName("미등록 고객 목록 조회 성공 - 일부만 존재")
+  void getUnregisteredCustomers_Success_PartialExist() {
+    // given
+    Long shopId = 1L;
+    List<String> unregisteredNames = Arrays.asList("미등록-남자", "미등록-여자");
+
+    Customer femaleCustomer = createUnregisteredCustomer(3L, "미등록-여자", Customer.Gender.F);
+
+    given(
+            customerJpaRepository.findByShopIdAndCustomerNameInAndDeletedAtIsNull(
+                shopId, unregisteredNames))
+        .willReturn(List.of(femaleCustomer));
+
+    // when
+    List<CustomerResponse> response = customerQueryService.getUnregisteredCustomers(shopId);
+
+    // then
+    assertThat(response).hasSize(1);
+    assertThat(response.get(0).customerName()).isEqualTo("미등록-여자");
+
+    then(customerJpaRepository)
+        .should()
+        .findByShopIdAndCustomerNameInAndDeletedAtIsNull(shopId, unregisteredNames);
+  }
+
+  @Test
+  @DisplayName("미등록 고객 목록 조회 성공 - 존재하지 않음")
+  void getUnregisteredCustomers_Success_NoneExist() {
+    // given
+    Long shopId = 1L;
+    List<String> unregisteredNames = Arrays.asList("미등록-남자", "미등록-여자");
+
+    given(
+            customerJpaRepository.findByShopIdAndCustomerNameInAndDeletedAtIsNull(
+                shopId, unregisteredNames))
+        .willReturn(Collections.emptyList());
+
+    // when
+    List<CustomerResponse> response = customerQueryService.getUnregisteredCustomers(shopId);
+
+    // then
+    assertThat(response).isEmpty();
+
+    then(customerJpaRepository)
+        .should()
+        .findByShopIdAndCustomerNameInAndDeletedAtIsNull(shopId, unregisteredNames);
   }
 }

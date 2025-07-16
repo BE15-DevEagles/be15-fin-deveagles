@@ -236,4 +236,19 @@ public class CustomerQueryController {
     boolean exists = customerQueryService.existsByPhoneNumber(phoneNumber, user.getShopId());
     return ResponseEntity.ok(ApiResponse.success(exists));
   }
+
+  @Operation(summary = "미등록 고객 목록 조회", description = "해당 매장의 미등록 고객('미등록-남자', '미등록-여자') 목록을 조회합니다.")
+  @ApiResponses({
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "미등록 고객 목록 조회 성공")
+  })
+  @GetMapping("/unregistered")
+  public ResponseEntity<ApiResponse<List<CustomerResponse>>> getUnregisteredCustomers(
+      @AuthenticationPrincipal CustomUser user) {
+    log.info("미등록 고객 목록 조회 API 요청 - 매장ID: {}", user.getShopId());
+    List<CustomerResponse> response =
+        customerQueryService.getUnregisteredCustomers(user.getShopId());
+    return ResponseEntity.ok(ApiResponse.success(response));
+  }
 }

@@ -1,3 +1,4 @@
+'''
 <template>
   <BaseDrawer
     v-model="visible"
@@ -40,42 +41,57 @@
         <div v-if="errors.phone" class="error-message">{{ errors.phone }}</div>
       </div>
       <div class="form-row">
-        <label class="form-label">성별</label>
-        <select v-model="form.gender" class="form-input">
+        <label class="form-label">성별<span class="required">*</span></label>
+        <select
+          v-model="form.gender"
+          class="form-input"
+          :class="{ 'input-error': errors.gender }"
+          @blur="validateField('gender')"
+        >
           <option value="" disabled>성별 선택</option>
           <option v-for="option in genderOptions" :key="option.value" :value="option.value">
             {{ option.label }}
           </option>
         </select>
+        <div v-if="errors.gender" class="error-message">{{ errors.gender }}</div>
       </div>
       <div class="form-row">
+        <label class="form-label">생년월일<span class="required">*</span></label>
         <PrimeDatePicker
           v-model="form.birthdate"
-          label="생일"
           :max-date="new Date(today)"
           placeholder="생일을 선택하세요"
           :disabled="false"
-          :error="''"
+          :error="errors.birthdate"
           :base-z-index="zIndex + 1"
         />
+        <div v-if="errors.birthdate" class="error-message">{{ errors.birthdate }}</div>
       </div>
       <div class="form-row">
         <label class="form-label">담당자</label>
         <select v-model="form.staffId" class="form-input">
           <option value="" disabled>담당자 선택</option>
+          <option :value="null">담당자 없음</option>
           <option v-for="staff in staffOptions" :key="staff.id" :value="staff.id">
             {{ staff.name }}
           </option>
         </select>
       </div>
       <div class="form-row">
-        <label class="form-label">유입경로</label>
-        <select v-model="form.channelId" class="form-input">
+        <label class="form-label">유입경로<span class="required">*</span></label>
+        <select
+          v-model="form.channelId"
+          class="form-input"
+          :class="{ 'input-error': errors.channelId }"
+          @blur="validateField('channelId')"
+        >
           <option value="" disabled>유입경로 선택</option>
+          <option :value="null">유입경로 없음</option>
           <option v-for="channel in channelOptions" :key="channel.id" :value="channel.id">
             {{ channel.channelName }}
           </option>
         </select>
+        <div v-if="errors.channelId" class="error-message">{{ errors.channelId }}</div>
       </div>
       <div class="form-row">
         <label class="form-label">태그</label>
@@ -177,7 +193,7 @@
 
   const visible = ref(false);
   const form = ref(getBlankForm());
-  const errors = ref({ name: '', phone: '', grade: '' });
+  const errors = ref({ name: '', phone: '', grade: '', birthdate: '', channelId: '', gender: '' });
 
   const authStore = useAuthStore();
   const metadataStore = useMetadataStore();
@@ -310,12 +326,20 @@
     }
     if (field === 'grade')
       errors.value.grade = !form.value.customerGradeId ? '등급을 선택해주세요' : '';
+    if (field === 'birthdate')
+      errors.value.birthdate = !form.value.birthdate ? '생년월일을 입력해주세요' : '';
+    if (field === 'channelId')
+      errors.value.channelId = !form.value.channelId ? '유입경로를 선택해주세요' : '';
+    if (field === 'gender') errors.value.gender = !form.value.gender ? '성별을 선택해주세요' : '';
   }
 
   async function validateAndSubmit() {
     validateField('name');
     validateField('phone');
     validateField('grade');
+    validateField('birthdate');
+    validateField('channelId');
+    validateField('gender');
 
     if (Object.values(errors.value).some(e => e)) {
       return;
@@ -337,6 +361,12 @@
         marketingConsent: form.value.marketingConsent,
         notificationConsent: form.value.notificationConsent,
       };
+
+      // Optional fields: '' -> null
+      if (payload.gender === '') payload.gender = null;
+      if (payload.birthdate === '') payload.birthdate = null;
+      if (payload.memo.trim() === '') payload.memo = null;
+      // staffId and channelId can be null from the select box directly
 
       // 태그 변경 처리
       const originalTags = Array.isArray(props.customer?.tags)
@@ -389,7 +419,7 @@
 
   function resetForm() {
     form.value = getBlankForm();
-    errors.value = { name: '', phone: '', grade: '' };
+    errors.value = { name: '', phone: '', grade: '', birthdate: '', channelId: '', gender: '' };
   }
 </script>
 
@@ -485,3 +515,4 @@
   }
 </style>
 <style src="@vueform/multiselect/themes/default.css"></style>
+''

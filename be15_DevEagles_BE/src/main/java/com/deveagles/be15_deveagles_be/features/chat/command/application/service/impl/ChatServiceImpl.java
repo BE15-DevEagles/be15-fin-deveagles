@@ -4,6 +4,7 @@ import com.deveagles.be15_deveagles_be.common.exception.BusinessException;
 import com.deveagles.be15_deveagles_be.common.exception.ErrorCode;
 import com.deveagles.be15_deveagles_be.features.chat.command.application.dto.request.ChatMessageRequest;
 import com.deveagles.be15_deveagles_be.features.chat.command.application.dto.response.ChatMessageResponse;
+import com.deveagles.be15_deveagles_be.features.chat.command.application.service.AiMessageService;
 import com.deveagles.be15_deveagles_be.features.chat.command.application.service.ChatService;
 import com.deveagles.be15_deveagles_be.features.chat.command.domain.aggregate.ChatMessage;
 import com.deveagles.be15_deveagles_be.features.chat.command.domain.aggregate.ChatRoom;
@@ -23,6 +24,7 @@ public class ChatServiceImpl implements ChatService {
   private final ChatRoomRepository chatRoomRepository;
   private final ChatMessageRepository chatMessageRepository;
   private final SimpMessagingTemplate messagingTemplate;
+  private final AiMessageService aiMessageService;
 
   @Override
   public ChatMessageResponse saveMessage(ChatMessageRequest request, Long userId) {
@@ -58,7 +60,9 @@ public class ChatServiceImpl implements ChatService {
 
     // WebSocket 브로커 전송
     messagingTemplate.convertAndSend("/sub/chatroom/" + chatRoom.getId(), response);
-
+    if (chatRoom.isAiActive()) {
+      aiMessageService.handleAiResponse(chatRoom.getId(), request.getContent());
+    }
     return response;
   }
 }

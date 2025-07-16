@@ -23,4 +23,7 @@ public interface CustomerJpaRepository extends JpaRepository<Customer, Long> {
 
   @Query("SELECT DISTINCT c.shopId FROM Customer c WHERE c.deletedAt IS NULL")
   List<Long> findDistinctShopIds();
+
+  List<Customer> findByShopIdAndCustomerNameInAndDeletedAtIsNull(
+      Long shopId, List<String> customerNames);
 }
