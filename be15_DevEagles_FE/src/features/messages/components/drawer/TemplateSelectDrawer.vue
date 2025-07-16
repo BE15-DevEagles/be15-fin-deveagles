@@ -2,6 +2,7 @@
   import { computed, ref } from 'vue';
   import BaseDrawer from '@/components/common/BaseDrawer.vue';
   import BaseButton from '@/components/common/BaseButton.vue';
+  import Pagination from '@/components/common/Pagination.vue';
 
   const props = defineProps({
     modelValue: {
@@ -12,9 +13,13 @@
       type: Array,
       required: true,
     },
+    pagination: {
+      type: Object,
+      required: true,
+    },
   });
 
-  const emit = defineEmits(['update:modelValue', 'select']);
+  const emit = defineEmits(['update:modelValue', 'select', 'page-change']);
 
   const drawerOpen = computed({
     get: () => props.modelValue,
@@ -24,11 +29,7 @@
   const openedIds = ref(new Set());
 
   function toggleDetail(id) {
-    if (openedIds.value.has(id)) {
-      openedIds.value.delete(id);
-    } else {
-      openedIds.value.add(id);
-    }
+    openedIds.value.has(id) ? openedIds.value.delete(id) : openedIds.value.add(id);
   }
 
   function isOpened(id) {
@@ -38,24 +39,26 @@
   function selectTemplate(template) {
     emit('select', template);
   }
+
+  function handlePageChange(page) {
+    emit('page-change', page);
+  }
 </script>
 
 <template>
   <BaseDrawer v-model="drawerOpen" title="템플릿 선택">
     <div class="template-list">
-      <div v-for="template in templates" :key="template.id" class="template-item">
+      <div v-for="template in templates" :key="template.templateId" class="template-item">
         <div class="template-header">
-          <span class="template-name">{{ template.name }}</span>
-          <button class="toggle-button" @click="toggleDetail(template.id)">
-            {{ isOpened(template.id) ? '닫기' : '자세히 보기' }}
+          <span class="template-name">{{ template.templateName }}</span>
+          <button class="toggle-button" @click="toggleDetail(template.templateId)">
+            {{ isOpened(template.templateId) ? '닫기' : '자세히 보기' }}
           </button>
         </div>
 
-        <div class="template-content">
-          {{ template.content }}
-        </div>
+        <div class="template-content">{{ template.templateContent }}</div>
 
-        <div v-if="isOpened(template.id)" class="template-detail">
+        <div v-if="isOpened(template.templateId)" class="template-detail">
           <div
             v-if="
               template.link || template.couponId || template.grades?.length || template.tags?.length
@@ -63,11 +66,11 @@
           >
             <div v-if="template.link" class="detail-item">링크: {{ template.link }}</div>
             <div v-if="template.couponId" class="detail-item">쿠폰 ID: {{ template.couponId }}</div>
-            <div v-if="template.grades?.length" class="detail-item">
-              등급: {{ template.grades.join(', ') }}
+            <div v-if="Array.isArray(template.grades)" class="detail-item">
+              등급: {{ template.grades?.join(', ') || '없음' }}
             </div>
-            <div v-if="template.tags?.length" class="detail-item">
-              태그: {{ template.tags.join(', ') }}
+            <div v-if="Array.isArray(template.tags)" class="detail-item">
+              태그: {{ template.tags?.join(', ') || '없음' }}
             </div>
           </div>
           <div v-else class="detail-empty">등록된 상세 정보가 없습니다.</div>
@@ -80,6 +83,15 @@
         </div>
       </div>
     </div>
+
+    <Pagination
+      v-if="pagination.totalPages > 1"
+      :current-page="pagination.currentPage + 1"
+      :total-pages="pagination.totalPages"
+      :total-items="pagination.totalItems"
+      :items-per-page="10"
+      @page-change="handlePageChange"
+    />
   </BaseDrawer>
 </template>
 
@@ -119,7 +131,7 @@
 
   .toggle-button {
     font-size: 13px;
-    color: var(--color-primary);
+    color: var(--color-primary-main);
     background: none;
     border: none;
     cursor: pointer;
@@ -130,6 +142,7 @@
     font-size: 14px;
     color: var(--color-gray-700);
     margin-bottom: 12px;
+    white-space: pre-wrap;
   }
 
   .template-detail {

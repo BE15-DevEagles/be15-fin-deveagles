@@ -18,11 +18,11 @@
 <template>
   <BaseModal v-model="modalOpen" title="템플릿 상세 보기">
     <div class="detail-content">
-      <p><strong>템플릿명:</strong> {{ template?.name }}</p>
-      <p><strong>유형:</strong> {{ template?.type || '없음' }}</p>
+      <p><strong>템플릿명:</strong> {{ template?.templateName }}</p>
+      <p><strong>유형:</strong> {{ template?.templateType || '없음' }}</p>
       <p><strong>등록일:</strong> {{ template?.createdAt }}</p>
       <p><strong>내용:</strong></p>
-      <div class="content-box">{{ template?.content }}</div>
+      <div class="content-box">{{ template?.templateContent }}</div>
     </div>
   </BaseModal>
 </template>

@@ -1,5 +1,7 @@
 <script setup>
   import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
+  import TemplatesAPI from '@/features/messages/api/templates.js';
+
   import BaseModal from '@/components/common/BaseModal.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import BaseButton from '@/components/common/BaseButton.vue';
@@ -7,7 +9,7 @@
   const props = defineProps({
     modelValue: Boolean,
   });
-  const emit = defineEmits(['update:modelValue', 'submit']);
+  const emit = defineEmits(['update:modelValue', 'success']);
 
   const visible = computed({
     get: () => props.modelValue,
@@ -25,23 +27,20 @@
 
   const variables = [
     '#{고객명}',
-    '#{잔여선불충전액}',
-    '#{잔여포인트}',
-    '#{상점명}',
+    '#{예약날짜}',
+    '#{횟수권잔여횟수}',
+    '#{선불권잔여금액}',
+    '#{프로필링크}',
     '#{인스타url}',
+    '#{상점명}',
   ];
 
   function insertVariable(variable) {
     const textarea = contentWrapper.value?.querySelector('textarea');
     if (!textarea) return;
-
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const before = content.value.slice(0, start);
-    const after = content.value.slice(end);
-
-    content.value = before + variable + after;
-
+    content.value = content.value.slice(0, start) + variable + content.value.slice(end);
     nextTick(() => {
       textarea.focus();
       textarea.selectionStart = textarea.selectionEnd = start + variable.length;
@@ -51,41 +50,42 @@
   function toggleDropdown() {
     showDropdown.value = !showDropdown.value;
   }
-
   function handleClickOutside(event) {
     if (dropdownWrapper.value && !dropdownWrapper.value.contains(event.target)) {
       showDropdown.value = false;
     }
   }
-
-  onMounted(() => {
-    window.addEventListener('click', handleClickOutside);
-  });
-  onBeforeUnmount(() => {
-    window.removeEventListener('click', handleClickOutside);
-  });
+  onMounted(() => window.addEventListener('click', handleClickOutside));
+  onBeforeUnmount(() => window.removeEventListener('click', handleClickOutside));
 
   function close() {
     visible.value = false;
   }
 
-  function submit() {
+  async function submit() {
     if (!name.value || !content.value) return;
 
-    emit('submit', {
-      id: Date.now(),
-      name: name.value,
-      content: content.value,
-      grade: grade.value,
-      tags: tags.value
-        .split(',')
-        .map(t => t.trim())
-        .filter(Boolean),
-      type: type.value,
-      createdAt: new Date().toISOString().slice(0, 10),
-    });
+    const typeEnum = {
+      안내: 'announcement',
+      광고: 'advertising',
+      기타: 'etc',
+    };
 
-    close();
+    const payload = {
+      templateName: name.value,
+      templateContent: content.value,
+      templateType: typeEnum[type.value] ?? 'announcement',
+      customerGradeId: null,
+      tagId: null,
+    };
+
+    try {
+      await TemplatesAPI.createTemplate(payload);
+      emit('success');
+      close();
+    } catch (error) {
+      alert('템플릿 등록에 실패했습니다.');
+    }
   }
 </script>
 
@@ -97,12 +97,8 @@
       <div class="form-group relative z-0">
         <div class="form-label-area">
           <label class="form-label">내용</label>
-
           <div ref="dropdownWrapper" class="dropdown-wrapper">
-            <BaseButton size="xs" type="ghost" @click.stop="toggleDropdown">
-              변수 삽입 ▼
-            </BaseButton>
-
+            <BaseButton size="xs" type="ghost" @click.stop="toggleDropdown">변수 삽입 ▼</BaseButton>
             <div v-if="showDropdown" class="dropdown-list">
               <div
                 v-for="v in variables"
@@ -115,7 +111,6 @@
             </div>
           </div>
         </div>
-
         <div ref="contentWrapper">
           <BaseForm
             v-model="content"
@@ -153,9 +148,9 @@
 
       <div class="flex justify-end mt-4">
         <BaseButton type="error" @click="close">취소</BaseButton>
-        <BaseButton type="primary" :disabled="!name || !content" class="ml-3" @click="submit">
-          등록
-        </BaseButton>
+        <BaseButton type="primary" :disabled="!name || !content" class="ml-3" @click="submit"
+          >등록</BaseButton
+        >
       </div>
     </div>
   </BaseModal>
@@ -180,9 +175,6 @@
     border-radius: 6px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
     z-index: 999;
-
-    min-width: max-content;
-    white-space: nowrap;
     padding: 4px 0;
   }
   .insert-item {

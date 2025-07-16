@@ -1,5 +1,7 @@
 <script setup>
   import { ref, computed, nextTick, watch, onMounted, onBeforeUnmount } from 'vue';
+  import TemplatesAPI from '@/features/messages/api/templates.js';
+
   import BaseModal from '@/components/common/BaseModal.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import BaseButton from '@/components/common/BaseButton.vue';
@@ -8,18 +10,17 @@
     modelValue: Boolean,
     template: {
       type: Object,
-      required: true,
+      required: false,
+      default: null,
     },
   });
-
-  const emit = defineEmits(['update:modelValue', 'submit']);
+  const emit = defineEmits(['update:modelValue', 'success']);
 
   const visible = computed({
     get: () => props.modelValue,
     set: val => emit('update:modelValue', val),
   });
 
-  // 입력값 상태
   const name = ref('');
   const content = ref('');
   const grade = ref('');
@@ -30,28 +31,23 @@
   const contentWrapper = ref(null);
   const dropdownWrapper = ref(null);
 
+  // 템플릿 내용 변수
   const variables = [
     '#{고객명}',
-    '#{예약확정일}',
     '#{예약날짜}',
-    '#{예약변경일}',
-    '#{예약취소일}',
-    '#{선불권금액}',
-    '#{횟수권횟수}',
+    '#{횟수권잔여횟수}',
+    '#{선불권잔여금액}',
+    '#{프로필링크}',
+    '#{인스타url}',
+    '#{상점명}',
   ];
 
-  // 변수 삽입
   function insertVariable(variable) {
     const textarea = contentWrapper.value?.querySelector('textarea');
     if (!textarea) return;
-
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const before = content.value.slice(0, start);
-    const after = content.value.slice(end);
-
-    content.value = before + variable + after;
-
+    content.value = content.value.slice(0, start) + variable + content.value.slice(end);
     nextTick(() => {
       textarea.focus();
       textarea.selectionStart = textarea.selectionEnd = start + variable.length;
@@ -61,29 +57,23 @@
   function toggleDropdown() {
     showDropdown.value = !showDropdown.value;
   }
-
   function handleClickOutside(event) {
     if (dropdownWrapper.value && !dropdownWrapper.value.contains(event.target)) {
       showDropdown.value = false;
     }
   }
-
-  onMounted(() => {
-    window.addEventListener('click', handleClickOutside);
-  });
-  onBeforeUnmount(() => {
-    window.removeEventListener('click', handleClickOutside);
-  });
+  onMounted(() => window.addEventListener('click', handleClickOutside));
+  onBeforeUnmount(() => window.removeEventListener('click', handleClickOutside));
 
   watch(
     () => props.modelValue,
     val => {
-      if (val && props.template?.id) {
-        name.value = props.template.name ?? '';
-        content.value = props.template.content ?? '';
+      if (val && props.template?.templateId) {
+        name.value = props.template.templateName ?? '';
+        content.value = props.template.templateContent ?? '';
+        type.value = props.template.templateType ?? '';
         grade.value = props.template.grade ?? '';
         tags.value = props.template.tags ?? [];
-        type.value = props.template.type ?? '안내';
       }
     },
     { immediate: true }
@@ -93,20 +83,25 @@
     visible.value = false;
   }
 
-  function submit() {
+  async function submit() {
     if (!name.value.trim() || !content.value.trim()) return;
 
-    emit('submit', {
-      id: props.template.id,
-      name: name.value,
-      content: content.value,
+    const payload = {
+      templateId: props.template.templateId,
+      templateName: name.value,
+      templateContent: content.value,
+      templateType: type.value,
       grade: grade.value,
       tags: tags.value,
-      type: type.value,
-      createdAt: props.template.createdAt,
-    });
+    };
 
-    close();
+    try {
+      await TemplatesAPI.updateTemplate(payload.templateId, payload);
+      emit('success');
+      close();
+    } catch (e) {
+      alert('템플릿 수정에 실패했습니다.');
+    }
   }
 </script>
 
@@ -119,10 +114,7 @@
         <div class="form-label-area">
           <label class="form-label">내용</label>
           <div ref="dropdownWrapper" class="dropdown-wrapper">
-            <BaseButton size="xs" type="ghost" @click.stop="toggleDropdown">
-              변수 삽입 ▼
-            </BaseButton>
-
+            <BaseButton size="xs" type="ghost" @click.stop="toggleDropdown">변수 삽입 ▼</BaseButton>
             <div v-if="showDropdown" class="dropdown-list">
               <div
                 v-for="v in variables"
@@ -135,7 +127,6 @@
             </div>
           </div>
         </div>
-
         <div ref="contentWrapper">
           <BaseForm
             v-model="content"
@@ -150,7 +141,11 @@
         v-model="type"
         type="select"
         label="유형"
-        :options="['안내', '광고', '기타']"
+        :options="[
+          { value: 'announcement', text: '안내' },
+          { value: 'advertising', text: '광고' },
+          { value: 'etc', text: '기타' },
+        ]"
         placeholder="유형 선택"
       />
 
@@ -158,7 +153,12 @@
         v-model="grade"
         type="select"
         label="대상 등급"
-        :options="['전체', 'VIP', 'VVIP']"
+        :options="[
+          { value: '', text: '전체' },
+          { value: 'VIP', text: 'VIP' },
+          { value: '단골', text: '단골' },
+          { value: '신규', text: '신규' },
+        ]"
         placeholder="등급 선택"
       />
 
