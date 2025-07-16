@@ -164,7 +164,10 @@
   }
   function handleReserveConfirm(payload) {
     messagesAPI
-      .sendMessage(payload)
+      .sendMessage({
+        ...payload,
+        messageContent: payload.content, // ✅ 이 줄 추가!
+      })
       .then(() => {
         toast.value?.success('예약 메시지 성공');
         showReserveModal.value = false;
@@ -172,6 +175,21 @@
         loadAllMessagesForStats();
       })
       .catch(() => toast.value?.error('예약 메시지 실패'));
+  }
+
+  function handleResend(msg) {
+    console.log('🔁 resend triggered', msg);
+    if (!msg?.messageId) return; // ✅ 여기를 messageId로 바꿈
+    messagesAPI
+      .resendFailedMessage(msg.messageId)
+      .then(() => {
+        toast.value?.success('메시지 재발송 요청 성공');
+        loadMessages();
+        loadAllMessagesForStats();
+      })
+      .catch(() => {
+        toast.value?.error('메시지 재발송 실패');
+      });
   }
 
   function handleOpenTemplateDrawer() {
@@ -287,6 +305,7 @@
             @delete="handleDelete"
             @show-detail="handleShowDetail"
             @edit="handleEditMessage"
+            @resend="handleResend"
           />
         </template>
       </BaseTable>

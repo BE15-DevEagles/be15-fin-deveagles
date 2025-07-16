@@ -21,6 +21,10 @@
 
   const emit = defineEmits(['update:modelValue', 'confirm']);
 
+  function toKSTISOString(date) {
+    const tzOffset = date.getTimezoneOffset() * 60000; // 540분 = 9시간
+    return new Date(date - tzOffset).toISOString().slice(0, 16); // 'YYYY-MM-DDTHH:mm'
+  }
   const selectedDate = ref(null);
 
   function close() {
@@ -37,7 +41,7 @@
       ...props.messageContent,
       messageSendingType: 'RESERVATION', // ✅ 중요
       customerIds: props.customers.map(c => c.id), // ✅ 리스트 형태
-      scheduledAt: selectedDate.value, // ✅ 예약 시간
+      scheduledAt: toKSTISOString(selectedDate.value), // ✅ 예약 시간
     });
 
     close();

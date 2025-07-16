@@ -189,6 +189,10 @@ coolsms:
 webhook:
   ai-url: ${AI_CHAT_WEBHOOK}
 
+app:
+  tracking:
+    base-url: ${REDIRECT_URL}
+
 # 개발환경 로그 레벨
 logging:
   level:
