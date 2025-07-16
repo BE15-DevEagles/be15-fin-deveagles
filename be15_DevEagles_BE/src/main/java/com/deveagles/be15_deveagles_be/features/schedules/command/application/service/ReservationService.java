@@ -53,7 +53,7 @@ public class ReservationService {
             .staffId(request.staffId())
             .shopId(request.shopId())
             .customerId(customerId)
-            .reservationStatusName(ReservationStatusName.PENDING)
+            .reservationStatusName(ReservationStatusName.CONFIRMED)
             .staffMemo(staffMemo)
             .reservationMemo(request.reservationMemo())
             .reservationStartAt(request.reservationStartAt())

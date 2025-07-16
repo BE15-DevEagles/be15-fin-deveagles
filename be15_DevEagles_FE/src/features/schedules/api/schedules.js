@@ -225,3 +225,8 @@ export const createCustomReservation = async payload => {
   const response = await api.post('/schedules/reservations', payload);
   return response.data.data;
 };
+
+export const getCustomerDetail = async customerId => {
+  const response = await api.get(`/customers/${customerId}`);
+  return response.data.data;
+};

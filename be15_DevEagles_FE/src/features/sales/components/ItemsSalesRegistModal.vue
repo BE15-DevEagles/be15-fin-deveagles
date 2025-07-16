@@ -30,7 +30,7 @@
           <div
             class="items-box"
             :class="{ clickable: selectedProducts.length === 0 }"
-            @click="selectedProducts.length === 0 && openProductModal()"
+            @click="handleBoxClick"
           >
             <template v-if="selectedProducts.length === 0">
               <p class="items-placeholder">영역을 클릭해<br />판매할 상품을 선택해주세요.</p>
@@ -45,7 +45,7 @@
                   <p>
                     <strong>{{ product.name }}</strong> ({{ formatPrice(product.price) }})
                   </p>
-                  <Button class="items-x-button" @click.stop="removeProduct(index)">×</Button>
+                  <button class="items-x-button" @click.stop="removeProduct(index)">×</button>
                 </div>
 
                 <div class="items-grid-container">
@@ -122,25 +122,37 @@
         <div class="items-form-right">
           <div class="items-form-right-body">
             <div class="search-row" style="position: relative">
+              <!-- 예약일 때 -->
               <BaseForm
-                v-model="searchKeyword"
+                v-if="isReservationMode"
                 type="text"
+                :model-value="`${customerName} - ${customerPhone}`"
+                readonly
                 class="items-customer-search"
-                placeholder="고객명 또는 연락처 검색"
-                @input="handleInput"
               />
-              <ul v-if="showDropdown" class="autocomplete-dropdown">
-                <li
-                  v-for="(customer, index) in searchResults"
-                  :key="customer.customer_id || index"
-                  @click="handleCustomerSelect(customer)"
-                >
-                  <div>
-                    <strong>{{ customer.customer_name }}</strong>
-                    <span style="margin-left: 8px; color: #888">{{ customer.phone_number }}</span>
-                  </div>
-                </li>
-              </ul>
+
+              <!-- 예약 아닐 때 -->
+              <template v-else>
+                <BaseForm
+                  v-model="searchKeyword"
+                  type="text"
+                  class="items-customer-search"
+                  placeholder="고객명 또는 연락처 검색"
+                  @input="handleInput"
+                />
+                <ul v-if="showDropdown" class="autocomplete-dropdown">
+                  <li
+                    v-for="(customer, index) in searchResults"
+                    :key="customer.customer_id || index"
+                    @click="handleCustomerSelect(customer)"
+                  >
+                    <div>
+                      <strong>{{ customer.customer_name }}</strong>
+                      <span style="margin-left: 8px; color: #888">{{ customer.phone_number }}</span>
+                    </div>
+                  </li>
+                </ul>
+              </template>
             </div>
 
             <div class="items-total-price-section">
@@ -241,7 +253,8 @@
 
     <ItemsSelectModal
       v-if="showProductModal"
-      @close="showProductModal = false"
+      v-model="showProductModal"
+      :selected-item-ids="alreadySelectedIds"
       @apply="applySelectedProducts"
     />
 
@@ -250,21 +263,25 @@
 </template>
 
 <script setup>
-  import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+  import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
   import ItemsSelectModal from '@/features/sales/components/ItemsSelectModal.vue';
   import BaseToast from '@/components/common/BaseToast.vue';
   import customersAPI from '@/features/customer/api/customers.js';
-  import { getAvailableSessionPasses } from '@/features/membership/api/membership.js';
+  import {
+    getAvailableSessionPasses,
+    getCustomerPrepaidPasses,
+  } from '@/features/membership/api/membership.js';
   import '@/features/sales/styles/SalesItemsModal.css';
   import { getStaff } from '@/features/staffs/api/staffs.js';
-  import { getCustomerPrepaidPasses } from '@/features/membership/api/membership.js';
-  import { registerItemSale } from '@/features/sales/api/sales.js';
+  import { getCustomerDetail, registerItemSale } from '@/features/sales/api/sales.js';
   import { useAuthStore } from '@/store/auth';
-  import couponsAPI from '@/features/coupons/api/coupons.js'; // 경로는 실제 위치에 맞게 조정
+  import couponsAPI from '@/features/coupons/api/coupons.js';
+  import { getActiveAllSecondaryItems } from '@/features/items/api/items.js';
 
+  const isReservationMode = computed(() => !!props.reservationId);
   const selectedPrepaidPassId = ref(null);
   const customerPrepaidPassOptions = ref([]);
   const prepaidTotalAmount = ref(0);
@@ -280,8 +297,11 @@
   const selectedMethods = ref([]);
   const paymentAmounts = ref({});
   const globalDiscountRate = ref(0);
+  const customerName = ref('');
+  const customerPhone = ref('');
   const discountRates = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
   const discountRateOptions = discountRates.map(rate => ({ value: rate, text: `${rate}%` }));
+  const openProductModal = () => (showProductModal.value = true);
   const methods = ref([
     { key: 'prepaid', label: '선불권' },
     { key: 'card', label: '카드 결제' },
@@ -294,7 +314,7 @@
       return sum + (paymentAmounts.value[key] || 0);
     }, 0)
   );
-
+  const alreadySelectedIds = computed(() => selectedProducts.value.map(p => p.id));
   const totalPrice = computed(() =>
     selectedProducts.value.reduce((sum, item) => sum + (item.finalPrice || 0), 0)
   );
@@ -302,8 +322,6 @@
     Math.floor((totalPrice.value * globalDiscountRate.value) / 100)
   );
   const finalTotalPrice = computed(() => totalPrice.value - globalDiscountAmount.value);
-
-  const openProductModal = () => (showProductModal.value = true);
 
   // 🔍 고객 검색 관련
   const customerId = ref(null);
@@ -313,9 +331,40 @@
   const cachedCustomers = ref([]);
   const lastFetchTime = ref(0);
   const CACHE_DURATION = 5 * 60 * 1000;
-
+  const selectedIds = ref([]);
   const isSearching = ref(false);
   const searchTimeout = ref(null);
+  const allProducts = ref([]);
+
+  const props = defineProps({
+    reservationId: {
+      type: Number,
+      required: false,
+      default: null,
+    },
+    initialCustomerId: {
+      type: Number,
+      required: false,
+      default: null,
+    },
+    services: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+  });
+  watch(
+    () => props.services,
+    newIds => {
+      selectedIds.value = [...newIds];
+    },
+    { immediate: true }
+  );
+  const handleBoxClick = () => {
+    if (selectedProducts.value.length === 0) {
+      openProductModal();
+    }
+  };
 
   const fetchCustomers = async () => {
     const now = Date.now();
@@ -398,8 +447,8 @@
     customerId.value = customer.customer_id;
     showDropdown.value = false;
 
-    updateSessionPassesForProducts();
-    await fetchPrepaidTotalAmount(); // ← 고객 선택 시 선불권 총액 조회
+    await updateSessionPassesForProducts();
+    await fetchPrepaidTotalAmount();
   };
 
   const handleInput = () => {
@@ -419,19 +468,19 @@
       try {
         allSessionPasses = await getAvailableSessionPasses(customerId.value);
       } catch (e) {
-        console.warn('[SalesItemsModal] 전체 session pass 조회 실패', e);
+        console.warn('[SalesItemsModal] session pass 조회 실패', e);
       }
     }
 
     for (const p of products) {
       if (existingIds.includes(p.id)) continue;
+      if (!('id' in p)) continue;
 
       const price = p.price || 0;
       const quantity = 1;
-      const total = price * quantity;
-      const rate = 0;
-      const discountAmount = 0;
-      const finalPrice = total - discountAmount;
+      const baseTotal = price * quantity;
+      const discountAmount = 0; // 초기에는 할인 없음
+      const finalPrice = baseTotal - discountAmount;
 
       const availableSessionPasses = !customerId.value
         ? [{ value: '', text: '고객을 먼저 선택해주세요' }]
@@ -452,7 +501,7 @@
         deduction: '',
         availableSessionPasses,
         manager: '',
-        discountRate: rate,
+        discountRate: 0,
         discountAmount,
         finalPrice,
         couponCode: '',
@@ -476,12 +525,63 @@
       console.error('직원 목록 불러오기 실패:', e);
     }
   };
-
-  onMounted(() => {
+  onMounted(async () => {
     window.addEventListener('keydown', handleKeydown);
-    fetchCustomers();
-    fetchStaffs();
+    await fetchCustomers();
+    await fetchStaffs();
+    console.log('자식에서 받은 services', props.services);
+
+    if (props.reservationId && props.initialCustomerId) {
+      try {
+        const detail = await getCustomerDetail(props.initialCustomerId);
+        customerName.value = detail.customerName || '';
+        customerPhone.value = detail.phoneNumber || '';
+        customerId.value = props.initialCustomerId;
+      } catch (e) {
+        console.error('고객 정보 조회 실패:', e);
+      }
+
+      await fetchPrepaidTotalAmount();
+    }
+
+    const result = await getActiveAllSecondaryItems();
+    allProducts.value = result.map(item => ({
+      id: item.secondaryItemId,
+      name: item.secondaryItemName,
+      price: item.secondaryItemPrice,
+    }));
   });
+  watch(
+    [() => props.services, allProducts],
+    ([serviceIds, all]) => {
+      // 둘 중 하나라도 준비 안 됐으면 return
+      if (!serviceIds || serviceIds.length === 0) {
+        selectedProducts.value = [];
+        return;
+      }
+      if (!all || all.length === 0) {
+        return;
+      }
+
+      const matched = all.filter(p => serviceIds.includes(p.id));
+      selectedProducts.value = matched.map(p => ({
+        ...p,
+        quantity: 1,
+        deduction: '',
+        availableSessionPasses: [{ value: '', text: '고객을 먼저 선택해주세요' }],
+        manager: '',
+        discountRate: 0,
+        discountAmount: 0,
+        finalPrice: p.price,
+        couponCode: '',
+        couponInfo: '',
+        couponId: null,
+        couponDiscountRate: 0,
+      }));
+    },
+    { immediate: true }
+  );
+
   onBeforeUnmount(() => {
     window.removeEventListener('keydown', handleKeydown);
   });
@@ -496,7 +596,6 @@
       if (!methods.includes(key)) delete paymentAmounts.value[key];
     });
   });
-
   const applyGlobalDiscount = () => {};
 
   const recalculateProduct = index => {
@@ -518,11 +617,8 @@
 
     const finalPrice = sessionPassApplied ? 0 : baseTotal - finalDiscount;
 
-    selectedProducts.value[index] = {
-      ...product,
-      discountAmount: finalDiscount,
-      finalPrice,
-    };
+    product.discountAmount = finalDiscount;
+    product.finalPrice = finalPrice;
   };
 
   const removeProduct = index => selectedProducts.value.splice(index, 1);
@@ -533,6 +629,11 @@
       return;
     }
 
+    const invalid = selectedProducts.value.find(p => !p.quantity || p.quantity < 1);
+    if (invalid) {
+      toastRef.value?.error(`"${invalid.name}" 상품의 수량이 올바르지 않습니다.`);
+      return;
+    }
     if (totalPaymentAmount.value !== finalTotalPrice.value) {
       toastRef.value?.error(
         `결제 수단의 합계가 최종 금액과 일치하지 않습니다.\n합계: ${formatPrice(totalPaymentAmount.value)} / 최종 금액: ${formatPrice(finalTotalPrice.value)}`
@@ -590,9 +691,9 @@
         customerId: customerId.value,
         staffId: product.manager,
         shopId: Number(authStore.shopId),
-        reservationId: null,
+        reservationId: props.reservationId,
         discountRate: product.discountRate || 0,
-        couponId: product.couponId || null, // 추후 쿠폰 처리 필요
+        couponId: product.couponId || null,
         quantity: product.quantity,
         retailPrice: product.price,
         discountAmount: product.discountAmount || 0,

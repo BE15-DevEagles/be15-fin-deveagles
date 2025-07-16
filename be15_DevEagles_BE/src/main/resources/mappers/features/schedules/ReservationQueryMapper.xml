@@ -56,6 +56,7 @@
             resultType="com.deveagles.be15_deveagles_be.features.schedules.query.dto.response.ReservationDetailResponse">
         SELECT
             r.reservation_id AS reservationId,
+            c.customer_id AS customerId,
             c.customer_name AS customerName,
             c.phone_number AS customerPhone,
             r.reservation_start_at AS reservationStartAt,

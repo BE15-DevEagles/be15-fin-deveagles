@@ -106,6 +106,7 @@ class ReservationQueryServiceTest {
     ReservationDetailResponse mockResponse =
         new ReservationDetailResponse(
             reservationId,
+            1L,
             "김민수",
             "010-1234-5678",
             LocalDateTime.of(2025, 7, 1, 10, 0),

@@ -4,7 +4,7 @@
       <div class="modal-box">
         <div class="modal-header">
           <h2 class="title">상품 선택</h2>
-          <Button type="ghost" size="sm" @click="closeModal">×</Button>
+          <button type="ghost" size="sm" @click="closeModal">×</button>
         </div>
 
         <div class="modal-content">
@@ -54,11 +54,16 @@
 </template>
 
 <script setup>
-  import { ref, computed, defineEmits, onMounted } from 'vue';
+  import { ref, computed, defineEmits, onMounted, watch } from 'vue';
   import BaseButton from '@/components/common/BaseButton.vue';
   import { getActiveAllSecondaryItems } from '@/features/items/api/items.js';
 
-  const emit = defineEmits(['close', 'apply']);
+  const props = defineProps({
+    modelValue: { type: Boolean, default: false },
+    selectedItemIds: { type: Array, default: () => [] },
+  });
+
+  const emit = defineEmits(['close', 'apply', 'update:modelValue']);
 
   const tabs = ['SERVICE', 'PRODUCT'];
   const selectedTab = ref('SERVICE');
@@ -74,7 +79,7 @@
         id: item.secondaryItemId,
         name: item.secondaryItemName,
         price: item.secondaryItemPrice,
-        type: item.timeTaken === null ? 'PRODUCT' : 'SERVICE', // ← 핵심 수정
+        type: item.timeTaken === null ? 'PRODUCT' : 'SERVICE',
       }));
     } catch (e) {
       console.error('상품 목록 조회 실패:', e);
@@ -82,6 +87,14 @@
       loading.value = false;
     }
   });
+
+  watch(
+    () => props.selectedItemIds,
+    newVal => {
+      selectedIds.value = [...newVal];
+    },
+    { immediate: true }
+  );
 
   const filteredProducts = computed(() =>
     productList.value.filter(p => p.type === selectedTab.value)
@@ -93,18 +106,21 @@
 
   const toggleSelection = product => {
     const index = selectedIds.value.indexOf(product.id);
-    if (index > -1) selectedIds.value.splice(index, 1);
-    else selectedIds.value.push(product.id);
+    if (index > -1) {
+      selectedIds.value.splice(index, 1);
+    } else {
+      selectedIds.value.push(product.id);
+    }
   };
 
   const applySelection = () => {
     const selectedItems = productList.value.filter(p => selectedIds.value.includes(p.id));
     emit('apply', selectedItems);
-    emit('close');
+    emit('update:modelValue', false);
   };
 
   const closeModal = () => {
-    emit('close');
+    emit('update:modelValue', false); // 모달 닫기
   };
 
   const formatPrice = price => `${price.toLocaleString()}원`;

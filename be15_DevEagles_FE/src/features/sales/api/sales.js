@@ -58,3 +58,8 @@ export const updateItemSales = async (salesId, payload) => {
 export const refundItemSales = async salesId => {
   return await api.put(`/item-sales/refund/${salesId}`);
 };
+
+export const getCustomerDetail = async customerId => {
+  const response = await api.get(`/customers/${customerId}`);
+  return response.data.data;
+};

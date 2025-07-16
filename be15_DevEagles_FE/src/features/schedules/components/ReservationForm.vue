@@ -273,7 +273,7 @@
     background: white;
     border: 1px solid var(--color-gray-300);
     border-radius: 4px;
-    z-index: 100;
+    z-index: 100 !important;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   }
 
