@@ -131,6 +131,19 @@ class MessagesAPI {
       throw this.handleApiError(error);
     }
   }
+
+  async resendFailedMessage(messageId) {
+    const url = `${BASE_URL}/${messageId}/resend`;
+    try {
+      logger.request('POST', url);
+      const res = await api.post(url);
+      logger.response('POST', url, res.status, res.data);
+      return res.data.data;
+    } catch (error) {
+      logger.error('POST', url, error);
+      throw this.handleApiError(error);
+    }
+  }
 }
 
 const messagesAPI = new MessagesAPI();

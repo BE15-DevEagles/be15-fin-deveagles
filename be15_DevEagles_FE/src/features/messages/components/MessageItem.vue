@@ -27,6 +27,18 @@
     }
     return statusLabel.value || '기타';
   });
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
 </script>
 
 <template>
@@ -46,7 +58,7 @@
       <div class="cell-content">{{ statusText }}</div>
     </td>
     <td>
-      <div class="cell-content">{{ props.message.date }}</div>
+      <div class="cell-content">{{ formatDate(props.message.date) }}</div>
     </td>
     <td>
       <div class="cell-content">
@@ -79,7 +91,12 @@
             type="ghost"
             size="sm"
             class="icon-button"
-            @click="$emit('resend', props.message)"
+            @click="
+              () => {
+                console.log('🔁 emit');
+                emit('resend', props.message);
+              }
+            "
           >
             <span style="font-size: 14px">🔁</span>
           </BaseButton>

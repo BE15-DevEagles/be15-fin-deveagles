@@ -70,9 +70,11 @@
 
   watch(selectedCoupon, (newCoupon, oldCoupon) => {
     if (!newCoupon || !newCoupon.couponTitle || newCoupon === oldCoupon) return;
-    const regex = /\[쿠폰\].*?\(\s*할인율:\s*\d+%\)/g;
+
+    const regex = /\[쿠폰\].*?\(\s*할인율:\s*\d+%\)(\n코드:\s*\w+)?/g;
     messageContent.value = messageContent.value.replace(regex, '').trim();
-    const couponText = `\n[쿠폰] ${newCoupon.couponTitle} (할인율: ${newCoupon.discountRate}%)`;
+
+    const couponText = `\n[쿠폰] ${newCoupon.couponTitle} (할인율: ${newCoupon.discountRate}%)\n코드: ${newCoupon.couponCode}`;
     messageContent.value = (messageContent.value + couponText).trim();
   });
 
@@ -150,13 +152,8 @@
   function confirmSend(type) {
     if (!messageContent.value.trim()) return;
 
-    const highlightedContent = messageContent.value.replace(
-      /\[쿠폰\].*?\(\s*할인율:\s*\d+%\)/g,
-      match => `<b>${match}</b>`
-    );
-
     const payload = {
-      messageContent: highlightedContent,
+      messageContent: messageContent.value,
       messageType: 'SMS',
       link: linkUrl.value || null,
       coupon: selectedCoupon.value,
