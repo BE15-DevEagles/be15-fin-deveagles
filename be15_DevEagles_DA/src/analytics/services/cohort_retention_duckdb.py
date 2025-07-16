@@ -6,14 +6,20 @@ DuckDB에서 데이터를 조회하여 코호트 리텐션 분석을 수행합�
 
 import pandas as pd
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import seaborn as sns
+
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import matplotlib.font_manager as fm
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+
 from datetime import datetime, timedelta
 import warnings
 import os
-import matplotlib.font_manager as fm
 
 from analytics.core.logging import get_logger
 from analytics.core.database import get_analytics_db, get_crm_db

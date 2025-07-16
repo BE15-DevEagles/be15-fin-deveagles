@@ -36,6 +36,106 @@ class DuckDBClient:
         # 기존 database.py의 global manager가 연결을 관리하므로 여기서는 참조만 해제
         self._connection = None
         self.logger.info("DuckDB 연결 참조 해제")
+        
+    def validate_table_schema(self, table_name: str, expected_columns: List[str]) -> Dict[str, Any]:
+        """테이블 스키마 검증"""
+        try:
+            conn = self.connect()
+            
+            # 테이블 존재 여부 확인
+            table_exists = conn.execute("""
+                SELECT COUNT(*) FROM information_schema.tables 
+                WHERE table_name = ?
+            """, [table_name]).fetchone()[0]
+            
+            if table_exists == 0:
+                return {
+                    "valid": False,
+                    "error": f"테이블 '{table_name}'이 존재하지 않습니다.",
+                    "missing_columns": expected_columns
+                }
+            
+            # 현재 테이블의 컬럼 목록 조회
+            current_columns_result = conn.execute(f"DESCRIBE {table_name}").fetchall()
+            current_columns = [row[0] for row in current_columns_result]
+            
+            # 누락된 컬럼과 추가된 컬럼 확인
+            missing_columns = [col for col in expected_columns if col not in current_columns]
+            extra_columns = [col for col in current_columns if col not in expected_columns]
+            
+            is_valid = len(missing_columns) == 0
+            
+            return {
+                "valid": is_valid,
+                "current_columns": current_columns,
+                "expected_columns": expected_columns,
+                "missing_columns": missing_columns,
+                "extra_columns": extra_columns,
+                "table_exists": True
+            }
+            
+        except Exception as e:
+            self.logger.error(f"테이블 스키마 검증 실패: {e}")
+            return {
+                "valid": False,
+                "error": str(e),
+                "table_exists": False
+            }
+            
+    def validate_all_required_tables(self) -> Dict[str, Any]:
+        """모든 필수 테이블의 스키마 검증"""
+        required_tables = {
+            "customer_analytics": [
+                "customer_id", "name", "phone", "email", "birth_date", "gender",
+                "first_visit_date", "last_visit_date", "total_visits", "total_amount",
+                "avg_visit_amount", "lifecycle_days", "days_since_last_visit",
+                "visit_frequency", "preferred_services", "preferred_employees",
+                "visits_3m", "amount_3m", "segment", "segment_updated_at",
+                "churn_risk_score", "churn_risk_level", "updated_at"
+            ],
+            "customer": [
+                "customer_id", "customer_name", "phone_number", "visit_count",
+                "total_revenue", "recent_visit_date", "birthdate", "noshow_count",
+                "gender", "marketing_consent", "channel_id", "created_at",
+                "modified_at", "shop_id", "shop_name", "industry_id", "extracted_at"
+            ],
+            "shop": [
+                "shop_id", "shop_name", "owner_id", "address", "detail_address",
+                "phone_number", "business_number", "industry_id", "incentive_status",
+                "reservation_term", "shop_description", "created_at", "modified_at",
+                "extracted_at"
+            ],
+            "reservation": [
+                "reservation_id", "staff_id", "shop_id", "customer_id",
+                "reservation_status_name", "staff_memo", "reservation_memo",
+                "reservation_start_at", "reservation_end_at", "created_at",
+                "modified_at", "shop_name", "customer_name", "extracted_at"
+            ],
+            "sales": [
+                "sales_id", "customer_id", "staff_id", "shop_id", "reservation_id",
+                "discount_rate", "retail_price", "discount_amount", "total_amount",
+                "sales_memo", "sales_date", "is_refunded", "created_at",
+                "modified_at", "customer_name", "gender", "birthdate",
+                "shop_name", "extracted_at"
+            ]
+        }
+        
+        validation_results = {}
+        overall_valid = True
+        
+        for table_name, expected_columns in required_tables.items():
+            result = self.validate_table_schema(table_name, expected_columns)
+            validation_results[table_name] = result
+            
+            if not result["valid"]:
+                overall_valid = False
+                
+        return {
+            "overall_valid": overall_valid,
+            "table_results": validation_results,
+            "total_tables": len(required_tables),
+            "valid_tables": sum(1 for r in validation_results.values() if r["valid"])
+        }
             
     def execute_query(self, query: str, params: List[Any] = None) -> pd.DataFrame:
         """쿼리 실행하여 DataFrame 반환"""
@@ -91,15 +191,22 @@ class DuckDBClient:
             count_query = f"SELECT COUNT(*) as record_count FROM {table_name}"
             count_result = self.execute_query(count_query)
             
-            # 최근 업데이트 시간
-            update_query = f"SELECT MAX(extracted_at) as last_updated FROM {table_name}"
-            update_result = self.execute_query(update_query)
+            # 최근 업데이트 시간 (컬럼 존재 여부 확인 후 처리)
+            try:
+                if table_name in ['customer', 'shop', 'reservation', 'sales']:
+                    update_query = f"SELECT MAX(extracted_at) as last_updated FROM {table_name}"
+                else:
+                    update_query = f"SELECT MAX(updated_at) as last_updated FROM {table_name}"
+                update_result = self.execute_query(update_query)
+                last_updated = update_result['last_updated'].iloc[0]
+            except:
+                last_updated = None
             
             return {
                 "exists": True,
                 "schema": schema_df.to_dict('records'),
                 "record_count": count_result['record_count'].iloc[0],
-                "last_updated": update_result['last_updated'].iloc[0]
+                "last_updated": last_updated
             }
             
         except Exception as e:
@@ -113,8 +220,7 @@ class DuckDBClient:
             SELECT 
                 table_name,
                 last_updated,
-                records_count,
-                etl_date,
+                records_processed as records_count,
                 status
             FROM etl_metadata
             ORDER BY last_updated DESC
@@ -130,7 +236,7 @@ class DuckDBClient:
         try:
             cutoff_time = datetime.now() - timedelta(hours=hours)
             
-            tables = ['customers', 'shops', 'reservations', 'sales']
+            tables = ['customer', 'shop', 'reservation', 'sales']
             freshness_report = {}
             
             for table in tables:
@@ -187,7 +293,7 @@ class AnalyticsDataService:
             shop_id,
             shop_name,
             industry_id
-        FROM customers
+        FROM customer
         WHERE 1=1
         """
         
@@ -216,7 +322,7 @@ class AnalyticsDataService:
             created_at,
             shop_name,
             customer_name
-        FROM reservations
+        FROM reservation
         WHERE reservation_start_at >= CURRENT_DATE - INTERVAL '{days}' DAY
         """.format(days=days_back)
         
@@ -278,8 +384,8 @@ class AnalyticsDataService:
             r.reservation_id,
             r.reservation_start_at,
             r.reservation_status_name
-        FROM customers c
-        LEFT JOIN reservations r ON c.customer_id = r.customer_id
+        FROM customer c
+        LEFT JOIN reservation r ON c.customer_id = r.customer_id
         WHERE r.reservation_status_name IN ('CONFIRMED', 'PAID')
         ORDER BY c.created_at, r.reservation_start_at
         """
@@ -311,8 +417,8 @@ class AnalyticsDataService:
             AVG(s.total_amount) as avg_order_value,
             SUM(s.total_amount) as total_sales_amount,
             COUNT(s.sales_id) as total_sales_count
-        FROM customers c
-        LEFT JOIN reservations r ON c.customer_id = r.customer_id
+        FROM customer c
+        LEFT JOIN reservation r ON c.customer_id = r.customer_id
         LEFT JOIN sales s ON c.customer_id = s.customer_id
         GROUP BY c.customer_id
         """
@@ -332,9 +438,9 @@ class AnalyticsDataService:
             SUM(sl.total_amount) as total_revenue,
             AVG(sl.total_amount) as avg_order_value,
             COUNT(DISTINCT DATE(r.reservation_start_at)) as active_days
-        FROM shops s
-        LEFT JOIN customers c ON s.shop_id = c.shop_id
-        LEFT JOIN reservations r ON s.shop_id = r.shop_id
+        FROM shop s
+        LEFT JOIN customer c ON s.shop_id = c.shop_id
+        LEFT JOIN reservation r ON s.shop_id = r.shop_id
         LEFT JOIN sales sl ON s.shop_id = sl.shop_id
         GROUP BY s.shop_id, s.shop_name, s.industry_id
         ORDER BY total_revenue DESC

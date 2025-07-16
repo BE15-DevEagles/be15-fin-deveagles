@@ -5,6 +5,8 @@ import com.deveagles.be15_deveagles_be.features.customers.command.domain.reposit
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -46,5 +48,21 @@ public class CustomerRepositoryImpl implements CustomerRepository {
   @Override
   public boolean existsByPhoneNumberAndShopId(String phoneNumber, Long shopId) {
     return jpaRepository.existsByPhoneNumberAndShopIdAndDeletedAtIsNull(phoneNumber, shopId);
+  }
+
+  @Override
+  public List<Customer> findAll() {
+    return jpaRepository.findAll();
+  }
+
+  @Override
+  public long count() {
+    return jpaRepository.count();
+  }
+
+  @Override
+  public List<Customer> findAllWithPagination(int page, int size) {
+    Pageable pageable = PageRequest.of(page, size);
+    return jpaRepository.findAll(pageable).getContent();
   }
 }
