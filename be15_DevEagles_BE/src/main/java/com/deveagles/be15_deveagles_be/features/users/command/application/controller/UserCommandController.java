@@ -2,6 +2,11 @@ package com.deveagles.be15_deveagles_be.features.users.command.application.contr
 
 import com.deveagles.be15_deveagles_be.common.dto.ApiResponse;
 import com.deveagles.be15_deveagles_be.features.auth.command.application.model.CustomUser;
+import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.request.CreateCustomerGradeRequest;
+import com.deveagles.be15_deveagles_be.features.customers.command.application.dto.request.CreateCustomerRequest;
+import com.deveagles.be15_deveagles_be.features.customers.command.application.service.CustomerCommandService;
+import com.deveagles.be15_deveagles_be.features.customers.command.application.service.CustomerGradeCommandService;
+import com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Customer;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.service.MessageSettingsCommandService;
 import com.deveagles.be15_deveagles_be.features.shops.command.application.service.ShopCommandService;
 import com.deveagles.be15_deveagles_be.features.shops.command.domain.aggregate.Shop;
@@ -12,6 +17,7 @@ import com.deveagles.be15_deveagles_be.features.users.command.application.servic
 import com.deveagles.be15_deveagles_be.features.users.command.domain.aggregate.Staff;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -30,6 +36,8 @@ public class UserCommandController {
   private final UserCommandService userCommandService;
   private final ShopCommandService shopCommandService;
   private final MessageSettingsCommandService messageSettingsCommandService;
+  private final CustomerCommandService customerCommandService;
+  private final CustomerGradeCommandService customerGradeCommandService;
 
   @PostMapping()
   public ResponseEntity<ApiResponse<Void>> userCreate(
@@ -39,6 +47,42 @@ public class UserCommandController {
     Staff staff = userCommandService.userRegist(request.user(), shop.getShopId());
     shopCommandService.patchOwnerId(shop, staff.getStaffId());
     messageSettingsCommandService.createDefault(shop.getShopId());
+
+    CreateCustomerGradeRequest gradeRequest =
+        new CreateCustomerGradeRequest(shop.getShopId(), "기본등급", 0);
+    Long gradeId = customerGradeCommandService.createCustomerGrade(gradeRequest);
+
+    CreateCustomerRequest customer_f =
+        new CreateCustomerRequest(
+            gradeId,
+            staff.getStaffId(),
+            "미등록-여자",
+            "01000000000",
+            null,
+            LocalDate.now(),
+            Customer.Gender.F,
+            false,
+            false,
+            5L,
+            null);
+
+    customerCommandService.createUnknownCustomer(shop.getShopId(), customer_f);
+
+    CreateCustomerRequest customer_m =
+        new CreateCustomerRequest(
+            gradeId,
+            staff.getStaffId(),
+            "미등록-남자",
+            "01000000000",
+            null,
+            LocalDate.now(),
+            Customer.Gender.M,
+            false,
+            false,
+            5L,
+            null);
+
+    customerCommandService.createUnknownCustomer(shop.getShopId(), customer_m);
 
     return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(null));
   }

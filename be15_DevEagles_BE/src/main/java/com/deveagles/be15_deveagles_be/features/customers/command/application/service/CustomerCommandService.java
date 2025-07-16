@@ -19,4 +19,6 @@ public interface CustomerCommandService {
   CustomerCommandResponse addVisit(Long customerId, Long shopId, Integer revenue);
 
   CustomerCommandResponse addNoshow(Long customerId, Long shopId);
+
+  void createUnknownCustomer(Long shopId, CreateCustomerRequest customer);
 }

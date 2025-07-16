@@ -183,6 +183,27 @@ public class CustomerCommandServiceImpl implements CustomerCommandService {
     return CustomerCommandResponse.from(updatedCustomer);
   }
 
+  @Override
+  public void createUnknownCustomer(Long shopId, CreateCustomerRequest request) {
+
+    Customer customer =
+        Customer.builder()
+            .shopId(shopId)
+            .customerGradeId(request.customerGradeId())
+            .customerName(request.customerName())
+            .gender(request.gender())
+            .birthdate(request.birthdate())
+            .channelId(request.channelId())
+            .marketingConsent(request.marketingConsent())
+            .notificationConsent(request.notificationConsent())
+            .phoneNumber(request.phoneNumber())
+            .memo(request.memo())
+            .staffId(request.staffId())
+            .build();
+
+    customerRepository.save(customer);
+  }
+
   // SecurityContext에서 현재 사용자의 shopId 가져오기
   private Long getCurrentShopId() {
     CustomUser user =
