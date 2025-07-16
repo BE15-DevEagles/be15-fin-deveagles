@@ -7,8 +7,13 @@ import com.deveagles.be15_deveagles_be.common.exception.BusinessException;
 import com.deveagles.be15_deveagles_be.common.exception.ErrorCode;
 import com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Customer;
 import com.deveagles.be15_deveagles_be.features.customers.command.domain.repository.CustomerRepository;
+import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerDetailResponse;
+import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerQueryService;
+import com.deveagles.be15_deveagles_be.features.membership.command.domain.aggregate.CustomerPrepaidPass;
+import com.deveagles.be15_deveagles_be.features.membership.command.domain.aggregate.CustomerSessionPass;
 import com.deveagles.be15_deveagles_be.features.membership.command.domain.repository.CustomerPrepaidPassRepository;
 import com.deveagles.be15_deveagles_be.features.membership.command.domain.repository.CustomerSessionPassRepository;
+import com.deveagles.be15_deveagles_be.features.messages.command.application.service.AutomaticMessageTriggerService;
 import com.deveagles.be15_deveagles_be.features.sales.command.application.dto.request.ItemSalesRequest;
 import com.deveagles.be15_deveagles_be.features.sales.command.application.dto.request.PaymentsInfo;
 import com.deveagles.be15_deveagles_be.features.sales.command.domain.aggregate.ItemSales;
@@ -36,6 +41,10 @@ class ItemSalesCommandServiceImplTest {
   private ItemSalesRepository itemSalesRepository;
   private ItemSalesCommandServiceImpl service;
   private CustomerMembershipHistoryRepository customerMembershipHistoryRepository;
+  private AutomaticMessageTriggerService automaticMessageTriggerService;
+  private CustomerQueryService customerQueryService;
+  private CustomerPrepaidPassRepository customerPrepaidPassRepository;
+  private CustomerSessionPassRepository customerSessionPassRepository;
 
   @BeforeEach
   void setUp() {
@@ -46,6 +55,10 @@ class ItemSalesCommandServiceImplTest {
     customerRepository = mock(CustomerRepository.class);
     itemSalesRepository = mock(ItemSalesRepository.class);
     customerMembershipHistoryRepository = mock(CustomerMembershipHistoryRepository.class);
+    automaticMessageTriggerService = mock(AutomaticMessageTriggerService.class);
+    customerQueryService = mock(CustomerQueryService.class);
+    customerPrepaidPassRepository = mock(CustomerPrepaidPassRepository.class);
+    customerSessionPassRepository = mock(CustomerSessionPassRepository.class);
 
     service =
         new ItemSalesCommandServiceImpl(
@@ -55,7 +68,9 @@ class ItemSalesCommandServiceImplTest {
             paymentsRepository,
             customerRepository,
             itemSalesRepository,
-            customerMembershipHistoryRepository);
+            customerMembershipHistoryRepository,
+            customerQueryService,
+            automaticMessageTriggerService);
   }
 
   @Test
@@ -90,7 +105,36 @@ class ItemSalesCommandServiceImplTest {
 
     Customer customer = mock(Customer.class);
     when(customerRepository.findById(req.getCustomerId())).thenReturn(Optional.of(customer));
+    Sales savedSales = mock(Sales.class);
+    when(savedSales.getSalesId()).thenReturn(100L);
+    when(salesRepository.save(any())).thenReturn(savedSales);
 
+    // Payments: ID 포함된 mock 객체
+    Payments savedPayment = mock(Payments.class);
+    when(savedPayment.getPaymentsId()).thenReturn(200L);
+    when(paymentsRepository.save(any())).thenReturn(savedPayment);
+
+    // 선불권
+    CustomerPrepaidPass prepaidPass = mock(CustomerPrepaidPass.class);
+    when(prepaidPass.getCustomerPrepaidPassId()).thenReturn(300L);
+    when(prepaidPass.getRemainingAmount()).thenReturn(9000);
+    when(customerPrepaidPassRepository.findById(any())).thenReturn(Optional.of(prepaidPass));
+
+    // 횟수권
+    CustomerSessionPass sessionPass = mock(CustomerSessionPass.class);
+    when(sessionPass.getCustomerSessionPassId()).thenReturn(400L);
+    when(sessionPass.getRemainingCount()).thenReturn(8);
+    when(customerSessionPassRepository.findById(any())).thenReturn(Optional.of(sessionPass));
+
+    // 고객 상세 정보
+    CustomerDetailResponse customerDto =
+        CustomerDetailResponse.builder()
+            .customerId(req.getCustomerId())
+            .shopId(req.getShopId())
+            .customerName("홍길동")
+            .remainingPrepaidAmount(9000)
+            .build();
+    when(customerQueryService.getCustomerDetail(any(), any())).thenReturn(Optional.of(customerDto));
     service.registItemSales(req);
 
     verify(salesRepository).save(any());

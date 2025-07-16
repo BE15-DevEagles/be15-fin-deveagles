@@ -85,7 +85,6 @@ export const safeSubscribeToRoom = (roomId, onReceive) => {
   });
 
   subscriptionMap.set(roomId, sub);
-  console.info(`📡 구독 완료: ${roomId}`);
 };
 
 export const subscribeToNewRoom = (roomId, onReceive) => {

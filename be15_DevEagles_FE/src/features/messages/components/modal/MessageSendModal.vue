@@ -45,16 +45,14 @@
   const variableButtonRef = ref(null);
   const selectedKind = ref('advertising');
 
-  const sendingType = ref('IMMEDIATE');
-
   const variables = [
     '#{고객명}',
-    '#{예약확정일}',
     '#{예약날짜}',
-    '#{예약변경일}',
-    '#{예약취소일}',
-    '#{선불권금액}',
-    '#{횟수권횟수}',
+    '#{횟수권잔여횟수}',
+    '#{선불권잔여금액}',
+    '#{프로필링크}',
+    '#{인스타url}',
+    '#{상점명}',
   ];
 
   watch(
@@ -152,8 +150,13 @@
   function confirmSend(type) {
     if (!messageContent.value.trim()) return;
 
+    const highlightedContent = messageContent.value.replace(
+      /\[쿠폰\].*?\(\s*할인율:\s*\d+%\)/g,
+      match => `<b>${match}</b>`
+    );
+
     const payload = {
-      messageContent: messageContent.value,
+      messageContent: highlightedContent,
       messageType: 'SMS',
       link: linkUrl.value || null,
       coupon: selectedCoupon.value,
