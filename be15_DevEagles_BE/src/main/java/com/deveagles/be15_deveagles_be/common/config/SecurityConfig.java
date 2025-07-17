@@ -83,6 +83,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/ws-chat/**")
                     .permitAll()
+                    .requestMatchers("/track/**")
+                    .permitAll()
                     .anyRequest()
                     .authenticated())
         .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

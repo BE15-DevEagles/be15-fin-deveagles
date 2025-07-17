@@ -4,5 +4,5 @@ import com.deveagles.be15_deveagles_be.features.chat.query.dto.response.ChatRoom
 import java.util.List;
 
 public interface ChatRoomQueryService {
-  List<ChatRoomSummaryResponse> getMyChatRooms(Long userId, boolean isStaff);
+  List<ChatRoomSummaryResponse> getMyChatRooms(String userName, Long userId, boolean isStaff);
 }

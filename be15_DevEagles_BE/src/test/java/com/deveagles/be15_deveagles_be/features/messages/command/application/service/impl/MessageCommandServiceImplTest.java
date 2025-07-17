@@ -8,6 +8,7 @@ import com.deveagles.be15_deveagles_be.features.customers.query.service.Customer
 import com.deveagles.be15_deveagles_be.features.messages.command.application.dto.request.SmsRequest;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.dto.request.UpdateReservationRequest;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.dto.response.MessageSendResult;
+import com.deveagles.be15_deveagles_be.features.messages.command.application.service.MessageClickService;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.service.MessageVariableProcessor;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.*;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.repository.MessageSettingRepository;
@@ -35,7 +36,7 @@ class MessageCommandServiceImplTest {
   @Mock private CoolSmsClient coolSmsClient;
   @Mock private SmsRepository smsRepository;
   @Mock private MessageVariableProcessor messageVariableProcessor;
-
+  @Mock private MessageClickService messageClickService;
   private final Long shopId = 1L;
 
   private SmsRequest immediateRequest() {
@@ -138,6 +139,75 @@ class MessageCommandServiceImplTest {
 
     assertThat(result).hasSize(1);
     assertThat(result.get(0).resultMessage()).isEqualTo("예약 등록 완료");
+    verifyNoInteractions(coolSmsClient);
+  }
+
+  @Test
+  @DisplayName("즉시 발송 성공 - 링크 포함 시 치환 처리")
+  void sendSms_immediate_withLink_success() {
+    SmsRequest request = immediateRequest();
+    List<String> phones = List.of("01012345678");
+
+    MessageSettings settings =
+        MessageSettings.builder()
+            .shopId(shopId)
+            .senderNumber("07000000000")
+            .canAlimtalk(true)
+            .point(1000L)
+            .build();
+
+    when(customerQueryService.getCustomerPhoneNumbers(any())).thenReturn(phones);
+    when(messageSettingRepository.findByShopId(shopId)).thenReturn(Optional.of(settings));
+    when(messageVariableProcessor.buildPayload(anyLong(), anyLong(), isNull()))
+        .thenReturn(Map.of("고객명", "홍길동"));
+    when(messageVariableProcessor.resolveVariables(any(), any())).thenReturn("안녕하세요 #{프로필링크}");
+
+    Sms sms = Sms.builder().messageId(1L).messageContent("안녕하세요 #{프로필링크}").hasLink(true).build();
+
+    when(smsRepository.saveAll(anyList())).thenReturn(List.of(sms));
+    when(messageClickService.createTrackableLink(eq(1L), any()))
+        .thenReturn("http://track.com/token123");
+    when(coolSmsClient.sendMany(any(), any(), anyList()))
+        .thenReturn(List.of(new MessageSendResult(true, "성공", 1L)));
+
+    List<MessageSendResult> result = messageCommandService.sendSms(shopId, request);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).success()).isTrue();
+    verify(messageClickService).createTrackableLink(eq(1L), contains(shopId.toString()));
+  }
+
+  @Test
+  @DisplayName("예약 발송 성공 - 링크 포함 시 치환 처리")
+  void sendSms_reservation_withLink_success() {
+    SmsRequest request = reservationRequest(LocalDateTime.now().plusMinutes(10));
+    List<String> phones = List.of("01012345678");
+
+    MessageSettings settings =
+        MessageSettings.builder()
+            .shopId(shopId)
+            .senderNumber("07000000000")
+            .canAlimtalk(true)
+            .point(1000L)
+            .build();
+
+    when(customerQueryService.getCustomerPhoneNumbers(any())).thenReturn(phones);
+    when(messageSettingRepository.findByShopId(shopId)).thenReturn(Optional.of(settings));
+    when(messageVariableProcessor.buildPayload(anyLong(), anyLong(), isNull()))
+        .thenReturn(Map.of("고객명", "홍길동"));
+    when(messageVariableProcessor.resolveVariables(any(), any())).thenReturn("예약 메시지 #{프로필링크}");
+
+    Sms sms = Sms.builder().messageId(1L).messageContent("예약 메시지 #{프로필링크}").hasLink(true).build();
+
+    when(smsRepository.saveAll(anyList())).thenReturn(List.of(sms));
+    when(messageClickService.createTrackableLink(eq(1L), any()))
+        .thenReturn("http://track.com/token456");
+
+    List<MessageSendResult> result = messageCommandService.sendSms(shopId, request);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).resultMessage()).isEqualTo("예약 등록 완료");
+    verify(messageClickService).createTrackableLink(eq(1L), contains(shopId.toString()));
     verifyNoInteractions(coolSmsClient);
   }
 

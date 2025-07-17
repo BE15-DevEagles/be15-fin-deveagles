@@ -87,6 +87,10 @@ public class Sms {
     this.messageDeliveryStatus = MessageDeliveryStatus.CANCELLED;
   }
 
+  public void updateContent(String newContent) {
+    this.messageContent = newContent;
+  }
+
   public void schedule(LocalDateTime time) {
     if (this.messageSendingType != MessageSendingType.RESERVATION) {
       throw new IllegalStateException("예약 메시지에만 예약 시간을 설정할 수 있습니다.");

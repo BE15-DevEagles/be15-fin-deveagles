@@ -7,6 +7,7 @@ import com.deveagles.be15_deveagles_be.features.messages.command.application.dto
 import com.deveagles.be15_deveagles_be.features.messages.command.application.dto.request.SmsRequest;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.dto.request.UpdateReservationRequest;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.dto.response.MessageSendResult;
+import com.deveagles.be15_deveagles_be.features.messages.command.application.service.MessageClickService;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.service.MessageCommandService;
 import com.deveagles.be15_deveagles_be.features.messages.command.application.service.MessageVariableProcessor;
 import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.MessageDeliveryStatus;
@@ -37,6 +38,7 @@ public class MessageCommandServiceImpl implements MessageCommandService {
   private final CoolSmsClient coolSmsClient;
   private final SmsRepository smsRepository;
   private final MessageVariableProcessor messageVariableProcessor;
+  private final MessageClickService messageClickService;
 
   @Override
   @Transactional
@@ -45,7 +47,7 @@ public class MessageCommandServiceImpl implements MessageCommandService {
     LocalDateTime now = LocalDateTime.now();
     LocalDateTime scheduledAt = resolveScheduledAt(smsRequest, now);
     boolean isReservation = MessageSendingType.RESERVATION.equals(smsRequest.messageSendingType());
-    System.out.println("ASDFASDFSDFASDFASDFASDAGSDGWERQEWRQWRQWQWR" + smsRequest);
+
     // 1. 고객 ID 원본 리스트
     List<Long> customerIds = smsRequest.customerIds();
 
@@ -67,16 +69,19 @@ public class MessageCommandServiceImpl implements MessageCommandService {
                 i -> {
                   Long customerId = distinctCustomerIds.get(i);
 
-                  // ✅ 자동발송일 경우 payload 포함됨
                   Map<String, String> payload =
                       Optional.ofNullable(smsRequest.payload())
                           .orElseGet(
                               () ->
                                   messageVariableProcessor.buildPayload(customerId, shopId, null));
-                  System.out.println("Payload 값" + payload);
+
                   String resolvedContent =
                       messageVariableProcessor.resolveVariables(
                           smsRequest.messageContent(), payload);
+
+                  // ✅ 자동 판단: #{프로필링크} 포함 여부로 hasLink 결정
+                  boolean hasLink = resolvedContent != null && resolvedContent.contains("#{프로필링크}");
+
                   Sms.SmsBuilder builder =
                       Sms.builder()
                           .shopId(shopId)
@@ -91,7 +96,7 @@ public class MessageCommandServiceImpl implements MessageCommandService {
                                   : MessageDeliveryStatus.SENT)
                           .scheduledAt(scheduledAt)
                           .templateId(smsRequest.templateId())
-                          .hasLink(Boolean.TRUE.equals(smsRequest.hasLink()))
+                          .hasLink(hasLink)
                           .customerGradeId(smsRequest.customerGradeId())
                           .tagId(smsRequest.tagId())
                           .couponId(smsRequest.couponId())
@@ -108,7 +113,21 @@ public class MessageCommandServiceImpl implements MessageCommandService {
     // 5. 저장
     List<Sms> saved = smsRepository.saveAll(smsList);
     smsRepository.flush();
-    // 6. 즉시 발송이면 CoolSMS 호출
+
+    // 6. 링크 생성 후 콘텐츠 업데이트
+    for (Sms sms : saved) {
+      String content = sms.getMessageContent();
+      if (Boolean.TRUE.equals(sms.getHasLink())
+          && content != null
+          && content.contains("#{프로필링크}")) {
+        String originalUrl = "http://localhost:5173/p/" + shopId;
+        String trackableUrl =
+            messageClickService.createTrackableLink(sms.getMessageId(), originalUrl);
+        sms.updateContent(content.replace("#{프로필링크}", "\n" + trackableUrl + "\n"));
+      }
+    }
+
+    // 7. 즉시 발송이면 CoolSMS 호출
     if (!isReservation) {
       List<SmsSendUnit> units =
           IntStream.range(0, saved.size())
@@ -128,7 +147,7 @@ public class MessageCommandServiceImpl implements MessageCommandService {
       return results;
     }
 
-    // 7. 예약 발송이면 등록 완료 응답
+    // 예약 발송이면 결과 생성하여 반환
     return saved.stream()
         .map(s -> new MessageSendResult(true, "예약 등록 완료", s.getMessageId()))
         .toList();

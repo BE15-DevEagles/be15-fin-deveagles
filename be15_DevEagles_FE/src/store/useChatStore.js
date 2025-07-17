@@ -9,6 +9,7 @@ export const useChatStore = defineStore('chat', () => {
   const currentUserId = ref(null);
   const subscribedRoomId = ref(null);
   const isSubscribed = ref(false); // ✅ 중복 구독 방지용
+  const isAiActive = ref(true); // ✅ AI 상태 여부
 
   // 알림 토스트 핸들링
   const toastQueue = ref([]);
@@ -57,6 +58,7 @@ export const useChatStore = defineStore('chat', () => {
     toastQueue.value = [];
     isShowingToast.value = false;
     isSubscribed.value = false;
+    isAiActive.value = true;
     // ❌ toastHandler.value = null; 절대 초기화하지 않음!
   };
 
@@ -68,6 +70,7 @@ export const useChatStore = defineStore('chat', () => {
     currentUserId,
     subscribedRoomId,
     isSubscribed,
+    isAiActive,
 
     // 메서드
     addMessage,
@@ -82,5 +85,6 @@ export const useChatStore = defineStore('chat', () => {
     setCurrentUserId: id => (currentUserId.value = id),
     setSubscribedRoomId: id => (subscribedRoomId.value = id),
     setIsSubscribed: val => (isSubscribed.value = val),
+    setAiActive: val => (isAiActive.value = val),
   };
 });

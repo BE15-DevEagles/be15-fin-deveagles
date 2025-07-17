@@ -77,4 +77,14 @@ public class MessageCommandController {
 
     return ResponseEntity.ok(ApiResponse.success(null));
   }
+
+  @PostMapping("/{messageId}/resend")
+  public ResponseEntity<ApiResponse<MessageSendResult>> resendFailedMessage(
+      @AuthenticationPrincipal CustomUser user, @PathVariable Long messageId) {
+
+    Long shopId = user.getShopId();
+    MessageSendResult result = messageCommandService.resendFailedMessage(shopId, messageId);
+
+    return ResponseEntity.ok(ApiResponse.success(result));
+  }
 }
