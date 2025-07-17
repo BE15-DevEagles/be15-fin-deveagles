@@ -38,6 +38,7 @@
               label="고객 등급"
               placeholder="등급을 선택하세요"
               :options="gradeOptions"
+              :value-prop="'id'"
               size="sm"
             />
           </div>
@@ -47,6 +48,7 @@
               label="고객 태그"
               placeholder="태그를 선택하세요"
               :options="tagOptions"
+              :value-prop="'id'"
               size="sm"
             />
           </div>
@@ -312,6 +314,7 @@
                 label="메시지 템플릿 *"
                 placeholder="메시지 템플릿을 선택하세요"
                 @template-selected="handleTemplateSelected"
+                @update:model-value="handleTemplateModelValueUpdate"
               />
 
               <label class="detail-label">발송 시간 *</label>
@@ -329,12 +332,13 @@
 
             <div v-if="formData.action === 'coupon-message'" class="config-details">
               <CompactCouponSelector
-                v-model="formData.actionConfig.selectedCoupons"
+                v-model="formData.actionConfig.selectedCoupon"
                 label="쿠폰 선택 *"
                 placeholder="쿠폰을 선택하세요"
                 :multiple="false"
-                :filter-options="{ onlyActive: true }"
+                :filter-options="couponFilterOptions"
                 @coupon-selected="handleCouponSelected"
+                @update:model-value="handleCouponModelValueUpdate"
               />
 
               <CompactTemplateSelector
@@ -342,6 +346,7 @@
                 label="메시지 템플릿 *"
                 placeholder="메시지 템플릿을 선택하세요"
                 @template-selected="handleTemplateSelected"
+                @update:model-value="handleTemplateModelValueUpdate"
               />
 
               <label class="detail-label">발송 시간 *</label>
@@ -399,7 +404,7 @@
     couponOptions,
   } from '../constants/workflowOptions.js';
 
-  import { ref, onMounted } from 'vue';
+  import { ref, computed, onMounted } from 'vue';
   import { useAuthStore } from '@/store/auth.js';
   import GradesAPI from '@/features/customer/api/grades.js';
   import TagsAPI from '@/features/customer/api/tags.js';
@@ -464,42 +469,125 @@
         try {
           const grades = await GradesAPI.getGradesByShop();
           gradeOptions.value = grades.map(g => ({
+            id: g.id,
             tagName: g.name,
             colorCode: '#6B7280',
           }));
 
           const tags = await TagsAPI.getTagsByShop();
           tagOptions.value = tags.map(t => ({
+            id: t.tagId,
             tagName: t.tagName,
             colorCode: t.colorCode || '#6B7280',
           }));
         } catch (error) {
           console.error('워크플로우 사이드바 옵션 로드 실패', error);
         }
+
+        // authStore.shopId가 없으면 fetchShopId 호출 (캠페인 폼과 동일)
+        if (!authStore.shopId) {
+          authStore.fetchShopId && authStore.fetchShopId();
+        }
       });
 
       // Event handlers for new compact selectors
-      const handleCouponSelected = coupons => {
-        // Single coupon selection - get first coupon
-        const selectedCoupon = Array.isArray(coupons) && coupons.length > 0 ? coupons[0] : null;
-        if (selectedCoupon) {
-          // Emit to parent instead of direct mutation
+      const handleCouponSelected = coupon => {
+        // Handle single coupon selection (not array)
+        if (coupon) {
           emit('updateActionConfig', {
-            field: 'couponId',
-            value: selectedCoupon.id || selectedCoupon.value,
+            updates: [
+              {
+                field: 'couponId',
+                value: coupon.id || coupon.value,
+              },
+              {
+                field: 'couponName',
+                value: coupon.couponTitle || coupon.name || coupon.text,
+              },
+              {
+                field: 'selectedCoupon',
+                value: coupon,
+              },
+            ],
+          });
+        }
+      };
+
+      const handleCouponModelValueUpdate = coupon => {
+        // Handle single coupon model value update (not array)
+        if (coupon) {
+          emit('updateActionConfig', {
+            updates: [
+              {
+                field: 'couponId',
+                value: coupon.id || coupon.value,
+              },
+              {
+                field: 'couponName',
+                value: coupon.couponTitle || coupon.name || coupon.text,
+              },
+              {
+                field: 'selectedCoupon',
+                value: coupon,
+              },
+            ],
           });
         }
       };
 
       const handleTemplateSelected = template => {
         if (template) {
-          // Emit to parent instead of direct mutation
+          // Update formData directly and emit
           emit('updateActionConfig', {
-            field: 'messageTemplateId',
-            value: template.value,
+            updates: [
+              {
+                field: 'messageTemplateId',
+                value: template.value || template.id,
+              },
+              {
+                field: 'messageTemplateName',
+                value: template.name || template.text,
+              },
+              {
+                field: 'selectedTemplate',
+                value: template,
+              },
+            ],
           });
         }
       };
+
+      const handleTemplateModelValueUpdate = template => {
+        if (template) {
+          // Update formData directly and emit
+          emit('updateActionConfig', {
+            updates: [
+              {
+                field: 'messageTemplateId',
+                value: template.value || template.id,
+              },
+              {
+                field: 'messageTemplateName',
+                value: template.name || template.text,
+              },
+              {
+                field: 'selectedTemplate',
+                value: template,
+              },
+            ],
+          });
+        }
+      };
+
+      // Computed for filter options
+      const couponFilterOptions = computed(() => {
+        const options = {
+          onlyActive: true,
+          shopId: authStore.shopId,
+        };
+        console.log('WorkflowConfigSidebar - couponFilterOptions:', options);
+        return options;
+      });
 
       return {
         triggerCategories,
@@ -509,8 +597,11 @@
         couponOptions,
         gradeOptions,
         tagOptions,
+        couponFilterOptions,
         handleCouponSelected,
+        handleCouponModelValueUpdate,
         handleTemplateSelected,
+        handleTemplateModelValueUpdate,
       };
     },
   };

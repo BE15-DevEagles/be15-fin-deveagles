@@ -40,23 +40,34 @@
         <!-- Workflow Name Column -->
         <template #cell-name="{ item }">
           <div class="workflow-name">
-            <h4 class="font-section-inner text-dark">{{ item.name }}</h4>
+            <h4 class="font-section-inner text-dark">{{ item.title }}</h4>
+          </div>
+        </template>
+
+        <!-- 설명 Column -->
+        <template #cell-description="{ item }">
+          <div class="workflow-description">
             <p class="font-small text-gray-500">{{ item.description }}</p>
           </div>
         </template>
 
-        <!-- Author Column -->
+        <!-- 작성자 Column -->
         <template #cell-author="{ item }">
           <div class="workflow-author">
-            <span class="font-small text-gray-700">{{ item.author.name }}</span>
+            <span class="font-small text-gray-700">
+              {{ getStaffName(item.staffId) }}
+            </span>
           </div>
         </template>
 
         <!-- Tags Column -->
         <template #cell-tags="{ item }">
           <div class="workflow-tags">
-            <BaseBadge v-for="tag in item.tags" :key="tag" type="secondary" size="sm">
-              {{ tag }}
+            <BaseBadge :key="item.triggerType" type="secondary" size="sm">
+              {{ item.triggerType }}
+            </BaseBadge>
+            <BaseBadge :key="item.actionType" type="primary" size="sm">
+              {{ item.actionType }}
             </BaseBadge>
           </div>
         </template>
@@ -64,8 +75,10 @@
         <!-- Stats Column -->
         <template #cell-stats="{ item }">
           <div class="workflow-stats">
-            <span class="font-small text-gray-600">{{ item.stats.affected }}명</span>
-            <span class="font-xs-semibold text-gray-400">{{ formatDate(item.lastTriggered) }}</span>
+            <span class="font-small text-gray-600">{{ item.executionCount }}회 실행</span>
+            <span class="font-xs-semibold text-gray-400">{{
+              formatDate(item.lastExecutedAt)
+            }}</span>
           </div>
         </template>
 
@@ -81,12 +94,13 @@
         <template #cell-actions="{ item }">
           <div class="action-buttons">
             <div class="tooltip-container">
-              <BaseButton type="ghost" size="sm" class="icon-button" @click="editWorkflow(item)">
+              <!-- <BaseButton type="ghost" size="sm" class="icon-button" @click="editWorkflow(item)">
                 <EditIcon :size="16" color="var(--color-gray-500)" />
               </BaseButton>
               <span class="tooltip tooltip-bottom tooltip-primary">수정</span>
             </div>
-            <div class="tooltip-container">
+            <div class="tooltip-container"> -->
+
               <BaseButton
                 :ref="`deleteBtn-${item.id}`"
                 type="ghost"
@@ -166,6 +180,7 @@
     deleteWorkflow as apiDelete,
   } from '@/features/workflows/api/workflows.js';
   import { useAuthStore } from '@/store/auth.js';
+  import { useMetadataStore } from '@/store/metadata.js';
 
   export default {
     name: 'WorkflowList',
@@ -185,6 +200,8 @@
     setup() {
       const router = useRouter();
       const authStore = useAuthStore();
+      const metadataStore = useMetadataStore();
+      metadataStore.loadMetadata();
 
       // List management composable
       const {
@@ -216,8 +233,8 @@
       // Table columns
       const tableColumns = [
         { key: 'name', title: '워크플로우', width: '300px' },
+        { key: 'description', title: '설명', width: '300px' },
         { key: 'author', title: '작성자', width: '150px' },
-        { key: 'tags', title: '태그', width: '150px' },
         { key: 'stats', title: '통계', width: '120px' },
         { key: 'isActive', title: '활성화', width: '100px' },
         { key: 'actions', title: 'Actions', width: '120px' },
@@ -228,25 +245,25 @@
         { value: '', text: '전체' },
         { value: 'active', text: '활성' },
         { value: 'inactive', text: '비활성' },
-        { value: 'draft', text: '초안' },
       ];
 
       const typeOptions = [
         { value: '', text: '전체 유형' },
-        { value: 'customer-behavior', text: '고객 행동' },
-        { value: 'time-based', text: '시간 기반' },
-        { value: 'segment-based', text: '세그먼트 기반' },
+        { value: 'visit-cycle', text: '방문 주기' },
+        { value: 'specific-treatment', text: '특정 시술' },
+        { value: 'birthday', text: '생일' },
+        { value: 'registration-days-after', text: '등록 후 경과' },
+        { value: 'visit-milestone', text: '방문 마일스톤' },
+        { value: 'amount-milestone', text: '금액 마일스톤' },
       ];
 
       // Computed
-      const activeWorkflows = computed(
-        () => workflows.value.filter(w => w.isActive && w.status === 'published').length
-      );
+      const activeWorkflows = computed(() => workflows.value.filter(w => w.isActive).length);
 
       const totalWorkflows = computed(() => workflows.value.length);
 
       const totalTriggers = computed(() =>
-        workflows.value.reduce((sum, w) => sum + w.stats.triggered, 0)
+        workflows.value.reduce((sum, w) => sum + (w.executionCount || 0), 0)
       );
 
       const filteredWorkflows = computed(() => {
@@ -255,22 +272,21 @@
         if (searchQuery.value) {
           filtered = filtered.filter(
             w =>
-              w.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+              w.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
               w.description.toLowerCase().includes(searchQuery.value.toLowerCase())
           );
         }
 
         if (statusFilter.value) {
           filtered = filtered.filter(w => {
-            if (statusFilter.value === 'active') return w.isActive && w.status === 'published';
-            if (statusFilter.value === 'inactive') return !w.isActive || w.status !== 'published';
-            if (statusFilter.value === 'draft') return w.status === 'draft';
+            if (statusFilter.value === 'active') return w.isActive;
+            if (statusFilter.value === 'inactive') return !w.isActive;
             return true;
           });
         }
 
         if (typeFilter.value) {
-          filtered = filtered.filter(w => w.trigger?.type === typeFilter.value);
+          filtered = filtered.filter(w => w.triggerType === typeFilter.value);
         }
 
         return filtered;
@@ -287,7 +303,7 @@
       const filteredTotalPages = computed(() => Math.ceil(filteredWorkflows.value.length / 12));
 
       const deleteConfirmMessage = computed(() =>
-        selectedWorkflow.value ? MESSAGES.WORKFLOW.DELETE_CONFIRM(selectedWorkflow.value.name) : ''
+        selectedWorkflow.value ? MESSAGES.WORKFLOW.DELETE_CONFIRM(selectedWorkflow.value.title) : ''
       );
 
       // Methods
@@ -308,9 +324,13 @@
       const deleteWorkflow = (workflow, event) => deleteItem(workflow, event);
 
       const getStatusText = workflow => {
-        if (workflow.status === 'draft') return '초안';
         return workflow.isActive ? '활성' : '비활성';
       };
+
+      function getStaffName(staffId) {
+        const staff = metadataStore.staff.find(s => s.id == staffId);
+        return staff ? staff.name : staffId;
+      }
 
       // 필터 변경 시 페이지 리셋
       const resetPageOnFilterChange = () => {
@@ -407,6 +427,7 @@
         handleTypeFilterChange,
         getStatusText,
         formatDate,
+        getStaffName,
       };
     },
   };

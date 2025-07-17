@@ -78,15 +78,23 @@
             <div v-if="formData.targetCustomerGrades.length" class="summary-item">
               <span class="summary-label">등급:</span>
               <div class="summary-tags">
-                <span v-for="grade in formData.targetCustomerGrades" :key="grade" class="tag">{{
-                  grade
-                }}</span>
+                <span
+                  v-for="gradeName in getGradeNames(formData.targetCustomerGrades)"
+                  :key="gradeName"
+                  class="tag"
+                  >{{ gradeName }}</span
+                >
               </div>
             </div>
             <div v-if="formData.targetTags.length" class="summary-item">
               <span class="summary-label">태그:</span>
               <div class="summary-tags">
-                <span v-for="tag in formData.targetTags" :key="tag" class="tag">{{ tag }}</span>
+                <span
+                  v-for="tagName in getTagNames(formData.targetTags)"
+                  :key="tagName"
+                  class="tag"
+                  >{{ tagName }}</span
+                >
               </div>
             </div>
           </div>
@@ -241,6 +249,7 @@
   import MegaphoneIcon from '@/components/icons/MegaphoneIcon.vue';
   import WorkflowConfigSidebar from './WorkflowConfigSidebar.vue';
   import { useWorkflowForm } from '../composables/useWorkflowForm.js';
+  import { onMounted } from 'vue';
 
   export default {
     name: 'WorkflowFormBase',
@@ -302,6 +311,9 @@
         getMessageTemplateText,
         getCouponText,
         formatSendTime,
+        loadGradesAndTags,
+        getGradeNames,
+        getTagNames,
       } = useWorkflowForm(props.initialData);
 
       const onSave = () => {
@@ -312,10 +324,23 @@
         emit('cancel');
       };
 
-      const handleActionConfigUpdate = ({ field, value }) => {
-        // Update the form data with new action config values
-        formData.actionConfig[field] = value;
+      const handleActionConfigUpdate = payload => {
+        // Support both single field update and multiple field updates
+        if (payload.updates && Array.isArray(payload.updates)) {
+          // Multiple field updates
+          payload.updates.forEach(({ field, value }) => {
+            formData.actionConfig[field] = value;
+          });
+        } else if (payload.field && payload.value !== undefined) {
+          // Single field update (backward compatibility)
+          formData.actionConfig[payload.field] = payload.value;
+        }
       };
+
+      // Load grades and tags on mount
+      onMounted(() => {
+        loadGradesAndTags();
+      });
 
       return {
         // State
@@ -350,6 +375,8 @@
         getMessageTemplateText,
         getCouponText,
         formatSendTime,
+        getGradeNames,
+        getTagNames,
         onSave,
         onCancel,
         handleActionConfigUpdate,
