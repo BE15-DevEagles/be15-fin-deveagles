@@ -95,7 +95,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
       return;
     }
 
-    Long staffId = 17L; // ✅ 지금은 하드코딩 (임시 상담사 ID)
+    Long staffId = 17L; // 지금은 하드코딩 (임시 상담사 ID)
 
     chatRoom.updateToStaff(staffId); // isAiActive = false, assignedStaffId = 17L
     chatRoomRepository.save(chatRoom);

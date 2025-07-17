@@ -64,13 +64,16 @@ public class SecurityConfig {
                     .requestMatchers(
                         HttpMethod.GET,
                         "/shops/get-industry",
-                        "/schedules/reservation/settings",
                         "/schedules/reservation/settings/{shopId}",
                         "/shops/p/{shopId}",
                         "/staffs/{staffId}",
                         "/secondary-items/active",
                         "/primary-items",
-                        "/schedules/reservations/staff/{staffId}/available-times")
+                        "/schedules/reservations/staff/{staffId}/available-times",
+                        "/secondary-items/active/{shopId}",
+                        "/primary-items/{shopId}",
+                        "/staffs/{staffId}/profile-url",
+                        "/staffs/public/{shopId}")
                     .permitAll()
                     .requestMatchers(
                         "/api-docs/**",

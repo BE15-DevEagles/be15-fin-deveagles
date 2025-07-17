@@ -74,7 +74,7 @@ public class SmsQueryRepositoryImpl implements SmsQueryRepository {
                         .when(sms.messageDeliveryStatus.eq(MessageDeliveryStatus.FAIL))
                         .then("전송 실패")
                         .otherwise(""), // → errorMessage
-                    sms.messageSendingType.stringValue() // ✅ → sendingType (마지막)
+                    sms.messageSendingType.stringValue() //  → sendingType (마지막)
                     ))
             .from(sms)
             .leftJoin(customer)

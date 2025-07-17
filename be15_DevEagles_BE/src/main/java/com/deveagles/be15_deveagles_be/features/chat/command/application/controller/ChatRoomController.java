@@ -71,7 +71,7 @@ public class ChatRoomController {
   })
   @PostMapping("/{roomId}/switch-to-staff")
   public ResponseEntity<ApiResponse<Void>> switchToStaff(@PathVariable String roomId) {
-    chatRoomService.switchToStaff(roomId); // ✅ 호출
+    chatRoomService.switchToStaff(roomId);
     return ResponseEntity.ok(ApiResponse.success(null));
   }
 }

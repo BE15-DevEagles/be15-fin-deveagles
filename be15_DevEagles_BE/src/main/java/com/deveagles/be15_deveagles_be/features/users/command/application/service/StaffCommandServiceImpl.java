@@ -12,6 +12,7 @@ import com.deveagles.be15_deveagles_be.features.users.command.application.dto.re
 import com.deveagles.be15_deveagles_be.features.users.command.application.dto.request.PutStaffRequest;
 import com.deveagles.be15_deveagles_be.features.users.command.application.dto.response.StaffInfoResponse;
 import com.deveagles.be15_deveagles_be.features.users.command.application.dto.response.StaffPermissions;
+import com.deveagles.be15_deveagles_be.features.users.command.application.dto.response.StaffProfileUrlResponse;
 import com.deveagles.be15_deveagles_be.features.users.command.domain.aggregate.Staff;
 import com.deveagles.be15_deveagles_be.features.users.command.domain.aggregate.StaffStatus;
 import com.deveagles.be15_deveagles_be.features.users.command.repository.UserRepository;
@@ -172,5 +173,16 @@ public class StaffCommandServiceImpl implements StaffCommandService {
         .profileUrl(staff.getProfileUrl())
         .permissions(permissions)
         .build();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public StaffProfileUrlResponse getStaffProfileUrl(Long staffId) {
+    Staff staff =
+        userRepository
+            .findStaffByStaffId(staffId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.STAFF_NOT_FOUND));
+
+    return new StaffProfileUrlResponse(staff.getProfileUrl());
   }
 }

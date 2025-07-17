@@ -93,7 +93,7 @@ class MessageCommandServiceImplTest {
     when(customerQueryService.getCustomerPhoneNumbers(customerIds)).thenReturn(phones);
     when(messageSettingRepository.findByShopId(shopId)).thenReturn(Optional.of(settings));
 
-    // ✅ 인자 정확히 안 맞아도 되도록 any() 사용
+    //  인자 정확히 안 맞아도 되도록 any() 사용
     when(messageVariableProcessor.buildPayload(anyLong(), anyLong(), any()))
         .thenReturn(Map.of("고객명", "신사임당"));
 

@@ -36,7 +36,7 @@ public class MessageVariableProcessor {
     return payload;
   }
 
-  // ✅ 템플릿 메시지 치환 - payload 주어졌을 때 바로 치환
+  // 템플릿 메시지 치환 - payload 주어졌을 때 바로 치환
   public String resolveVariables(String content, Map<String, String> payload) {
     if (content == null || payload == null) return content;
 
@@ -48,7 +48,7 @@ public class MessageVariableProcessor {
       System.out.println("→ 바꿀 값 = '" + value + "'");
       content = content.replace(key, value);
     }
-    System.out.println("✅ 최종 content = " + content);
+
     return content;
   }
 
