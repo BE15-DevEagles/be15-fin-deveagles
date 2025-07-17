@@ -217,6 +217,7 @@
               </div>
             </div>
             <!-- 잔여 선불액 -->
+            <!--
             <div class="filter-section">
               <h4 class="section-title">잔여 선불액</h4>
               <div class="range-row">
@@ -233,6 +234,7 @@
                 />
               </div>
             </div>
+            -->
             <!-- 방문 횟수 -->
             <div class="filter-section">
               <h4 class="section-title">방문 횟수</h4>
