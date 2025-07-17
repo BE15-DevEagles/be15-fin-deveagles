@@ -27,13 +27,8 @@
         <div class="message-bubble">{{ msg.text }}</div>
       </template>
 
-      <!-- 상담사 전환 버튼 메시지 -->
-      <template v-else-if="msg.type === 'switch-button'">
-        <div class="message-bubble action-bubble">
-          <p class="switch-text">AI 상담이 충분하지 않으신가요?</p>
-          <button class="switch-button" @click="emit('switch')">상담사에게 전환</button>
-        </div>
-      </template>
+      <!-- 상담사 전환 버튼 메시지 (❌ 이제 사용 안 함) -->
+      <!-- 제거 또는 무시 처리 가능 -->
     </div>
   </div>
 </template>
@@ -50,16 +45,15 @@
     display: flex;
   }
 
-  /* 메시지 방향 */
   .chat-message.from-me {
     justify-content: flex-end;
   }
+
   .chat-message.from-user,
   .chat-message.from-bot {
     justify-content: flex-start;
   }
 
-  /* 말풍선 공통 */
   .message-bubble {
     max-width: 70%;
     padding: 0.6rem 0.9rem;
@@ -68,42 +62,16 @@
     line-height: 1.4;
   }
 
-  /* 오른쪽 말풍선 (내 메시지) */
   .from-me .message-bubble {
     background-color: var(--color-primary-main);
     color: white;
     border-bottom-right-radius: 0;
   }
 
-  /* 왼쪽 말풍선 (상대 메시지) */
   .from-user .message-bubble,
   .from-bot .message-bubble {
     background-color: #e0e0e0;
     color: black;
     border-bottom-left-radius: 0;
-  }
-
-  /* 상담사 전환 메시지 */
-  .action-bubble {
-    background-color: #f0f4ff;
-    color: black;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .switch-text {
-    font-size: 13px;
-  }
-
-  .switch-button {
-    padding: 0.3rem 0.8rem;
-    background-color: var(--color-primary-main);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 13px;
-    cursor: pointer;
   }
 </style>

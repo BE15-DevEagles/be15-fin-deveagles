@@ -1,16 +1,18 @@
 <script setup>
   import { onMounted, ref } from 'vue';
-  import { getChatRooms } from '@/features/chat/api/chat.js'; // ✅ 너가 만든 API 명칭
+  import { getChatRooms } from '@/features/chat/api/chat.js';
 
   const emit = defineEmits(['select']);
   const chatRooms = ref([]);
 
   onMounted(async () => {
     try {
-      const res = await getChatRooms(); // ✅ 정확한 함수명
+      const res = await getChatRooms();
       chatRooms.value = res.data.sort(
         (a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
       );
+
+      console.log(chatRooms.value);
     } catch (e) {
       console.error('❌ 채팅방 목록 불러오기 실패:', e);
     }
@@ -19,7 +21,7 @@
 
 <template>
   <div class="chat-list">
-    <p class="chat-list-title">내가 배정받은 채팅방</p>
+    <p class="chat-list-title">배정된 채팅방</p>
 
     <div
       v-for="room in chatRooms"
@@ -27,17 +29,22 @@
       class="chat-room-card"
       @click="$emit('select', room.roomId)"
     >
-      <div class="room-id">채팅방 ID: {{ room.roomId }}</div>
-
-      <div class="last-message-wrapper">
-        <span class="last-message-label">마지막 메시지:</span>
-        <span class="last-message-content">
-          {{ room.lastMessage || '메시지 없음' }}
-        </span>
-      </div>
-
-      <div v-if="room.lastMessageAt" class="last-message-time">
-        {{ new Date(room.lastMessageAt).toLocaleString() }}
+      <div class="chat-room-content">
+        <div class="chat-room-info">
+          <p class="customer-name">{{ room.customerName || '고객 이름 없음' }}</p>
+          <p class="shop-name">{{ room.customerShopName || '매장 이름 없음' }}</p>
+        </div>
+        <div class="chat-message-preview">
+          <span class="message-text">{{ room.lastMessage || '메시지 없음' }}</span>
+          <span v-if="room.lastMessageAt" class="message-time">
+            {{
+              new Date(room.lastMessageAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            }}
+          </span>
+        </div>
       </div>
     </div>
   </div>
@@ -58,47 +65,63 @@
   }
 
   .chat-room-card {
-    background: white;
-    border: 1px solid var(--color-gray-300);
-    border-radius: 10px;
+    background: #fff;
+    border-radius: 12px;
     padding: 0.75rem 1rem;
     cursor: pointer;
     transition: background 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    border: 1px solid #ececec;
   }
 
   .chat-room-card:hover {
-    background: #f8f9fa;
+    background: #f4f6f8;
   }
 
-  .room-id {
-    font-weight: 600;
-    font-size: 13px;
-    color: var(--color-gray-900);
-    margin-bottom: 0.4rem;
-    word-break: break-word;
-  }
-
-  .last-message-wrapper {
+  .chat-room-content {
     display: flex;
     flex-direction: column;
+    width: 100%;
   }
 
-  .last-message-label {
-    font-size: 12px;
-    color: var(--color-gray-600);
+  .chat-room-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
   }
 
-  .last-message-content {
-    font-size: 13px;
-    color: var(--color-gray-800);
-    margin-top: 2px;
-    word-break: break-word;
+  .customer-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--color-gray-900);
   }
 
-  .last-message-time {
+  .shop-name {
     font-size: 12px;
     color: var(--color-gray-500);
-    margin-top: 6px;
+  }
+
+  .chat-message-preview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .message-text {
+    font-size: 13px;
+    color: var(--color-gray-700);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+  }
+
+  .message-time {
+    font-size: 12px;
+    color: var(--color-gray-400);
+    margin-left: 8px;
+    white-space: nowrap;
   }
 </style>
