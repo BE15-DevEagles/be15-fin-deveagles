@@ -9,6 +9,8 @@ import static org.mockito.Mockito.doThrow;
 import com.deveagles.be15_deveagles_be.common.exception.BusinessException;
 import com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Customer;
 import com.deveagles.be15_deveagles_be.features.customers.command.domain.repository.CustomerRepository;
+import com.deveagles.be15_deveagles_be.features.customers.command.domain.repository.SegmentByCustomerRepository;
+import com.deveagles.be15_deveagles_be.features.customers.command.domain.repository.SegmentRepository;
 import com.deveagles.be15_deveagles_be.features.customers.command.infrastructure.repository.CustomerElasticsearchRepository;
 import com.deveagles.be15_deveagles_be.features.customers.command.infrastructure.repository.CustomerJpaRepository;
 import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.*;
@@ -46,6 +48,8 @@ class CustomerQueryServiceImplTest {
   @Mock private JPAQueryFactory queryFactory;
   @Mock private JPAQuery<Tuple> jpaQuery;
   @Mock private JPAQuery<String> jpaStringQuery;
+  @Mock private SegmentRepository segmentRepository;
+  @Mock private SegmentByCustomerRepository segmentByCustomerRepository;
 
   @InjectMocks private CustomerQueryServiceImpl customerQueryService;
 
@@ -241,56 +245,6 @@ class CustomerQueryServiceImplTest {
     then(elasticsearchRepository).should().searchByNameOrPhoneNumber(shopId, keyword);
   }
 
-  // QueryDSL 모킹 예제 - 블로그 참고:
-  // https://stackoverflow.com/questions/50491750/%20junit-mockito-and-querydsl-mysema-for-mocking-jpaqueryfactory
-  // StackOverflow 방식으로 시도했지만 복잡한 QueryDSL 체인(leftJoin, innerJoin 등)은 여전히 타입 문제로 모킹이 어려움
-  // 간단한 select-from-where 패턴에만 적용 가능
-  // 복잡한 join, projection(Tuple) 사용 쿼리는 통합 테스트(@DataJpaTest) 권장
-
-  /*
-  @Test
-  @DisplayName("JPA 폴백 테스트 - StackOverflow 방식 시도")
-  void testFallbackToJpa_StackOverflowApproach() {
-    // given
-    Long shopId = 1L;
-    String searchKeyword = "홍길동";
-    Pageable pageable = PageRequest.of(0, 10);
-
-    // Mock 객체들
-    JPAQueryFactory mockQueryFactory = mock(JPAQueryFactory.class);
-    JPAQuery<Customer> mockJpaQuery = mock(JPAQuery.class);
-
-    // 간단한 쿼리만 모킹 가능
-    when(mockQueryFactory.selectFrom(any(EntityPath.class))).thenReturn(mockJpaQuery);
-    when(mockJpaQuery.where(any(Predicate.class))).thenReturn(mockJpaQuery);
-    when(mockJpaQuery.fetch()).thenReturn(Collections.emptyList());
-
-    // 하지만 실제 서비스의 복잡한 쿼리는 여전히 모킹 불가:
-    // queryFactory.select(customer.id, customer.customerName, customerGrade.customerGradeName)
-    //   .from(customer)
-    //   .leftJoin(customerGrade).on(customer.customerGradeId.eq(customerGrade.id))
-    //   .where(conditions)
-    //   .fetch()
-
-    // 이런 복잡한 쿼리는 @DataJpaTest + 실제 DB 사용 권장
-    assertThat(true).isTrue(); // 테스트 통과 확인용
-  }
-
-  @Test
-  @DisplayName("동기화 테스트 - StackOverflow 방식으로도 한계")
-  void testSyncCustomersToElasticsearch_MockingLimitation() {
-    // QueryDSL의 복잡한 Projection과 Join은 단위 테스트에서 모킹하기 매우 어려움
-    // 특히 Tuple 타입 반환하는 쿼리는 타입 안전성 문제로 모킹 불가
-
-    // 실제 프로덕션에서는 다음과 같은 방법들 권장:
-    // 1. @DataJpaTest + TestContainers로 실제 DB 테스트
-    // 2. Repository 레이어와 Service 레이어 분리하여 Repository는 통합 테스트
-    // 3. Service 레이어는 Repository 모킹으로 단위 테스트
-
-    assertThat(true).isTrue(); // 테스트 통과 확인용
-  }
-  */
-
   @Test
   @DisplayName("자동완성 검색 성공")
   void autocomplete_Success() {
@@ -331,19 +285,6 @@ class CustomerQueryServiceImplTest {
     then(elasticsearchRepository).should().autocomplete(shopId, prefix);
   }
 
-  // Elasticsearch 동기화 테스트는 QueryDSL 모킹이 복잡하여 통합 테스트에서 수행
-  // @Test
-  // @DisplayName("고객 Elasticsearch 동기화 성공")
-  // void syncCustomerToElasticsearch_Success() {
-  //   // QueryDSL JPAQueryFactory 모킹이 복잡하여 단위 테스트에서 제외
-  // }
-
-  // @Test
-  // @DisplayName("매장별 전체 고객 재인덱싱 성공")
-  // void reindexAllCustomers_Success() {
-  //   // QueryDSL JPAQueryFactory 모킹이 복잡하여 단위 테스트에서 제외
-  // }
-
   @Test
   @DisplayName("고객 태그 조회시 고객 존재하지 않으면 예외 발생")
   void getCustomerTags_CustomerNotFound() {
@@ -359,114 +300,6 @@ class CustomerQueryServiceImplTest {
         .hasMessageContaining("고객을 찾을 수 없습니다.");
 
     then(customerRepository).should().findByIdAndShopId(customerId, shopId);
-  }
-
-  private Customer createTestCustomer() {
-    return Customer.builder()
-        .id(1L)
-        .customerGradeId(1L)
-        .shopId(1L)
-        .staffId(1L)
-        .customerName("홍길동")
-        .phoneNumber("01012345678")
-        .memo("테스트 고객")
-        .visitCount(0)
-        .totalRevenue(0)
-        .recentVisitDate(LocalDate.now())
-        .birthdate(LocalDate.of(1990, 1, 1))
-        .noshowCount(0)
-        .gender(Customer.Gender.M)
-        .marketingConsent(false)
-        .notificationConsent(false)
-        .channelId(1L)
-        .createdAt(LocalDateTime.now())
-        .modifiedAt(LocalDateTime.now())
-        .build();
-  }
-
-  private Customer createUnregisteredCustomer(Long id, String name, Customer.Gender gender) {
-    return Customer.builder()
-        .id(id)
-        .shopId(1L)
-        .customerName(name)
-        .gender(gender)
-        .phoneNumber("01000000000")
-        .createdAt(LocalDateTime.now())
-        .modifiedAt(LocalDateTime.now())
-        .build();
-  }
-
-  private CustomerDetailResponse createTestCustomerDetailResponse() {
-    return CustomerDetailResponse.builder()
-        .customerId(1L)
-        .customerName("홍길동")
-        .phoneNumber("01012345678")
-        .memo("테스트 고객")
-        .visitCount(0)
-        .totalRevenue(0)
-        .recentVisitDate(LocalDate.now())
-        .birthdate(LocalDate.of(1990, 1, 1))
-        .noshowCount(0)
-        .gender(Customer.Gender.M)
-        .marketingConsent(false)
-        .marketingConsentedAt(null)
-        .notificationConsent(false)
-        .lastMessageSentAt(null)
-        .createdAt(LocalDateTime.now())
-        .modifiedAt(LocalDateTime.now())
-        .shopId(1L)
-        .staff(CustomerDetailResponse.StaffInfo.builder().staffId(1L).staffName("김직원").build())
-        .customerGrade(
-            CustomerDetailResponse.CustomerGradeInfo.builder()
-                .customerGradeId(1L)
-                .customerGradeName("일반")
-                .discountRate(0)
-                .build())
-        .acquisitionChannel(
-            CustomerDetailResponse.AcquisitionChannelInfo.builder()
-                .acquisitionChannelId(1L)
-                .acquisitionChannelName("직접 방문")
-                .build())
-        .remainingPrepaidAmount(0)
-        .build();
-  }
-
-  private CustomerListResponse createTestCustomerListResponse() {
-    return new CustomerListResponse(
-        1L, // customerId
-        "홍길동", // customerName
-        "01012345678", // phoneNumber
-        "테스트 고객", // memo
-        0, // visitCount
-        0, // totalRevenue
-        LocalDate.now(), // recentVisitDate
-        LocalDate.of(1990, 1, 1), // birthdate
-        "M", // gender
-        1L, // customerGradeId
-        "일반", // customerGradeName
-        0, // discountRate
-        1L, // staffId
-        "김직원", // staffName
-        1L, // acquisitionChannelId
-        "직접 방문", // acquisitionChannelName
-        0, // remainingPrepaidAmount
-        0, // noshowCount
-        LocalDateTime.now() // createdAt
-        );
-  }
-
-  private CustomerDocument createTestCustomerDocument() {
-    return CustomerDocument.builder()
-        .id("1_1")
-        .customerId(1L)
-        .shopId(1L)
-        .customerName("홍길동")
-        .phoneNumber("01012345678")
-        .customerGradeId(1L)
-        .customerGradeName("일반")
-        .gender("M")
-        .deletedAt(null)
-        .build();
   }
 
   @Test
@@ -616,5 +449,323 @@ class CustomerQueryServiceImplTest {
     then(customerJpaRepository)
         .should()
         .findByShopIdAndCustomerNameInAndDeletedAtIsNull(shopId, unregisteredNames);
+  }
+
+  @Test
+  @DisplayName("세그먼트 태그별 고객 조회 성공")
+  void getCustomersBySegmentTag_Success() {
+    // given
+    String segmentTag = "VIP";
+    Long shopId = 1L;
+    Long segmentId = 1L;
+    String segmentTitle = "VIP 고객";
+
+    var segment = createTestSegment(segmentId, segmentTag, segmentTitle);
+    List<Long> allCustomerIds = List.of(1L, 2L, 3L);
+    List<Customer> shopCustomers =
+        List.of(createTestCustomerWithId(1L, shopId), createTestCustomerWithId(2L, shopId));
+
+    given(segmentRepository.findBySegmentTag(segmentTag)).willReturn(Optional.of(segment));
+    given(segmentByCustomerRepository.findCustomerIdsBySegmentTag(segmentTag))
+        .willReturn(allCustomerIds);
+    given(customerJpaRepository.findAllById(allCustomerIds)).willReturn(shopCustomers);
+
+    // when
+    SegmentCustomersResponse response =
+        customerQueryService.getCustomersBySegmentTag(segmentTag, shopId);
+
+    // then
+    assertThat(response.segmentTag()).isEqualTo(segmentTag);
+    assertThat(response.segmentTitle()).isEqualTo(segmentTitle);
+    assertThat(response.customerCount()).isEqualTo(2);
+    assertThat(response.customerIds()).containsExactly(1L, 2L);
+
+    then(segmentRepository).should().findBySegmentTag(segmentTag);
+    then(segmentByCustomerRepository).should().findCustomerIdsBySegmentTag(segmentTag);
+    then(customerJpaRepository).should().findAllById(allCustomerIds);
+  }
+
+  @Test
+  @DisplayName("세그먼트 태그별 고객 조회 실패 - 세그먼트 없음")
+  void getCustomersBySegmentTag_SegmentNotFound() {
+    // given
+    String segmentTag = "INVALID";
+    Long shopId = 1L;
+
+    given(segmentRepository.findBySegmentTag(segmentTag)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> customerQueryService.getCustomersBySegmentTag(segmentTag, shopId))
+        .isInstanceOf(BusinessException.class)
+        .hasMessageContaining("세그먼트를 찾을 수 없습니다");
+
+    then(segmentRepository).should().findBySegmentTag(segmentTag);
+  }
+
+  @Test
+  @DisplayName("세그먼트 ID별 고객 조회 성공")
+  void getCustomersBySegmentId_Success() {
+    // given
+    Long segmentId = 1L;
+    Long shopId = 1L;
+    String segmentTag = "LOYAL";
+    String segmentTitle = "충성 고객";
+
+    var segment = createTestSegment(segmentId, segmentTag, segmentTitle);
+    List<Long> allCustomerIds = List.of(1L, 2L, 3L);
+    List<Customer> shopCustomers =
+        List.of(createTestCustomerWithId(1L, shopId), createTestCustomerWithId(3L, shopId));
+
+    given(segmentRepository.findById(segmentId)).willReturn(Optional.of(segment));
+    given(segmentByCustomerRepository.findCustomerIdsBySegmentId(segmentId))
+        .willReturn(allCustomerIds);
+    given(customerJpaRepository.findAllById(allCustomerIds)).willReturn(shopCustomers);
+
+    // when
+    SegmentCustomersResponse response =
+        customerQueryService.getCustomersBySegmentId(segmentId, shopId);
+
+    // then
+    assertThat(response.segmentTag()).isEqualTo(segmentTag);
+    assertThat(response.segmentTitle()).isEqualTo(segmentTitle);
+    assertThat(response.customerCount()).isEqualTo(2);
+    assertThat(response.customerIds()).containsExactly(1L, 3L);
+
+    then(segmentRepository).should().findById(segmentId);
+    then(segmentByCustomerRepository).should().findCustomerIdsBySegmentId(segmentId);
+    then(customerJpaRepository).should().findAllById(allCustomerIds);
+  }
+
+  @Test
+  @DisplayName("다중 세그먼트별 고객 조회 성공")
+  void getCustomersByMultipleSegmentTags_Success() {
+    // given
+    List<String> segmentTags = List.of("VIP", "LOYAL");
+    Long shopId = 1L;
+
+    var vipSegment = createTestSegment(1L, "VIP", "VIP 고객");
+    var loyalSegment = createTestSegment(2L, "LOYAL", "충성 고객");
+    List<com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Segment>
+        segments = List.of(vipSegment, loyalSegment);
+
+    List<Long> vipCustomerIds = List.of(1L, 2L);
+    List<Long> loyalCustomerIds = List.of(3L, 4L);
+
+    List<Customer> vipShopCustomers = List.of(createTestCustomerWithId(1L, shopId));
+    List<Customer> loyalShopCustomers = List.of(createTestCustomerWithId(3L, shopId));
+
+    given(segmentRepository.findBySegmentTagIn(segmentTags)).willReturn(segments);
+    given(segmentByCustomerRepository.findCustomerIdsBySegmentTag("VIP"))
+        .willReturn(vipCustomerIds);
+    given(segmentByCustomerRepository.findCustomerIdsBySegmentTag("LOYAL"))
+        .willReturn(loyalCustomerIds);
+    given(customerJpaRepository.findAllById(vipCustomerIds)).willReturn(vipShopCustomers);
+    given(customerJpaRepository.findAllById(loyalCustomerIds)).willReturn(loyalShopCustomers);
+
+    // when
+    List<SegmentCustomersResponse> responses =
+        customerQueryService.getCustomersByMultipleSegmentTags(segmentTags, shopId);
+
+    // then
+    assertThat(responses).hasSize(2);
+
+    SegmentCustomersResponse vipResponse = responses.get(0);
+    assertThat(vipResponse.segmentTag()).isEqualTo("VIP");
+    assertThat(vipResponse.segmentTitle()).isEqualTo("VIP 고객");
+    assertThat(vipResponse.customerCount()).isEqualTo(1);
+    assertThat(vipResponse.customerIds()).containsExactly(1L);
+
+    SegmentCustomersResponse loyalResponse = responses.get(1);
+    assertThat(loyalResponse.segmentTag()).isEqualTo("LOYAL");
+    assertThat(loyalResponse.segmentTitle()).isEqualTo("충성 고객");
+    assertThat(loyalResponse.customerCount()).isEqualTo(1);
+    assertThat(loyalResponse.customerIds()).containsExactly(3L);
+
+    then(segmentRepository).should().findBySegmentTagIn(segmentTags);
+    then(segmentByCustomerRepository).should().findCustomerIdsBySegmentTag("VIP");
+    then(segmentByCustomerRepository).should().findCustomerIdsBySegmentTag("LOYAL");
+  }
+
+  @Test
+  @DisplayName("다중 세그먼트별 고객 조회 - 일부 세그먼트 없음")
+  void getCustomersByMultipleSegmentTags_PartialSegmentNotFound() {
+    // given
+    List<String> segmentTags = List.of("VIP", "INVALID");
+    Long shopId = 1L;
+
+    var vipSegment = createTestSegment(1L, "VIP", "VIP 고객");
+    List<com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Segment>
+        segments = List.of(vipSegment); // INVALID 세그먼트는 없음
+
+    List<Long> vipCustomerIds = List.of(1L);
+    List<Customer> vipShopCustomers = List.of(createTestCustomerWithId(1L, shopId));
+
+    given(segmentRepository.findBySegmentTagIn(segmentTags)).willReturn(segments);
+    given(segmentByCustomerRepository.findCustomerIdsBySegmentTag("VIP"))
+        .willReturn(vipCustomerIds);
+    given(customerJpaRepository.findAllById(vipCustomerIds)).willReturn(vipShopCustomers);
+
+    // when
+    List<SegmentCustomersResponse> responses =
+        customerQueryService.getCustomersByMultipleSegmentTags(segmentTags, shopId);
+
+    // then
+    assertThat(responses).hasSize(2);
+
+    SegmentCustomersResponse vipResponse = responses.get(0);
+    assertThat(vipResponse.segmentTag()).isEqualTo("VIP");
+    assertThat(vipResponse.customerCount()).isEqualTo(1);
+
+    SegmentCustomersResponse invalidResponse = responses.get(1);
+    assertThat(invalidResponse.segmentTag()).isEqualTo("INVALID");
+    assertThat(invalidResponse.segmentTitle()).isEqualTo("Unknown Segment");
+    assertThat(invalidResponse.customerCount()).isEqualTo(0);
+    assertThat(invalidResponse.customerIds()).isEmpty();
+  }
+
+  // --- Helper Methods ---
+
+  private Customer createTestCustomer() {
+    return Customer.builder()
+        .id(1L)
+        .customerGradeId(1L)
+        .shopId(1L)
+        .staffId(1L)
+        .customerName("홍길동")
+        .phoneNumber("01012345678")
+        .memo("테스트 고객")
+        .visitCount(0)
+        .totalRevenue(0)
+        .recentVisitDate(LocalDate.now())
+        .birthdate(LocalDate.of(1990, 1, 1))
+        .noshowCount(0)
+        .gender(Customer.Gender.M)
+        .marketingConsent(false)
+        .notificationConsent(false)
+        .channelId(1L)
+        .createdAt(LocalDateTime.now())
+        .modifiedAt(LocalDateTime.now())
+        .build();
+  }
+
+  private Customer createUnregisteredCustomer(Long id, String name, Customer.Gender gender) {
+    return Customer.builder()
+        .id(id)
+        .shopId(1L)
+        .customerName(name)
+        .gender(gender)
+        .phoneNumber("01000000000")
+        .createdAt(LocalDateTime.now())
+        .modifiedAt(LocalDateTime.now())
+        .build();
+  }
+
+  private CustomerDetailResponse createTestCustomerDetailResponse() {
+    return CustomerDetailResponse.builder()
+        .customerId(1L)
+        .customerName("홍길동")
+        .phoneNumber("01012345678")
+        .memo("테스트 고객")
+        .visitCount(0)
+        .totalRevenue(0)
+        .recentVisitDate(LocalDate.now())
+        .birthdate(LocalDate.of(1990, 1, 1))
+        .noshowCount(0)
+        .gender(Customer.Gender.M)
+        .marketingConsent(false)
+        .marketingConsentedAt(null)
+        .notificationConsent(false)
+        .lastMessageSentAt(null)
+        .createdAt(LocalDateTime.now())
+        .modifiedAt(LocalDateTime.now())
+        .shopId(1L)
+        .staff(CustomerDetailResponse.StaffInfo.builder().staffId(1L).staffName("김직원").build())
+        .customerGrade(
+            CustomerDetailResponse.CustomerGradeInfo.builder()
+                .customerGradeId(1L)
+                .customerGradeName("일반")
+                .discountRate(0)
+                .build())
+        .acquisitionChannel(
+            CustomerDetailResponse.AcquisitionChannelInfo.builder()
+                .acquisitionChannelId(1L)
+                .acquisitionChannelName("직접 방문")
+                .build())
+        .remainingPrepaidAmount(0)
+        .build();
+  }
+
+  private CustomerListResponse createTestCustomerListResponse() {
+    return new CustomerListResponse(
+        1L, // customerId
+        "홍길동", // customerName
+        "01012345678", // phoneNumber
+        "테스트 고객", // memo
+        0, // visitCount
+        0, // totalRevenue
+        LocalDate.now(), // recentVisitDate
+        LocalDate.of(1990, 1, 1), // birthdate
+        "M", // gender
+        1L, // customerGradeId
+        "일반", // customerGradeName
+        0, // discountRate
+        1L, // staffId
+        "김직원", // staffName
+        1L, // acquisitionChannelId
+        "직접 방문", // acquisitionChannelName
+        0, // remainingPrepaidAmount
+        0, // noshowCount
+        LocalDateTime.now() // createdAt
+        );
+  }
+
+  private CustomerDocument createTestCustomerDocument() {
+    return CustomerDocument.builder()
+        .id("1_1")
+        .customerId(1L)
+        .shopId(1L)
+        .customerName("홍길동")
+        .phoneNumber("01012345678")
+        .customerGradeId(1L)
+        .customerGradeName("일반")
+        .gender("M")
+        .deletedAt(null)
+        .build();
+  }
+
+  private Customer createTestCustomerWithId(Long customerId, Long shopId) {
+    return Customer.builder()
+        .id(customerId)
+        .customerGradeId(1L)
+        .shopId(shopId)
+        .staffId(1L)
+        .customerName("테스트고객" + customerId)
+        .phoneNumber("0101234567" + customerId)
+        .memo("테스트 고객 " + customerId)
+        .visitCount(0)
+        .totalRevenue(0)
+        .recentVisitDate(LocalDate.now())
+        .birthdate(LocalDate.of(1990, 1, 1))
+        .noshowCount(0)
+        .gender(Customer.Gender.M)
+        .marketingConsent(false)
+        .notificationConsent(false)
+        .channelId(1L)
+        .createdAt(LocalDateTime.now())
+        .modifiedAt(LocalDateTime.now())
+        .build();
+  }
+
+  private com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Segment
+      createTestSegment(Long segmentId, String segmentTag, String segmentTitle) {
+    return com.deveagles.be15_deveagles_be.features.customers.command.domain.aggregate.Segment
+        .builder()
+        .id(segmentId)
+        .segmentTag(segmentTag)
+        .segmentTitle(segmentTitle)
+        .colorCode("#FF0000")
+        .createdAt(LocalDateTime.now())
+        .modifiedAt(LocalDateTime.now())
+        .build();
   }
 }
