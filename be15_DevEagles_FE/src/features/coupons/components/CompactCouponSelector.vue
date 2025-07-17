@@ -23,8 +23,8 @@
       <div class="selected-items">
         <div v-for="coupon in displayCoupons" :key="coupon.id" class="selected-chip">
           <div class="chip-content">
-            <span class="chip-name">{{ coupon.name }}</span>
-            <span class="chip-discount">{{ coupon.discount }}%</span>
+            <span class="chip-name">{{ coupon.couponTitle || coupon.name }}</span>
+            <span class="chip-discount">{{ coupon.discountRate || coupon.discount }}%</span>
           </div>
           <BaseButton
             v-if="!readonly"
@@ -100,10 +100,12 @@
       CouponForm,
     },
     props: {
-      // 선택된 쿠폰들 (v-model)
+      // 선택된 쿠폰들 (v-model) - 다중 선택 시 Array, 단일 선택 시 Object 또는 null
       modelValue: {
-        type: Array,
-        default: () => [],
+        validator: value => {
+          return value === null || Array.isArray(value) || typeof value === 'object';
+        },
+        default: null,
       },
       // 라벨 텍스트
       label: {
@@ -154,10 +156,17 @@
 
       // Computed
       const selectedCoupons = computed({
-        get: () => props.modelValue || [],
+        get: () => {
+          if (props.multiple) {
+            return Array.isArray(props.modelValue) ? props.modelValue : [];
+          } else {
+            return props.modelValue ? [props.modelValue] : [];
+          }
+        },
         set: value => {
-          emit('update:modelValue', value);
-          emit('selection-changed', value);
+          const emitValue = props.multiple ? value : value.length > 0 ? value[0] : null;
+          emit('update:modelValue', emitValue);
+          emit('selection-changed', emitValue);
         },
       });
 
@@ -165,14 +174,10 @@
         return selectedCoupons.value.slice(0, props.maxDisplay);
       });
 
-      // Watch for external changes
+      // Watch for external changes - simplified to avoid infinite loops
       watch(
         () => props.modelValue,
-        newValue => {
-          if (newValue !== selectedCoupons.value) {
-            selectedCoupons.value = newValue || [];
-          }
-        },
+        newValue => {},
         { immediate: true }
       );
 
@@ -196,8 +201,15 @@
       };
 
       const handleCouponSelect = coupons => {
-        selectedCoupons.value = Array.isArray(coupons) ? coupons : [coupons];
-        emit('coupon-selected', selectedCoupons.value);
+        const couponsArray = Array.isArray(coupons) ? coupons : [coupons];
+        selectedCoupons.value = couponsArray;
+
+        const emitValue = props.multiple
+          ? couponsArray
+          : couponsArray.length > 0
+            ? couponsArray[0]
+            : null;
+        emit('coupon-selected', emitValue);
         closeSelectorModal();
       };
 
@@ -209,7 +221,11 @@
       const removeFromSelection = coupon => {
         if (props.readonly) return;
 
-        selectedCoupons.value = selectedCoupons.value.filter(c => c.id !== coupon.id);
+        if (props.multiple) {
+          selectedCoupons.value = selectedCoupons.value.filter(c => c.id !== coupon.id);
+        } else {
+          selectedCoupons.value = [];
+        }
       };
 
       const clearSelection = () => {

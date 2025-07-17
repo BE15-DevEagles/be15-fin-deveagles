@@ -289,16 +289,26 @@
 
       // API Methods
       const loadCoupons = async () => {
+        const searchParams = {
+          page: 0,
+          size: 100, // 선택 모달에서는 많은 데이터 로드
+          isActive: props.filterOptions.onlyActive ? true : undefined,
+        };
+
+        // shopId가 있으면 추가
+        if (props.filterOptions.shopId) {
+          searchParams.shopId = props.filterOptions.shopId;
+        }
+
+        console.log('CouponSelectorModal - loadCoupons searchParams:', searchParams);
+        console.log('CouponSelectorModal - filterOptions:', props.filterOptions);
+
         const response = await executeWithErrorHandling(
-          () =>
-            couponsAPI.getCoupons({
-              page: 0,
-              size: 100, // 선택 모달에서는 많은 데이터 로드
-              isActive: props.filterOptions.onlyActive ? true : undefined,
-            }),
+          () => couponsAPI.getCoupons(searchParams),
           '쿠폰 선택 모달에서 쿠폰 목록 로드'
         );
 
+        console.log('CouponSelectorModal - API response:', response);
         coupons.value = response.content;
         logger.info('쿠폰 목록 로드 완료', { count: response.content.length });
       };
