@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 public record ReservationDetailResponse(
     Long reservationId,
+    Long customerId,
     String customerName,
     String customerPhone,
     LocalDateTime reservationStartAt,
@@ -12,4 +13,5 @@ public record ReservationDetailResponse(
     String reservationStatusName,
     String staffMemo,
     String reservationMemo,
-    String itemNames) {}
+    String itemNames,
+    String secondaryItemIds) {}

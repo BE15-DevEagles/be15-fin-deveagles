@@ -56,7 +56,7 @@
           :clearable="false"
           hour-format="24"
           placeholder="시작 날짜"
-          style="width: 160px"
+          style="width: 190px"
           @update:model-value="updateDuration"
         />
         <PrimeDatePicker
@@ -65,7 +65,7 @@
           :clearable="false"
           hour-format="24"
           placeholder="마감 날짜"
-          style="width: 160px"
+          style="width: 190px"
           @update:model-value="updateDuration"
         />
       </div>
@@ -81,7 +81,7 @@
           :clearable="false"
           hour-format="24"
           placeholder="시작 시간"
-          style="width: 160px"
+          style="width: 190px"
           @update:model-value="updateDuration"
         />
         <PrimeDatePicker
@@ -91,15 +91,15 @@
           :clearable="false"
           hour-format="24"
           placeholder="종료 시간"
-          style="width: 160px"
+          style="width: 190px"
           @update:model-value="updateDuration"
         />
-        <input
-          :value="form.duration"
+        <BaseForm
           type="text"
-          class="input input-time small-width"
-          placeholder="소요 시간"
+          :model-value="form.duration"
           readonly
+          placeholder="소요 시간"
+          class="input input-time small-width"
         />
         <label class="checkbox-inline">
           <input v-model="form.allDay" type="checkbox" /> 종일
@@ -109,7 +109,7 @@
 
     <div class="row row-inline">
       <label class="label-wide">일정 제목</label>
-      <BaseForm v-model="form.title" type="text" />
+      <BaseForm v-model="form.title" type="text" style="width: 190px" />
     </div>
 
     <div class="row row-inline">
@@ -125,7 +125,7 @@
 
     <div class="row align-top">
       <label class="label-wide">메모</label>
-      <BaseForm v-model="form.memo" type="textarea" :rows="3" />
+      <BaseForm v-model="form.memo" type="textarea" :rows="3" style="width: 190px" />
     </div>
   </div>
 </template>

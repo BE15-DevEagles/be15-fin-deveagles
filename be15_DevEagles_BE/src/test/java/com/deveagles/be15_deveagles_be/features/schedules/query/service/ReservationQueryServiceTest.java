@@ -106,15 +106,17 @@ class ReservationQueryServiceTest {
     ReservationDetailResponse mockResponse =
         new ReservationDetailResponse(
             reservationId,
+            1L,
             "김민수",
             "010-1234-5678",
             LocalDateTime.of(2025, 7, 1, 10, 0),
             LocalDateTime.of(2025, 7, 1, 11, 0),
             "담당자A",
-            "컷트",
             "CONFIRMED",
             "스태프메모",
-            "고객메모");
+            "고객메모",
+            "컷트",
+            "1, 2");
 
     when(reservationQueryMapper.findReservationDetailById(reservationId, shopId))
         .thenReturn(mockResponse);

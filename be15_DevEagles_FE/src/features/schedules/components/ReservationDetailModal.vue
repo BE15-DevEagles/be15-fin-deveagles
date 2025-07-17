@@ -41,54 +41,61 @@
               <!-- 예약일 -->
               <div class="row">
                 <label>예약일</label>
+
                 <span v-if="!isEditMode">
                   {{ formattedDate }} {{ formattedStartTime }} - {{ formattedEndTime }} ({{
                     reservation.duration
                   }})
                 </span>
+
+                <!-- 수정 모드 -->
                 <div v-else class="date-time-edit">
-                  <div class="row">
-                    <div class="date-row-inline">
-                      <PrimeDatePicker
-                        v-model="edited.date"
-                        :show-time="false"
-                        :show-button-bar="true"
-                        :clearable="false"
-                        hour-format="24"
-                      />
-                      <PrimeDatePicker
-                        v-model="edited.startTime"
-                        :show-time="true"
-                        :time-only="true"
-                        :show-button-bar="true"
-                        :clearable="false"
-                        hour-format="24"
-                        placeholder="시간을 선택하세요"
-                        @update:model-value="updateEditedEndTime"
-                      />
-                      <PrimeDatePicker
-                        v-model="edited.endTime"
-                        :show-time="true"
-                        :time-only="true"
-                        :show-button-bar="true"
-                        :clearable="false"
-                        hour-format="24"
-                        placeholder="시간을 선택하세요"
-                        @update:model-value="updateDuration"
-                      />
-                      <div class="duration-inline">
-                        <p>소요 시간:</p>
-                        <input class="duration-input" :value="edited.duration" readonly />
-                      </div>
-                    </div>
+                  <div class="date-row-inline">
+                    <PrimeDatePicker
+                      v-model="edited.date"
+                      :show-time="false"
+                      :show-button-bar="true"
+                      :clearable="false"
+                      style="width: 200px"
+                      hour-format="24"
+                    />
+                    <PrimeDatePicker
+                      v-model="edited.startTime"
+                      :show-time="true"
+                      :time-only="true"
+                      :show-button-bar="true"
+                      :clearable="false"
+                      hour-format="24"
+                      placeholder="시간을 선택하세요"
+                      style="width: 160px"
+                      @update:model-value="updateEditedEndTime"
+                    />
+                    <PrimeDatePicker
+                      v-model="edited.endTime"
+                      :show-time="true"
+                      :time-only="true"
+                      :show-button-bar="true"
+                      :clearable="false"
+                      hour-format="24"
+                      placeholder="시간을 선택하세요"
+                      style="width: 160px"
+                      @update:model-value="updateDuration"
+                    />
                   </div>
                 </div>
+              </div>
+
+              <div v-if="isEditMode" class="row">
+                <label>소요 시간</label>
+                <BaseForm v-model="edited.duration" type="text" readonly />
               </div>
 
               <!-- 시술/상품 -->
               <div v-if="!isEditMode" class="row">
                 <label>시술/상품</label>
-                <span v-if="!isEditMode">{{ reservation.itemNames }}</span>
+                <span v-if="!isEditMode">
+                  {{ reservation.itemNames ? reservation.itemNames.replace(/,/g, ', ') : '' }}</span
+                >
                 <BaseForm v-else v-model="edited.itemNames" type="text" />
               </div>
               <!-- 시술/상품 -->
@@ -118,7 +125,11 @@
                 </div>
               </div>
 
-              <SelectSecondaryItemModal v-model="showItemModal" @select="addServiceFromModal" />
+              <SelectSecondaryItemModal
+                v-model="showItemModal"
+                :selected-ids="selectedServices.map(s => s.selectedItems)"
+                @select="addServiceFromModal"
+              />
 
               <!-- 담당자 -->
               <div class="row row-select">
@@ -167,9 +178,26 @@
             </div>
 
             <!-- 우측 영역 -->
-            <div v-if="!readonly" class="right-box">
-              <p>고객정보 확인</p>
-              <p>매출 등록</p>
+            <div v-if="!readonly && !isEditMode" class="right-box">
+              <div class="right-box-inner">
+                <div
+                  v-if="reservation.customerName && reservation.customerName !== '미등록 고객'"
+                  class="sales-list-item"
+                  @click="handleCustomerInfo"
+                >
+                  <span class="label">고객 정보 조회</span>
+                  <span class="arrow">›</span>
+                </div>
+                <div
+                  v-if="reservation.reservationStatusName !== 'PAID'"
+                  class="sales-list-item"
+                  :class="{ disabled: reservation.salesRegistered }"
+                  @click="!reservation.salesRegistered && (showSalesModal = true)"
+                >
+                  <span class="label">매출 등록</span>
+                  <span class="arrow">›</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -224,6 +252,17 @@
     icon-type="info"
     @confirm="confirmEdit"
   />
+
+  <SalesItemsModal
+    v-if="showSalesModal"
+    :reservation-id="reservation.reservationId"
+    :initial-customer-id="reservation.customerId"
+    :services="selectedServices.map(s => s.selectedItems)"
+    @close="showSalesModal = false"
+    @submit="handleSalesSubmit"
+  />
+
+  <CustomerDetailModal v-model="showCustomerModal" :customer="customerData" />
 </template>
 
 <script setup>
@@ -231,18 +270,46 @@
   import BaseButton from '@/components/common/BaseButton.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
+  import SalesItemsModal from '@/features/sales/components/ItemsSalesRegistModal.vue';
   import {
     fetchReservationDetail,
     deleteReservation,
     getStaffList,
     updateReservation,
+    getActiveSecondaryItems,
+    getAllPrimaryItems,
+    getCustomerDetail,
   } from '@/features/schedules/api/schedules.js';
   import BaseToast from '@/components/common/BaseToast.vue';
   import BaseConfirm from '@/components/common/BaseConfirm.vue';
   import SelectSecondaryItemModal from '@/features/schedules/components/SelectSecondaryItemModal.vue';
   import dayjs from 'dayjs';
-  const showEditConfirm = ref(false);
+  import CustomerDetailModal from '@/features/customer/components/CustomerDetailModal.vue';
 
+  const showCustomerModal = ref(false);
+  const customerData = ref(null);
+  const showEditConfirm = ref(false);
+  const showSalesModal = ref(false);
+  const handleSalesSubmit = () => {
+    showSalesModal.value = false;
+    reservation.value.salesRegistered = true;
+    toast.value?.success('매출이 등록되었습니다.');
+  };
+  const handleCustomerInfo = async () => {
+    if (!reservation.value || !reservation.value.customerId) {
+      toast.value?.error('고객 정보가 없습니다.');
+      return;
+    }
+
+    try {
+      const detail = await getCustomerDetail(reservation.value.customerId);
+      customerData.value = detail;
+      showCustomerModal.value = true;
+    } catch (e) {
+      console.error('❌ 고객 상세 조회 실패:', e);
+      toast.value?.error('고객 정보를 불러오지 못했습니다.');
+    }
+  };
   const handleSave = () => {
     showEditConfirm.value = true;
   };
@@ -261,6 +328,7 @@
       default: false,
     },
   });
+
   const openDeleteConfirm = () => {
     showMenu.value = false;
     showConfirmModal.value = true;
@@ -365,13 +433,31 @@
             endTime: end,
             duration: calculateDuration(start, end),
           };
+          const secondaryMaster = await getActiveSecondaryItems();
+          const primaryMaster = await getAllPrimaryItems();
+          const idList = (res.secondaryItemIds || '').split(',').map(id => Number(id));
+
+          selectedServices.value = idList.map(id => {
+            const found = secondaryMaster.find(s => s.secondaryItemId === id);
+            const primary = found
+              ? primaryMaster.find(p => p.primaryItemId === found.primaryItemId)
+              : null;
+            return {
+              category: primary?.primaryItemName || '',
+              name: found?.secondaryItemName || '',
+              selectedItems: id,
+              duration: found?.timeTaken != null ? `${found.timeTaken}분` : '상품',
+              price: found?.secondaryItemPrice || 0,
+            };
+          });
+
+          form.value.selectedItems = idList.map(id => ({ id }));
           isLoaded.value = true;
         } catch (e) {
           console.error('❌ 상세 조회 실패:', e);
           isLoaded.value = false;
         }
       } else {
-        console.warn('⚠️ 조건 불충족 - modelValue or id 없음');
         isLoaded.value = false;
       }
     },
@@ -600,7 +686,14 @@
     display: flex;
     flex-direction: column;
     padding: 24px;
-    overflow-y: auto;
+    overflow: hidden;
+  }
+
+  .right-box {
+    flex: 0 0 200px;
+    border-left: 1px solid var(--color-gray-200);
+    height: auto;
+    align-self: stretch;
   }
 
   .date-time-edit {
@@ -616,14 +709,14 @@
     gap: 8px;
     flex-wrap: nowrap;
     flex: 1;
-    margin-left: 24px;
+    margin-left: 0px;
   }
 
   .duration-inline {
     display: flex;
     align-items: center;
-    gap: 4px;
-    white-space: nowrap;
+    margin-top: 8px;
+    gap: 6px;
   }
 
   .duration-label {
@@ -644,7 +737,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
   }
 
   .modal-header h1 {
@@ -662,11 +754,17 @@
   .modal-body {
     display: flex;
     gap: 32px;
-    flex: 1;
+    flex: 1 1 auto;
+    height: 100%;
+    padding: 0;
+    overflow-x: hidden;
   }
 
   .left-detail {
     flex: 1;
+    padding: 24px;
+    margin-top: 24px;
+    overflow-y: auto;
   }
 
   .row {
@@ -718,12 +816,6 @@
     max-width: 300px;
   }
 
-  .right-box {
-    width: 200px;
-    padding: 12px;
-    border-left: 1px solid var(--color-gray-200);
-  }
-
   .right-box p {
     margin-bottom: 16px;
     font-weight: 500;
@@ -731,7 +823,6 @@
   }
 
   .modal-footer {
-    margin-top: 32px;
     display: flex;
     gap: 12px;
     justify-content: flex-end;
@@ -783,6 +874,7 @@
     color: var(--color-neutral-dark);
     margin-bottom: 0;
   }
+
   .service-meta {
     color: var(--color-gray-500);
     font-size: 14px !important;
@@ -829,5 +921,34 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     width: 100%;
     max-width: 600px;
+  }
+
+  .sales-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-gray-200);
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--color-neutral-dark);
+  }
+
+  .sales-list-item:hover {
+    background-color: var(--color-gray-50);
+  }
+
+  .sales-list-item .arrow {
+    font-size: 18px;
+    color: var(--color-gray-500);
+  }
+
+  .sales-list-item.disabled {
+    color: var(--color-gray-400);
+    cursor: not-allowed;
+  }
+
+  .sales-list-item.disabled .arrow {
+    color: var(--color-gray-300);
   }
 </style>

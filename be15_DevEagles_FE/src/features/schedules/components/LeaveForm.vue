@@ -24,6 +24,7 @@
           :clearable="false"
           hour-format="24"
           placeholder="날짜를 선택하세요"
+          style="width: 190px"
         />
       </div>
     </div>
@@ -62,7 +63,7 @@
     <!-- 휴무 제목 -->
     <div class="row row-inline">
       <label class="label-wide">휴무 제목</label>
-      <BaseForm v-model="form.title" type="text" />
+      <BaseForm v-model="form.title" type="text" style="width: 190px" />
     </div>
 
     <!-- 담당자 -->
@@ -80,7 +81,7 @@
     <!-- 메모 -->
     <div class="row align-top">
       <label class="label-wide">메모</label>
-      <BaseForm v-model="form.memo" type="textarea" :rows="3" />
+      <BaseForm v-model="form.memo" type="textarea" :rows="3" style="width: 190px" />
     </div>
   </div>
 </template>

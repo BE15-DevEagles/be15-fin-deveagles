@@ -16,6 +16,7 @@
         v-for="item in filteredSecondaryItems"
         :key="item.secondaryItemId"
         class="item-card"
+        :class="{ selected: isSelected(item.secondaryItemId) }"
         @click="selectItem(item)"
       >
         <p class="item-name">{{ item.secondaryItemName }}</p>
@@ -34,9 +35,15 @@
     getActiveSecondaryItems,
   } from '@/features/schedules/api/schedules.js';
 
-  // eslint-disable-next-line vue/require-prop-types
   const show = defineModel();
   const emit = defineEmits(['select']);
+
+  const props = defineProps({
+    selectedIds: {
+      type: Array,
+      default: () => [],
+    },
+  });
 
   const primaryItems = ref([]);
   const secondaryItems = ref([]);
@@ -70,6 +77,7 @@
     });
     show.value = false;
   };
+  const isSelected = id => props.selectedIds.includes(id);
 </script>
 
 <style scoped>
@@ -116,7 +124,10 @@
   .item-card:hover {
     background-color: var(--color-primary-50);
   }
-
+  .item-card.selected {
+    border-color: var(--color-primary-main);
+    background-color: var(--color-primary-50);
+  }
   .item-name {
     font-weight: 600;
     margin-bottom: 4px;

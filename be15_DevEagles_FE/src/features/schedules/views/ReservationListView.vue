@@ -190,6 +190,7 @@
   import ReservationDetailModal from '@/features/schedules/components/ReservationDetailModal.vue';
   import BaseForm from '@/components/common/BaseForm.vue';
   import BaseConfirm from '@/components/common/BaseConfirm.vue';
+  import dayjs from 'dayjs';
 
   import {
     fetchReservationList,
@@ -197,6 +198,7 @@
     updateReservationStatuses,
   } from '@/features/schedules/api/schedules';
 
+  const isDetailOpen = ref(false);
   const isConfirmDialogOpen = ref(false);
   const confirmTarget = ref(null);
   const searchText = ref('');
@@ -224,11 +226,6 @@
     { key: 'status', title: '예약 상태', width: '140px' },
     { key: 'actions', title: '예약 상태 변경', width: '200px' },
   ];
-
-  function requestConfirm(item) {
-    confirmTarget.value = item;
-    isConfirmDialogOpen.value = true;
-  }
 
   async function confirmReservation() {
     const target = reservations.value.find(r => r.id === selectedReservation.value);
@@ -274,22 +271,25 @@
   }
 
   function getDateRangeByType(type) {
-    const now = new Date();
-    const toISO = date => date.toISOString().split('T')[0];
+    const now = dayjs(); // 현재 로컬 시간 (KST)
 
     if (type === 'today') {
-      const today = toISO(now);
+      const today = now.format('YYYY-MM-DD');
       return { from: today, to: today };
     } else if (type === 'thisWeek') {
-      const start = new Date(now);
-      start.setDate(now.getDate() - now.getDay());
-      const end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      return { from: toISO(start), to: toISO(end) };
+      const startOfWeek = now.startOf('week');
+      const endOfWeek = now.endOf('week');
+      return {
+        from: startOfWeek.format('YYYY-MM-DD'),
+        to: endOfWeek.format('YYYY-MM-DD'),
+      };
     } else if (type === 'thisMonth') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      return { from: toISO(start), to: toISO(end) };
+      const startOfMonth = now.startOf('month');
+      const endOfMonth = now.endOf('month');
+      return {
+        from: startOfMonth.format('YYYY-MM-DD'),
+        to: endOfMonth.format('YYYY-MM-DD'),
+      };
     }
     return { from: null, to: null };
   }
@@ -354,7 +354,16 @@
       console.error('담당자 목록 조회 실패:', e);
     }
   };
-
+  watch(isDetailOpen, val => {
+    if (!val) {
+      fetchReservations();
+    }
+  });
+  watch(isRegistModalOpen, val => {
+    if (!val) {
+      fetchReservations();
+    }
+  });
   watch(currentPage, () => {
     fetchReservations();
   });
@@ -387,11 +396,11 @@
     isModalOpen.value = true;
   }
 
-  const isDetailOpen = ref(false);
-
   function openDetail(item) {
+    if (!item || !item.id) {
+      return;
+    }
     selectedReservation.value = item.id;
-    console.log('🔍 선택된 예약 ID:', selectedReservation.value);
     isDetailOpen.value = true;
   }
 

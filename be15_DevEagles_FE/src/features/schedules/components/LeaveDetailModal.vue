@@ -36,6 +36,7 @@
                 v-model="edited.leaveTitle"
                 type="text"
                 placeholder="제목 입력"
+                style="width: 190px"
               />
               <span v-else>{{ leave.leaveTitle || '없음' }}</span>
             </div>
@@ -49,7 +50,7 @@
                 type="text"
                 :model-value="leave.staffName"
                 :disabled="true"
-                style="pointer-events: none"
+                style="width: 190px"
               />
               <span v-else>{{ leave.staffName }}</span>
             </div>
@@ -67,6 +68,7 @@
                   :clearable="false"
                   hour-format="24"
                   placeholder="날짜를 선택하세요"
+                  style="width: 190px"
                 />
 
                 <!-- 반복 주기 선택 (정기 휴무 전용) -->
@@ -125,6 +127,7 @@
                 v-model="edited.memo"
                 type="textarea"
                 placeholder="메모 입력"
+                style="width: 190px"
               />
               <span v-else>{{ leave.memo }}</span>
             </div>

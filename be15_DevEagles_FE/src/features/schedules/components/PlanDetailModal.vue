@@ -35,7 +35,7 @@
             <div class="row">
               <label>제목</label>
               <span v-if="!isEditMode">{{ edited.title }}</span>
-              <BaseForm v-else v-model="edited.title" type="text" />
+              <BaseForm v-else v-model="edited.title" type="text" style="width: 190px" />
             </div>
 
             <div class="row row-select">
@@ -48,11 +48,13 @@
                   :options="staffOptions"
                   placeholder="담당자 선택"
                   :disabled="true"
+                  style="width: 190px"
                 />
                 <span v-else>{{ edited.staffName || '미지정' }}</span>
               </div>
             </div>
 
+            <!-- 날짜 및 시간 Row -->
             <div class="row">
               <label>날짜 및 시간</label>
               <div class="date-inline">
@@ -65,7 +67,7 @@
                       :show-time="false"
                       :show-button-bar="true"
                       placeholder="시작 날짜"
-                      :style="{ width: '200px' }"
+                      style="width: 200px"
                     />
                     <PrimeDatePicker
                       v-model="edited.endDate"
@@ -73,7 +75,7 @@
                       :show-time="false"
                       :show-button-bar="true"
                       placeholder="종료 날짜"
-                      :style="{ width: '200px' }"
+                      style="width: 200px"
                     />
                   </template>
 
@@ -115,7 +117,7 @@
                     :time-only="true"
                     hour-format="24"
                     placeholder="시작 시간"
-                    :style="{ width: '140px' }"
+                    style="width: 190px"
                   />
                   <PrimeDatePicker
                     v-model="edited.endTime"
@@ -124,11 +126,14 @@
                     :time-only="true"
                     hour-format="24"
                     placeholder="종료 시간"
-                    :style="{ width: '140px' }"
+                    style="width: 190px"
                   />
-                  <span>소요 시간:</span>
-                  <BaseForm v-model="durationText" type="text" readonly placeholder="00:00" />
-                  <label class="all-day-checkbox">
+
+                  <!-- 종일 체크박스: 종료 시간 옆에 배치 -->
+                  <label
+                    class="all-day-checkbox"
+                    style="display: flex; align-items: center; margin-left: 12px"
+                  >
                     <input v-model="edited.allDay" type="checkbox" @change="handleAllDayToggle" />
                     <span>종일</span>
                   </label>
@@ -144,10 +149,30 @@
               </div>
             </div>
 
+            <!-- 소요 시간 Row (아래로 분리) -->
+            <div v-if="isEditMode" class="row">
+              <label>소요 시간</label>
+              <div class="date-inline">
+                <BaseForm
+                  v-model="durationText"
+                  type="text"
+                  readonly
+                  placeholder="00:00"
+                  style="width: 190px"
+                />
+              </div>
+            </div>
+
             <div class="row">
               <label>메모</label>
               <span v-if="!isEditMode">{{ edited.memo }}</span>
-              <BaseForm v-else v-model="edited.memo" type="textarea" rows="3" />
+              <BaseForm
+                v-else
+                v-model="edited.memo"
+                type="textarea"
+                rows="3"
+                style="width: 190px"
+              />
             </div>
           </div>
         </div>
@@ -407,7 +432,6 @@
         return;
       }
 
-      // 일반 수정
       const payload = {
         staffId: edited.value.staffId,
       };
@@ -637,13 +661,29 @@
         const startTimeStr = parseTime(d.startAt);
         const endTimeStr = parseTime(d.endAt);
 
+        let duration = '';
+        if (startTimeStr && endTimeStr) {
+          const [sh, sm] = startTimeStr.split(':').map(Number);
+          const [eh, em] = endTimeStr.split(':').map(Number);
+          const startMinutes = sh * 60 + sm;
+          const endMinutes = eh * 60 + em;
+          let diff = endMinutes - startMinutes;
+          if (diff < 0) diff += 24 * 60; // 자정 넘어가는 경우
+
+          const hours = Math.floor(diff / 60);
+          const minutes = diff % 60;
+          duration =
+            (hours > 0 ? `${hours}시간` : '') +
+            (hours > 0 && minutes > 0 ? ' ' : '') +
+            (minutes > 0 ? `${minutes}분` : '');
+        }
+
         result.repeat = d.weeklyPlan ? 'weekly' : 'monthly';
         result.weeklyDay = d.weeklyPlan || null;
         result.monthlyDay = d.monthlyPlan || null;
         result.timeRange = `${repeatText} ${startTimeStr} - ${endTimeStr}`;
-        result.duration = ''; // 필요시 소요시간 계산 로직 추가 가능
+        result.duration = duration;
       } else {
-        // 기존 단기 일정 처리 로직 그대로
         result.type = 'plan';
         result.date = new Date(d.startAt);
         result.endDate = new Date(d.endAt);
@@ -682,6 +722,13 @@
     height: 100vh;
     background-color: rgba(0, 0, 0, 0.3);
     z-index: 1000;
+  }
+
+  .duration-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
   }
 
   .modal-panel {
@@ -854,8 +901,13 @@
   .all-day-checkbox {
     display: flex;
     align-items: center;
+    gap: 4px;
     white-space: nowrap;
     color: var(--color-gray-700);
+  }
+
+  .all-day-checkbox input {
+    margin-right: 2px;
   }
 
   .repeat-inline {

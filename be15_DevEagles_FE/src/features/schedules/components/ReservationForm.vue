@@ -7,6 +7,7 @@
         v-model="form.customer"
         type="text"
         placeholder="고객명 또는 연락처 검색"
+        style="width: 190px"
         @focus="showSuggestions = true"
         @blur="handleBlur"
       />
@@ -35,7 +36,7 @@
           :clearable="false"
           hour-format="24"
           placeholder="날짜 선택"
-          style="width: 160px"
+          style="width: 190px"
         />
 
         <!-- 시작 시간 -->
@@ -46,7 +47,7 @@
           :clearable="true"
           hour-format="24"
           placeholder="시작 시간"
-          style="width: 130px"
+          style="width: 150px"
           @update:model-value="updateDuration"
         />
 
@@ -58,18 +59,19 @@
           :clearable="true"
           hour-format="24"
           placeholder="종료 시간"
-          style="width: 130px"
+          style="width: 150px"
           @update:model-value="updateDuration"
         />
 
         <!-- 소요 시간 -->
         <p>소요시간 :</p>
-        <input
-          :value="form.duration"
+        <BaseForm
           type="text"
-          class="input input-time small-width"
+          :value="form.duration"
           readonly
+          class="input input-time small-width"
           placeholder="소요 시간"
+          style="width: 150px"
         />
       </div>
     </div>
@@ -96,29 +98,27 @@
     <!-- 담당자 -->
     <div class="row row-inline">
       <label class="label-wide">담당자</label>
-      <BaseForm
-        v-model="form.staffId"
-        type="select"
-        :options="staffOptions"
-        class="input"
-        style="max-width: 400px"
-      />
+      <BaseForm v-model="form.staffId" type="select" :options="staffOptions" class="input" />
     </div>
 
     <!-- 특이사항 -->
     <div class="row row-inline">
       <label class="label-wide">특이사항</label>
-      <BaseForm v-model="form.note" type="text" placeholder="특이사항 입력" />
+      <BaseForm v-model="form.note" type="text" placeholder="특이사항 입력" style="width: 190px" />
     </div>
 
     <!-- 메모 -->
     <div class="row align-top">
       <label class="label-wide">메모</label>
-      <BaseForm v-model="form.memo" type="textarea" rows="3" />
+      <BaseForm v-model="form.memo" type="textarea" rows="3" style="width: 190px" />
     </div>
   </div>
 
-  <SelectSecondaryItemModal v-model="showItemModal" @select="addServiceFromModal" />
+  <SelectSecondaryItemModal
+    v-model="showItemModal"
+    :selected-ids="form.selectedItems.map(i => i.id)"
+    @select="addServiceFromModal"
+  />
 </template>
 
 <script setup>
@@ -273,7 +273,7 @@
     background: white;
     border: 1px solid var(--color-gray-300);
     border-radius: 4px;
-    z-index: 100;
+    z-index: 100 !important;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   }
 
