@@ -59,11 +59,12 @@ public interface CustomerQueryService {
   Optional<CustomerIdResponse> findCustomerIdByPhoneNumber(String phoneNumber, Long shopId);
 
   // 세그먼트별 고객 조회
-  SegmentCustomersResponse getCustomersBySegmentTag(String segmentTag);
+  SegmentCustomersResponse getCustomersBySegmentTag(String segmentTag, Long shopId);
 
-  SegmentCustomersResponse getCustomersBySegmentId(Long segmentId);
+  SegmentCustomersResponse getCustomersBySegmentId(Long segmentId, Long shopId);
 
-  List<SegmentCustomersResponse> getCustomersByMultipleSegmentTags(List<String> segmentTags);
+  List<SegmentCustomersResponse> getCustomersByMultipleSegmentTags(
+      List<String> segmentTags, Long shopId);
 
   List<CustomerResponse> getUnregisteredCustomers(Long shopId);
 }

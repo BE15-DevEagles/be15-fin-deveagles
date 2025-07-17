@@ -98,6 +98,21 @@ public enum ErrorCode implements ErrorCodeType {
   WORKFLOW_TRIGGER_VALIDATION_FAILED("60006", "워크플로우 트리거 조건이 유효하지 않습니다", HttpStatus.BAD_REQUEST),
   WORKFLOW_ACTION_EXECUTION_FAILED(
       "60007", "워크플로우 액션 실행에 실패했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+  WORKFLOW_INVALID_INPUT("60008", "워크플로우 입력값이 유효하지 않습니다", HttpStatus.BAD_REQUEST),
+  WORKFLOW_TITLE_REQUIRED("60009", "워크플로우 제목은 필수입니다", HttpStatus.BAD_REQUEST),
+  WORKFLOW_TRIGGER_TYPE_REQUIRED("60010", "트리거 타입은 필수입니다", HttpStatus.BAD_REQUEST),
+  WORKFLOW_ACTION_TYPE_REQUIRED("60011", "액션 타입은 필수입니다", HttpStatus.BAD_REQUEST),
+  WORKFLOW_INVALID_TRIGGER_CONFIG("60012", "트리거 설정이 유효하지 않습니다", HttpStatus.BAD_REQUEST),
+  WORKFLOW_INVALID_ACTION_CONFIG("60013", "액션 설정이 유효하지 않습니다", HttpStatus.BAD_REQUEST),
+  WORKFLOW_JSON_PARSE_ERROR("60014", "워크플로우 JSON 파싱 중 오류가 발생했습니다", HttpStatus.BAD_REQUEST),
+  WORKFLOW_SEARCH_FAILED("60015", "워크플로우 검색 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+  WORKFLOW_STATS_CALCULATION_FAILED(
+      "60016", "워크플로우 통계 계산 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
+  WORKFLOW_INVALID_STATUS_FILTER("60017", "유효하지 않은 상태 필터입니다", HttpStatus.BAD_REQUEST),
+  WORKFLOW_INVALID_SORT_PARAMETER("60018", "유효하지 않은 정렬 파라미터입니다", HttpStatus.BAD_REQUEST),
+  WORKFLOW_INVALID_PAGE_PARAMETER("60019", "유효하지 않은 페이지 파라미터입니다", HttpStatus.BAD_REQUEST),
+  WORKFLOW_CONVERSION_FAILED(
+      "60020", "워크플로우 데이터 변환 중 오류가 발생했습니다", HttpStatus.INTERNAL_SERVER_ERROR),
 
   // 예약 설정 관련 에러 (70000번대)
   INVALID_RESERVATION_TIME_RANGE("70001", "예약 시작 시간은 종료 시간보다 빨라야 합니다", HttpStatus.BAD_REQUEST),
