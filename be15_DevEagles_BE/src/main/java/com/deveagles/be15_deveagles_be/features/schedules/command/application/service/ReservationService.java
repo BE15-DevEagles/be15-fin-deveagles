@@ -113,6 +113,28 @@ public class ReservationService {
               .build();
       reservationDetailRepository.save(detail);
     }
+    // 자동발신 처리
+    if (customerId != null) {
+      Optional<CustomerDetailResponse> optionalCustomer =
+          customerQueryService.getCustomerDetail(customerId, shopId);
+
+      if (optionalCustomer.isPresent()) {
+        CustomerDetailResponse customerDto = optionalCustomer.get();
+
+        Map<String, String> payload =
+            messageVariableProcessor.buildPayload(
+                customerDto.getCustomerId(),
+                customerDto.getShopId(),
+                Map.of(
+                    "예약날짜",
+                    reservation
+                        .getReservationStartAt()
+                        .format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))));
+
+        automaticMessageTriggerService.triggerAutomaticSend(
+            customerDto, AutomaticEventType.RESERVATION_CREATED, payload);
+      }
+    }
 
     return reservation.getReservationId();
   }

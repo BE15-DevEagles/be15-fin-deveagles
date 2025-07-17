@@ -65,7 +65,7 @@ public class AutomaticMessageTriggerServiceImpl implements AutomaticMessageTrigg
   @Override
   public List<AutomaticTemplateResponse> getAutomaticMessages(Long shopId) {
     return messageTemplateRepository.findByShopIdAndAutomaticEventTypeIsNotNull(shopId).stream()
-        .map(AutomaticTemplateResponse::from) // ✅ 정확히 일치
+        .map(AutomaticTemplateResponse::from) // 정확히 일치
         .toList();
   }
 
@@ -81,7 +81,7 @@ public class AutomaticMessageTriggerServiceImpl implements AutomaticMessageTrigg
 
     MessageTemplate template = templateOpt.get();
 
-    // ✅ buildPayload는 고객정보 + 추가 payload 병합해서 하나로 처리
+    // buildPayload는 고객정보 + 추가 payload 병합해서 하나로 처리
     Map<String, String> mergedPayload =
         messageVariableProcessor.buildPayload(
             customerDto.getCustomerId(), customerDto.getShopId(), payload);

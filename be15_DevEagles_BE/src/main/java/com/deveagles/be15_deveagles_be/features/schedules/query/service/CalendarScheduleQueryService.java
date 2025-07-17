@@ -54,16 +54,6 @@ public class CalendarScheduleQueryService {
           DayOfWeek repeatDay = WEEKDAY_ABBR_MAP.get(item.weeklyRepeatDay().toUpperCase());
           DayOfWeek currentDay = date.getDayOfWeek();
 
-          System.out.println(
-              "📅 반복 체크 - "
-                  + item.title()
-                  + " | 반복요일: "
-                  + repeatDay
-                  + " | 현재날짜: "
-                  + date
-                  + " ("
-                  + currentDay
-                  + ")");
           matchWeekly = repeatDay != null && currentDay == repeatDay;
         }
 
@@ -72,7 +62,6 @@ public class CalendarScheduleQueryService {
             item.monthlyRepeatDay() != null && date.getDayOfMonth() == item.monthlyRepeatDay();
 
         if (matchWeekly || matchMonthly) {
-          System.out.println("✅ 일정 생성됨: " + item.title() + " | " + date);
           result.add(
               new CalendarRenderedResponse(
                   item.id(),

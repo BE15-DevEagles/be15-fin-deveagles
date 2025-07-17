@@ -5,8 +5,12 @@ import static org.mockito.Mockito.*;
 
 import com.deveagles.be15_deveagles_be.common.events.ReservationCreatedEvent;
 import com.deveagles.be15_deveagles_be.common.exception.BusinessException;
+import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerDetailResponse;
 import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.CustomerIdResponse;
 import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerQueryService;
+import com.deveagles.be15_deveagles_be.features.messages.command.application.service.AutomaticMessageTriggerService;
+import com.deveagles.be15_deveagles_be.features.messages.command.application.service.MessageVariableProcessor;
+import com.deveagles.be15_deveagles_be.features.messages.command.domain.aggregate.AutomaticEventType;
 import com.deveagles.be15_deveagles_be.features.schedules.command.application.dto.request.CreateReservationFullRequest;
 import com.deveagles.be15_deveagles_be.features.schedules.command.application.dto.request.CreateReservationRequest;
 import com.deveagles.be15_deveagles_be.features.schedules.command.application.dto.request.UpdateReservationRequest;
@@ -17,7 +21,9 @@ import com.deveagles.be15_deveagles_be.features.schedules.command.domain.aggrega
 import com.deveagles.be15_deveagles_be.features.schedules.command.domain.repository.ReservationDetailRepository;
 import com.deveagles.be15_deveagles_be.features.schedules.command.domain.repository.ReservationRepository;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +42,9 @@ class ReservationServiceTest {
 
   @Mock private ApplicationEventPublisher eventPublisher;
 
+  @Mock private MessageVariableProcessor messageVariableProcessor;
+
+  @Mock private AutomaticMessageTriggerService automaticMessageTriggerService;
   @InjectMocks private ReservationService reservationService;
 
   @BeforeEach
@@ -133,9 +142,23 @@ class ReservationServiceTest {
             invocation -> {
               Reservation r = invocation.getArgument(0);
               ReflectionTestUtils.setField(r, "reservationId", 789L);
+              ReflectionTestUtils.setField(r, "customerId", 2L);
+              // 예약 시작 시간을 request의 값으로 설정하여 서비스에서 사용될 때와 일치시킴
+              ReflectionTestUtils.setField(r, "reservationStartAt", request.reservationStartAt());
               return r;
             });
 
+    // 고객 정보 응답
+    CustomerDetailResponse customerDto =
+        CustomerDetailResponse.builder().customerId(2L).shopId(1L).customerName("홍길동").build();
+
+    when(customerQueryService.getCustomerDetail(2L, 1L)).thenReturn(Optional.of(customerDto));
+    String expectedFormattedDate =
+        request.reservationStartAt().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"));
+    // 자동 치환값
+    Map<String, String> expectedPayload = Map.of("예약날짜", expectedFormattedDate);
+    when(messageVariableProcessor.buildPayload(eq(2L), eq(1L), anyMap()))
+        .thenReturn(expectedPayload);
     // when
     Long resultId = reservationService.createFullReservation(1L, request);
 
@@ -143,6 +166,11 @@ class ReservationServiceTest {
     assertThat(resultId).isEqualTo(789L);
     verify(reservationRepository).save(any(Reservation.class));
     verify(reservationDetailRepository, times(2)).save(any(ReservationDetail.class));
+    verify(customerQueryService).getCustomerDetail(2L, 1L);
+    verify(messageVariableProcessor).buildPayload(eq(2L), eq(1L), anyMap());
+    verify(automaticMessageTriggerService)
+        .triggerAutomaticSend(
+            eq(customerDto), eq(AutomaticEventType.RESERVATION_CREATED), eq(expectedPayload));
   }
 
   @Test
@@ -151,11 +179,13 @@ class ReservationServiceTest {
     // given
     Long reservationId = 1L;
     Long shopId = 10L;
+    Long customerId = 99L;
 
     Reservation reservation =
         Reservation.builder()
             .reservationId(reservationId)
             .shopId(shopId)
+            .customerId(customerId) //  이 줄 꼭 추가!
             .staffId(2L)
             .reservationStatusName(ReservationStatusName.PENDING)
             .reservationStartAt(LocalDateTime.now())
@@ -163,7 +193,19 @@ class ReservationServiceTest {
             .build();
 
     when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(reservation));
+    CustomerDetailResponse customerDto =
+        CustomerDetailResponse.builder()
+            .customerId(customerId)
+            .shopId(shopId)
+            .customerName("홍길동")
+            .build();
+    when(customerQueryService.getCustomerDetail(customerId, shopId))
+        .thenReturn(Optional.of(customerDto));
 
+    Map<String, String> payload = Map.of("예약날짜", "2025.07.20");
+
+    when(messageVariableProcessor.buildPayload(eq(customerId), eq(shopId), anyMap()))
+        .thenReturn(payload);
     UpdateReservationRequest request =
         new UpdateReservationRequest(
             3L,
@@ -178,6 +220,11 @@ class ReservationServiceTest {
     reservationService.updateReservation(shopId, reservationId, request);
 
     // then
+    verify(customerQueryService).getCustomerDetail(customerId, shopId);
+    verify(messageVariableProcessor).buildPayload(eq(customerId), eq(shopId), anyMap());
+    verify(automaticMessageTriggerService)
+        .triggerAutomaticSend(
+            eq(customerDto), eq(AutomaticEventType.RESERVATION_CREATED), eq(payload));
     verify(reservationDetailRepository).deleteByReservationId(reservationId);
     verify(reservationDetailRepository).saveAll(anyList());
   }
@@ -215,19 +262,30 @@ class ReservationServiceTest {
     Reservation res1 =
         Reservation.builder()
             .reservationId(100L)
+            .customerId(11L)
             .shopId(shopId)
             .reservationStatusName(ReservationStatusName.PENDING)
+            .reservationStartAt(LocalDateTime.of(2025, 7, 22, 10, 0)) //
             .build();
 
     Reservation res2 =
         Reservation.builder()
             .reservationId(101L)
+            .customerId(12L)
             .shopId(shopId)
             .reservationStatusName(ReservationStatusName.PENDING)
+            .reservationStartAt(LocalDateTime.of(2025, 7, 23, 14, 0)) //
             .build();
 
     when(reservationRepository.findById(100L)).thenReturn(Optional.of(res1));
     when(reservationRepository.findById(101L)).thenReturn(Optional.of(res2));
+
+    when(customerQueryService.getCustomerDetail(anyLong(), anyLong()))
+        .thenReturn(
+            Optional.of(CustomerDetailResponse.builder().customerId(999L).shopId(shopId).build()));
+
+    when(messageVariableProcessor.buildPayload(anyLong(), anyLong(), anyMap()))
+        .thenReturn(Map.of("예약날짜", "2025.07.22"));
 
     List<UpdateReservationStatusRequest> requestList =
         List.of(
@@ -240,6 +298,8 @@ class ReservationServiceTest {
     // then
     assertThat(res1.getReservationStatusName()).isEqualTo(ReservationStatusName.CONFIRMED);
     assertThat(res2.getReservationStatusName()).isEqualTo(ReservationStatusName.CBC);
+
+    verify(automaticMessageTriggerService, times(2)).triggerAutomaticSend(any(), any(), any());
   }
 
   @Test

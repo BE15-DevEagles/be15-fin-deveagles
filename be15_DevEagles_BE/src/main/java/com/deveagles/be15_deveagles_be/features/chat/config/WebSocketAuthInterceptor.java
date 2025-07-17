@@ -48,7 +48,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         Principal principal = () -> String.valueOf(userDetails.getUserId());
         accessor.setUser(principal);
 
-        log.info("✅ WebSocket 인증 성공: userId={}", userDetails.getUserId());
+        log.info(" WebSocket 인증 성공: userId={}", userDetails.getUserId());
       } catch (Exception e) {
         throw new BusinessException(ErrorCode.WEBSOCKET_AUTHENTICATION_FAILED);
       }

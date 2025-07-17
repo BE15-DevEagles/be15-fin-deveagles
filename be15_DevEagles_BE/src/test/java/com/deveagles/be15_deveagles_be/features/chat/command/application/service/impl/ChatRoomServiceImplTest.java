@@ -50,7 +50,7 @@ class ChatRoomServiceImplTest {
 
     ChatRoom savedRoom =
         ChatRoom.builder()
-            .id("room-123") // ✅ ID 명시적으로 할당
+            .id("room-123")
             .participant(
                 ChatRoom.Participant.builder()
                     .id(staffId)
@@ -73,7 +73,7 @@ class ChatRoomServiceImplTest {
     verify(chatRoomRepository).save(any());
 
     assertNotNull(result);
-    assertEquals("room-123", result.roomId()); // ✅ 이제 통과함
+    assertEquals("room-123", result.roomId()); //
   }
 
   @Test

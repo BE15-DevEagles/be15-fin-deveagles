@@ -79,7 +79,7 @@ public class MessageCommandServiceImpl implements MessageCommandService {
                       messageVariableProcessor.resolveVariables(
                           smsRequest.messageContent(), payload);
 
-                  // ✅ 자동 판단: #{프로필링크} 포함 여부로 hasLink 결정
+                  // 자동 판단: #{프로필링크} 포함 여부로 hasLink 결정
                   boolean hasLink = resolvedContent != null && resolvedContent.contains("#{프로필링크}");
 
                   Sms.SmsBuilder builder =
@@ -177,7 +177,7 @@ public class MessageCommandServiceImpl implements MessageCommandService {
         customerQueryService.getCustomerPhoneNumbers(List.of(sms.getCustomerId()));
     String phoneNumber = phoneNumbers.get(0);
 
-    // ✅ payload: 고객명만 포함되도록 기본값 생성
+    // payload: 고객명만 포함되도록 기본값 생성
     Map<String, String> payload =
         messageVariableProcessor.buildPayload(sms.getCustomerId(), shopId, null);
     String resolvedContent =
