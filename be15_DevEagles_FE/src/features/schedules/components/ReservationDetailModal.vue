@@ -262,7 +262,20 @@
     @submit="handleSalesSubmit"
   />
 
-  <CustomerDetailModal v-model="showCustomerModal" :customer="customerData" />
+  <CustomerDetailModal
+    v-model="showCustomerModal"
+    :customer="customerData"
+    @request-reservation="handleReservationRequest"
+    @request-sales="handleSalesRequest"
+  />
+
+  <ScheduleRegistModal
+    v-if="showReservationRegistModal"
+    v-model="showReservationRegistModal"
+    :initial-customer="customerData"
+    @submit="() => toast?.success('예약이 등록되었습니다.')"
+    @error="err => toast?.error(err?.message || '예약 등록에 실패했습니다.')"
+  />
 </template>
 
 <script setup>
@@ -285,9 +298,11 @@
   import SelectSecondaryItemModal from '@/features/schedules/components/SelectSecondaryItemModal.vue';
   import dayjs from 'dayjs';
   import CustomerDetailModal from '@/features/customer/components/CustomerDetailModal.vue';
+  import ScheduleRegistModal from '@/features/schedules/components/ScheduleRegistModal.vue';
 
   const showCustomerModal = ref(false);
   const customerData = ref(null);
+  const showReservationRegistModal = ref(false);
   const showEditConfirm = ref(false);
   const showSalesModal = ref(false);
   const handleSalesSubmit = () => {
@@ -310,6 +325,22 @@
       toast.value?.error('고객 정보를 불러오지 못했습니다.');
     }
   };
+
+  const handleReservationRequest = _customer => {
+    showCustomerModal.value = false;
+    // 예약 등록 모달 열기
+    showReservationRegistModal.value = true;
+  };
+
+  const handleSalesRequest = _customer => {
+    showCustomerModal.value = false;
+    // 매출 등록 모달 열기
+    selectedServices.value =
+      reservation.value.secondaryItems?.map(item => ({
+        selectedItems: [item.secondaryItemId],
+      })) || [];
+    showSalesModal.value = true;
+  };
   const handleSave = () => {
     showEditConfirm.value = true;
   };
@@ -322,7 +353,10 @@
 
   const props = defineProps({
     modelValue: Boolean,
-    id: Number,
+    id: {
+      type: Number,
+      default: null,
+    },
     readonly: {
       type: Boolean,
       default: false,

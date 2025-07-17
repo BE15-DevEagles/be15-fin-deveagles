@@ -16,6 +16,12 @@
                   <span class="phone">({{ processedCustomer.phoneNumber }})</span>
                 </div>
                 <div class="actions">
+                  <BaseButton type="primary" size="sm" @click="openReservationModal"
+                    >예약 등록</BaseButton
+                  >
+                  <BaseButton type="secondary" size="sm" @click="openSalesModal"
+                    >매출 등록</BaseButton
+                  >
                   <button class="icon-btn delete-btn" aria-label="삭제" @click="requestDelete">
                     <TrashIcon :size="20" />
                   </button>
@@ -155,21 +161,85 @@
 </template>
 
 <script setup>
-  import { computed } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount } from 'vue';
   import BaseBadge from '@/components/common/BaseBadge.vue';
   import TrashIcon from '@/components/icons/TrashIcon.vue';
   import EditIcon from '@/components/icons/EditIcon.vue';
+  import BaseButton from '@/components/common/BaseButton.vue';
+  import {
+    getCustomerSessionPasses,
+    getCustomerPrepaidPasses,
+  } from '@/features/membership/api/membership.js';
 
   const props = defineProps({
     modelValue: { type: Boolean, required: true },
     customer: { type: Object, default: null },
   });
 
-  const emit = defineEmits(['update:modelValue', 'request-delete', 'request-edit']);
+  const emit = defineEmits([
+    'update:modelValue',
+    'request-delete',
+    'request-edit',
+    'request-reservation',
+    'request-sales',
+  ]);
 
   const show = computed({
     get: () => props.modelValue,
     set: value => emit('update:modelValue', value),
+  });
+
+  const sessionPasses = ref([]);
+  const prepaidAmount = ref(0);
+  const passesLoading = ref(false);
+  const passesError = ref(null);
+
+  async function fetchMembershipData(customerId) {
+    if (!customerId) return;
+    passesLoading.value = true;
+    passesError.value = null;
+    try {
+      const [session, prepaid] = await Promise.all([
+        getCustomerSessionPasses(customerId),
+        getCustomerPrepaidPasses(customerId),
+      ]);
+      sessionPasses.value = session || [];
+      prepaidAmount.value =
+        prepaid?.reduce?.((acc, cur) => acc + (cur.remainingAmount || 0), 0) || 0;
+    } catch (err) {
+      passesError.value = err.message || '회원권 정보를 불러오지 못했습니다.';
+      sessionPasses.value = [];
+      prepaidAmount.value = 0;
+    } finally {
+      passesLoading.value = false;
+    }
+  }
+
+  watch(
+    () => props.customer?.customerId,
+    id => {
+      if (show.value && id) fetchMembershipData(id);
+    }
+  );
+  watch(show, v => {
+    if (v && props.customer?.customerId) fetchMembershipData(props.customer.customerId);
+  });
+
+  function handleEscKey(e) {
+    if (e.key === 'Escape') {
+      closeModal();
+    }
+  }
+
+  watch(show, v => {
+    if (v) {
+      window.addEventListener('keydown', handleEscKey);
+    } else {
+      window.removeEventListener('keydown', handleEscKey);
+    }
+  });
+  onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleEscKey);
   });
 
   const processedCustomer = computed(() => {
@@ -183,6 +253,8 @@
 
     return {
       ...props.customer,
+      customerSessionPasses: sessionPasses.value,
+      remainingPrepaidAmount: prepaidAmount.value,
       gender: genderMap[props.customer.gender] || props.customer.gender,
       createdAt: formatDate(props.customer.createdAt),
       birthdate: formatDate(props.customer.birthdate),
@@ -225,6 +297,14 @@
     const avg = props.customer.totalRevenue / props.customer.visitCount;
     return isNaN(avg) ? 0 : Math.round(avg);
   });
+
+  const openReservationModal = () => {
+    emit('request-reservation', props.customer);
+  };
+
+  const openSalesModal = () => {
+    emit('request-sales', props.customer);
+  };
 </script>
 
 <style scoped>
@@ -321,6 +401,11 @@
   .phone {
     font-size: 1rem;
     color: #666;
+  }
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
   .icon-btn {
     background: none;

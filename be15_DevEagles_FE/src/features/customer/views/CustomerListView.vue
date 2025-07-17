@@ -45,10 +45,12 @@
         </BaseButton>
       </div>
       <div class="toolbar-right">
+        <!--
         <BaseButton type="primary" size="sm" class="sms-btn" @click="onSendMessage">
           <SendHorizonalIcon style="margin-right: 4px" :size="18" />
           문자 발송
         </BaseButton>
+        -->
       </div>
     </div>
 
@@ -88,6 +90,7 @@
           class="wide-table"
         >
           <template #header-checkbox>
+            <!--
             <div class="dropdown-checkbox-wrapper">
               <input
                 ref="checkboxDropdownRef"
@@ -106,6 +109,7 @@
                 </div>
               </div>
             </div>
+            -->
           </template>
           <template #header-customerName>
             <button class="sortable-header" type="button" @click="sortBy('customerName')">
@@ -146,9 +150,11 @@
             >
               <td v-for="column in visibleColumns" :key="column.key">
                 <template v-if="column.key === 'checkbox'">
+                  <!--
                   <div @click.stop>
                     <input v-model="selectedIds" type="checkbox" :value="item.customerId" />
                   </div>
+                  -->
                 </template>
                 <template v-else-if="column.key === 'tags'">
                   <div class="tag-cell-wrapper">
@@ -218,6 +224,8 @@
       :customer="selectedCustomer"
       @request-delete="handleRequestDelete"
       @request-edit="handleEditRequest"
+      @request-reservation="handleReservationRequest"
+      @request-sales="handleSalesRequest"
     />
 
     <CustomerFilterModal
@@ -238,6 +246,23 @@
     />
 
     <BaseToast ref="toastRef" />
+
+    <!-- Additional Modals for Reservation and Sales -->
+    <ScheduleRegistModal
+      v-if="showReservationRegistModal"
+      v-model="showReservationRegistModal"
+      :initial-customer="selectedCustomer"
+      @submit="() => toastRef?.success('예약이 등록되었습니다.')"
+      @error="err => toastRef?.error(err?.message || '예약 등록에 실패했습니다.')"
+    />
+    <ItemsSalesRegistModal
+      v-if="showSalesRegistModal"
+      v-model="showSalesRegistModal"
+      :initial-customer-id="selectedCustomer?.customerId || selectedCustomer?.customer_id"
+      @close="showSalesRegistModal = false"
+      @submit="() => toastRef?.success('매출이 등록되었습니다.')"
+      @error="err => toastRef?.error(err?.message || '매출 등록에 실패했습니다.')"
+    />
   </div>
 </template>
 
@@ -252,7 +277,7 @@
   import FilterIcon from '@/components/icons/FilterIcon.vue';
   import SortIcon from '@/components/icons/SortIcon.vue';
   import SearchIcon from '@/components/icons/SearchIcon.vue';
-  import { SendHorizonalIcon, XIcon } from 'lucide-vue-next';
+  import { XIcon } from 'lucide-vue-next';
   import CustomerCreateDrawer from '../components/CustomerCreateDrawer.vue';
   import CustomerEditDrawer from '../components/CustomerEditDrawer.vue';
   import CustomerColumnSettingsDrawer from '../components/CustomerColumnSettingsDrawer.vue';
@@ -262,13 +287,15 @@
   import BaseToast from '@/components/common/BaseToast.vue';
   import CustomerGradeSettingsDrawer from '../components/CustomerGradeSettingsDrawer.vue';
   import CustomerTagSettingsDrawer from '../components/CustomerTagSettingsDrawer.vue';
+  import ItemsSalesRegistModal from '@/features/sales/components/ItemsSalesRegistModal.vue';
+  import ScheduleRegistModal from '@/features/schedules/components/ScheduleRegistModal.vue';
   import customersAPI from '../api/customers.js';
   import { useMetadataStore } from '@/store/metadata.js';
   import { useAuthStore } from '@/store/auth.js';
 
   const activeFilters = ref({});
 
-  const authStore = useAuthStore();
+  const _authStore = useAuthStore();
 
   // 메타데이터 Pinia 스토어
   const metadataStore = useMetadataStore();
@@ -277,13 +304,13 @@
   const staff = computed(() => metadataStore.staff);
   const grades = computed(() => metadataStore.grades);
   const customerList = ref([]);
-  const customers = ref([]);
-  const isLoading = ref(true);
-  const totalCustomers = ref(0);
-  const currentPage = ref(1);
+  const _customers = ref([]);
+  const _isLoading = ref(true);
+  const _totalCustomers = ref(0);
+  const _currentPage = ref(1);
 
   const columns = ref([
-    { key: 'checkbox', title: '', width: '50px' },
+    // { key: 'checkbox', title: '', width: '50px' },
     { key: 'customerName', title: '고객명', width: '110px' },
     { key: 'phoneNumber', title: '연락처', width: '130px' },
     { key: 'staff.staffName', title: '담당자', width: '90px' },
@@ -314,6 +341,8 @@
   const showTagSettingsDrawer = ref(false);
 
   const showFilterModal = ref(false);
+  const showReservationRegistModal = ref(false);
+  const showSalesRegistModal = ref(false);
 
   const showColumnDrawer = ref(false);
   const columnSettings = ref(
@@ -363,6 +392,32 @@
     showEditDrawer.value = true;
   }
 
+  const handleReservationRequest = customer => {
+    showDetailModal.value = false;
+    // Ensure selectedCustomer always has both customerId and customer_id
+    selectedCustomer.value = {
+      ...customer,
+      customerId: customer.customerId || customer.customer_id || null,
+      customer_id: customer.customer_id || customer.customerId || null,
+    };
+    showReservationRegistModal.value = true;
+  };
+
+  const handleSalesRequest = customer => {
+    showDetailModal.value = false;
+    // Ensure selectedCustomer always has both customerId and customer_id
+    selectedCustomer.value = {
+      ...customer,
+      customerId: customer.customerId || customer.customer_id || null,
+      customer_id: customer.customer_id || customer.customerId || null,
+      id: customer.customerId || customer.customer_id || null,
+      // Add snake_case fields for ItemsSalesRegistModal compatibility
+      customer_name: customer.customerName || customer.customer_name || '',
+      phone_number: customer.phoneNumber || customer.phone_number || '',
+    };
+    showSalesRegistModal.value = true;
+  };
+
   async function handleUpdateCustomer(updatedCustomer) {
     try {
       if (updatedCustomer) {
@@ -403,7 +458,8 @@
   const search = ref('');
   const page = ref(1);
   const pageSize = ref(10);
-  const selectedIds = ref([]);
+  // 체크박스 관련 변수, computed, 함수, 로직 모두 주석 처리
+  // const selectedIds = ref([]);
   const loading = ref(false);
   const sortKey = ref('createdAt');
   const sortOrder = ref('desc');
@@ -739,44 +795,42 @@
     });
   });
 
-  const showDropdown = ref(false);
-  const checkboxDropdownRef = ref(null);
-  const isAllSelected = computed(() => {
-    if (sortedCustomers.value.length === 0) return false;
-    return selectedIds.value.length === sortedCustomers.value.length;
-  });
-  const isPageSelected = computed(() => {
-    const pageIds = pagedData.value.map(item => item.customerId);
-    if (pageIds.length === 0) return false;
-    return pageIds.every(id => selectedIds.value.includes(id)) && !isAllSelected.value;
-  });
+  // 체크박스 관련 변수, computed, 함수, 로직 모두 주석 처리
+  // const showDropdown = ref(false);
+  // const checkboxDropdownRef = ref(null);
+  // const isAllSelected = computed(() => {
+  //   if (sortedCustomers.value.length === 0) return false;
+  //   return selectedIds.value.length === sortedCustomers.value.length;
+  // });
+  // const isPageSelected = computed(() => {
+  //   const pageIds = pagedData.value.map(item => item.customerId);
+  //   if (pageIds.length === 0) return false;
+  //   return pageIds.every(id => selectedIds.value.includes(id)) && !isAllSelected.value;
+  // });
 
-  function toggleDropdown(e) {
-    if (isAllSelected.value) {
-      selectedIds.value = [];
-      showDropdown.value = false;
-    } else if (isPageSelected.value) {
-      const pageIds = pagedData.value.map(item => item.customerId);
-      selectedIds.value = selectedIds.value.filter(id => !pageIds.includes(id));
-      showDropdown.value = false;
-    } else {
-      showDropdown.value = !showDropdown.value;
-    }
-    e.stopPropagation();
-  }
-  function selectAll(mode) {
-    if (mode === 'all') {
-      selectedIds.value = sortedCustomers.value.map(item => item.customerId);
-    } else {
-      const pageIds = pagedData.value.map(item => item.customerId);
-      selectedIds.value = Array.from(new Set([...selectedIds.value, ...pageIds]));
-    }
-    showDropdown.value = false;
-  }
+  // function toggleDropdown(e) {
+  //   if (isAllSelected.value) {
+  //     selectedIds.value = [];
+  //     showDropdown.value = false;
+  //   } else if (isPageSelected.value) {
+  //     const pageIds = pagedData.value.map(item => item.customerId);
+  //     selectedIds.value = selectedIds.value.filter(id => !pageIds.includes(id));
+  //     showDropdown.value = false;
+  //   } else {
+  //     showDropdown.value = !showDropdown.value;
+  //   }
+  //   e.stopPropagation();
+  // }
+  // function selectAll(mode) {
+  //   if (mode === 'all') {
+  //     selectedIds.value = sortedCustomers.value.map(item => item.customerId);
+  //   } else {
+  //     const pageIds = pagedData.value.map(item => item.customerId);
+  //     selectedIds.value = Array.from(new Set([...selectedIds.value, ...pageIds]));
+  //   }
+  //   showDropdown.value = false;
+  // }
   function handleClickOutside(event) {
-    if (checkboxDropdownRef.value && !checkboxDropdownRef.value.contains(event.target)) {
-      showDropdown.value = false;
-    }
     if (gradeTagDropdownWrapper.value && !gradeTagDropdownWrapper.value.contains(event.target)) {
       showGradeTagDropdown.value = false;
     }
@@ -796,7 +850,7 @@
   function handlePageChange(newPage) {
     page.value = newPage;
   }
-  function onSendMessage() {}
+  function _onSendMessage() {}
 
   const handleApplyFilters = filters => {
     activeFilters.value = filters;

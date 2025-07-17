@@ -7,59 +7,40 @@
     xmlns="http://www.w3.org/2000/svg"
     :class="className"
   >
-    <line
-      x1="8"
-      y1="6"
-      x2="21"
-      y2="6"
+    <path
+      d="M22 10V4H2v6l4 2 4-2 4 2 4-2 4 2Z"
       stroke="currentColor"
       stroke-width="2"
       stroke-linecap="round"
+      stroke-linejoin="round"
     />
-    <line
-      x1="8"
-      y1="12"
-      x2="21"
-      y2="12"
+    <path
+      d="M6 12v10"
       stroke="currentColor"
       stroke-width="2"
       stroke-linecap="round"
+      stroke-linejoin="round"
     />
-    <line
-      x1="8"
-      y1="18"
-      x2="21"
-      y2="18"
+    <path
+      d="M10 12v10"
       stroke="currentColor"
       stroke-width="2"
       stroke-linecap="round"
+      stroke-linejoin="round"
     />
-    <line
-      x1="3"
-      y1="6"
-      x2="3.01"
-      y2="6"
+    <path
+      d="M14 12v10"
       stroke="currentColor"
       stroke-width="2"
       stroke-linecap="round"
+      stroke-linejoin="round"
     />
-    <line
-      x1="3"
-      y1="12"
-      x2="3.01"
-      y2="12"
+    <path
+      d="M18 12v10"
       stroke="currentColor"
       stroke-width="2"
       stroke-linecap="round"
-    />
-    <line
-      x1="3"
-      y1="18"
-      x2="3.01"
-      y2="18"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
+      stroke-linejoin="round"
     />
   </svg>
 </template>
