@@ -207,4 +207,23 @@ public class StaffCommandServiceImplTest {
         .isInstanceOf(BusinessException.class)
         .hasMessageContaining(ErrorCode.STAFF_NOT_FOUND.getMessage());
   }
+
+  @Test
+  @DisplayName("getStaffProfileUrl: 정상적으로 프로필 URL을 조회한다")
+  void getStaffProfileUrl_정상() {
+    // given
+    Long staffId = 1L;
+    Staff staff =
+        Staff.builder().staffId(staffId).profileUrl("https://test-bucket.s3/profile1.png").build();
+
+    given(userRepository.findStaffByStaffId(staffId)).willReturn(Optional.of(staff));
+
+    // when
+    var response = staffCommandService.getStaffProfileUrl(staffId);
+
+    // then
+    assertThat(response).isNotNull();
+    assertThat(response.getProfileUrl()).isEqualTo("https://test-bucket.s3/profile1.png");
+    verify(userRepository).findStaffByStaffId(staffId);
+  }
 }

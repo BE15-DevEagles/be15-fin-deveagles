@@ -54,8 +54,7 @@ public class ShopCommandController {
 
   @Transactional(readOnly = true)
   @GetMapping("/p/{shopId}")
-  public ResponseEntity<ApiResponse<GetShopResponse>> getPublicShopInfo(
-      @PathVariable Long shopId) { // URL 경로에서 shopId를 변수로 받음
+  public ResponseEntity<ApiResponse<GetShopResponse>> getPublicShopInfo(@PathVariable Long shopId) {
 
     GetShopResponse response = shopCommandService.getShop(shopId);
 

@@ -5,7 +5,9 @@ import com.deveagles.be15_deveagles_be.features.auth.command.application.model.C
 import com.deveagles.be15_deveagles_be.features.users.command.application.dto.request.CreateStaffRequest;
 import com.deveagles.be15_deveagles_be.features.users.command.application.dto.request.PutStaffRequest;
 import com.deveagles.be15_deveagles_be.features.users.command.application.dto.response.StaffInfoResponse;
+import com.deveagles.be15_deveagles_be.features.users.command.application.dto.response.StaffProfileUrlResponse;
 import com.deveagles.be15_deveagles_be.features.users.command.application.service.StaffCommandService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,9 @@ public class StaffCommandController {
   private final StaffCommandService staffCommandService;
 
   @PostMapping()
+  @Operation(
+      summary = "직원 생성",
+      description = "새로운 직원을 생성합니다. 프로필 이미지(MultipartFile)도 함께 업로드 가능합니다.")
   public ResponseEntity<ApiResponse<Void>> staffCreate(
       @AuthenticationPrincipal CustomUser customUser,
       @RequestPart @Valid CreateStaffRequest staffRequest,
@@ -37,6 +42,9 @@ public class StaffCommandController {
   }
 
   @GetMapping("/{staffId}")
+  @Operation(
+      summary = "직원 상세 조회",
+      description = "PathVariable로 전달된 staffId를 기준으로 해당 직원의 상세 정보를 조회합니다.")
   public ResponseEntity<ApiResponse<StaffInfoResponse>> getStaffDetail(
       @AuthenticationPrincipal CustomUser customUser, @PathVariable Long staffId) {
 
@@ -46,6 +54,10 @@ public class StaffCommandController {
   }
 
   @PostMapping("/{staffId}")
+  @Operation(
+      summary = "직원 정보 수정",
+      description =
+          "PathVariable로 전달된 staffId를 기준으로 해당 직원 정보를 수정합니다. 프로필 이미지(MultipartFile)도 수정할 수 있습니다.")
   public ResponseEntity<ApiResponse<Void>> putStaffDetail(
       @AuthenticationPrincipal CustomUser customUser,
       @PathVariable Long staffId,
@@ -55,5 +67,14 @@ public class StaffCommandController {
     staffCommandService.putStaffDetail(staffId, staffRequest, profile);
 
     return ResponseEntity.ok().body(ApiResponse.success(null));
+  }
+
+  @GetMapping("/{staffId}/profile-url")
+  @Operation(
+      summary = "직원 프로필 URL 조회(고객 예약 전용)",
+      description = "PathVariable로 전달된 staffId를 기준으로 해당 직원의 프로필 이미지 URL만 반환합니다.")
+  public ResponseEntity<StaffProfileUrlResponse> getStaffProfileUrl(@PathVariable Long staffId) {
+    StaffProfileUrlResponse response = staffCommandService.getStaffProfileUrl(staffId);
+    return ResponseEntity.ok(response);
   }
 }
