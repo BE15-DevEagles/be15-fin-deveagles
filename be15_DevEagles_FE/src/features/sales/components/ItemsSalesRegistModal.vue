@@ -118,21 +118,38 @@
           <BaseForm v-model="memo" type="textarea" placeholder="메모 입력" class="items-textarea" />
         </div>
 
-        <!-- 우측 -->
         <div class="items-form-right">
           <div class="items-form-right-body">
             <div class="search-row" style="position: relative">
-              <!-- 예약일 때 -->
+              <!-- 예약 모드 + 고객 ID 있음 -->
               <BaseForm
-                v-if="isReservationMode"
+                v-if="isReservationMode && customerId && !isUnregisteredMode"
                 type="text"
                 :model-value="`${customerName} - ${customerPhone}`"
                 readonly
                 class="items-customer-search"
               />
 
-              <!-- 예약 아닐 때 -->
-              <template v-else>
+              <!-- 예약 모드 + 고객 ID 없음 -->
+              <div
+                v-else-if="isReservationMode"
+                class="unregistered-select"
+                style="margin-top: 8px"
+              >
+                <BaseForm
+                  v-model="selectedUnregisteredGender"
+                  type="select"
+                  :options="[
+                    { value: 'M', text: '미등록-남자' },
+                    { value: 'F', text: '미등록-여자' },
+                  ]"
+                  placeholder="미등록 고객 선택"
+                  @update:model-value="handleUnregisteredSelect"
+                />
+              </div>
+
+              <!-- 예약 모드가 아닐 때 -->
+              <div v-else>
                 <BaseForm
                   v-model="searchKeyword"
                   type="text"
@@ -152,9 +169,8 @@
                     </div>
                   </li>
                 </ul>
-              </template>
+              </div>
             </div>
-
             <div class="items-total-price-section">
               <label>최종 결제 금액</label>
               <div class="items-total-display">
@@ -240,7 +256,6 @@
               </template>
             </div>
           </div>
-
           <div class="items-form-right-footer">
             <div class="items-footer-buttons">
               <BaseButton class="cancel-button" outline @click="emit('close')">닫기</BaseButton>
@@ -250,7 +265,6 @@
         </div>
       </div>
     </div>
-
     <ItemsSelectModal
       v-if="showProductModal"
       v-model="showProductModal"
@@ -276,10 +290,19 @@
   } from '@/features/membership/api/membership.js';
   import '@/features/sales/styles/SalesItemsModal.css';
   import { getStaff } from '@/features/staffs/api/staffs.js';
-  import { getCustomerDetail, registerItemSale } from '@/features/sales/api/sales.js';
+  import {
+    getCustomerDetail,
+    registerItemSale,
+    fetchUnregisteredCustomers,
+  } from '@/features/sales/api/sales.js';
   import { useAuthStore } from '@/store/auth';
   import couponsAPI from '@/features/coupons/api/coupons.js';
   import { getActiveAllSecondaryItems } from '@/features/items/api/items.js';
+  import {
+    fetchReservationDetail,
+    updateReservationStatuses,
+  } from '@/features/schedules/api/schedules.js';
+  import dayjs from 'dayjs';
 
   const isReservationMode = computed(() => !!props.reservationId);
   const selectedPrepaidPassId = ref(null);
@@ -288,8 +311,8 @@
   const emit = defineEmits(['close', 'submit']);
   const toastRef = ref(null);
   const staffOptions = ref([]);
-  const date = ref(new Date().toISOString().substring(0, 10));
-  const time = ref(new Date().toTimeString().substring(0, 5));
+  const date = ref(new Date());
+  const time = ref(new Date());
   const selectedProducts = ref([]);
   const memo = ref('');
   const showProductModal = ref(false);
@@ -309,6 +332,28 @@
     { key: 'naver', label: '네이버페이' },
     { key: 'local', label: '지역화폐' },
   ]);
+  const isUnregisteredMode = ref(false);
+
+  const handleUnregisteredSelect = gender => {
+    isUnregisteredMode.value = true;
+    if (!unregisteredCustomers.value.length) return;
+    if (gender === 'M') {
+      const male = unregisteredCustomers.value.find(c => c.customerName === '미등록-남자');
+      if (male) {
+        customerId.value = male.customerId;
+        customerName.value = male.customerName;
+        customerPhone.value = '';
+      }
+    } else if (gender === 'F') {
+      const female = unregisteredCustomers.value.find(c => c.customerName === '미등록-여자');
+      if (female) {
+        customerId.value = female.customerId;
+        customerName.value = female.customerName;
+        customerPhone.value = '';
+      }
+    }
+  };
+
   const totalPaymentAmount = computed(() =>
     selectedMethods.value.reduce((sum, key) => {
       return sum + (paymentAmounts.value[key] || 0);
@@ -323,7 +368,8 @@
   );
   const finalTotalPrice = computed(() => totalPrice.value - globalDiscountAmount.value);
 
-  // 🔍 고객 검색 관련
+  const unregisteredCustomers = ref([]);
+  const selectedUnregisteredGender = ref('');
   const customerId = ref(null);
   const searchKeyword = ref('');
   const searchResults = ref([]);
@@ -363,6 +409,14 @@
   const handleBoxClick = () => {
     if (selectedProducts.value.length === 0) {
       openProductModal();
+    }
+  };
+
+  const loadUnregisteredCustomers = async () => {
+    try {
+      unregisteredCustomers.value = await fetchUnregisteredCustomers();
+    } catch (e) {
+      console.error('미등록 고객 목록 조회 실패:', e);
     }
   };
 
@@ -479,7 +533,7 @@
       const price = p.price || 0;
       const quantity = 1;
       const baseTotal = price * quantity;
-      const discountAmount = 0; // 초기에는 할인 없음
+      const discountAmount = 0;
       const finalPrice = baseTotal - discountAmount;
 
       const availableSessionPasses = !customerId.value
@@ -512,6 +566,9 @@
     }
 
     selectedProducts.value = [...selectedProducts.value, ...newProducts];
+    if (customerId.value) {
+      await updateSessionPassesForProducts(customerId.value);
+    }
   };
 
   const fetchStaffs = async () => {
@@ -525,23 +582,36 @@
       console.error('직원 목록 불러오기 실패:', e);
     }
   };
+
   onMounted(async () => {
     window.addEventListener('keydown', handleKeydown);
     await fetchCustomers();
     await fetchStaffs();
-    console.log('자식에서 받은 services', props.services);
-
-    if (props.reservationId && props.initialCustomerId) {
+    await loadUnregisteredCustomers();
+    if (props.reservationId) {
       try {
-        const detail = await getCustomerDetail(props.initialCustomerId);
-        customerName.value = detail.customerName || '';
-        customerPhone.value = detail.phoneNumber || '';
-        customerId.value = props.initialCustomerId;
+        if (props.initialCustomerId) {
+          const detail = await getCustomerDetail(props.initialCustomerId);
+
+          customerName.value = detail.customerName || '';
+          customerPhone.value = detail.phoneNumber || '';
+          customerId.value = props.initialCustomerId;
+          await updateSessionPassesForProducts(props.initialCustomerId);
+        } else {
+          const reservationDetail = await fetchReservationDetail(props.reservationId);
+
+          if (reservationDetail.customerId) {
+            customerName.value = reservationDetail.customerName || '';
+            customerPhone.value = reservationDetail.customerPhone || '';
+            customerId.value = reservationDetail.customerId;
+          } else {
+            handleUnregisteredSelect('M');
+          }
+        }
+        await fetchPrepaidTotalAmount();
       } catch (e) {
         console.error('고객 정보 조회 실패:', e);
       }
-
-      await fetchPrepaidTotalAmount();
     }
 
     const result = await getActiveAllSecondaryItems();
@@ -551,10 +621,10 @@
       price: item.secondaryItemPrice,
     }));
   });
+
   watch(
     [() => props.services, allProducts],
     ([serviceIds, all]) => {
-      // 둘 중 하나라도 준비 안 됐으면 return
       if (!serviceIds || serviceIds.length === 0) {
         selectedProducts.value = [];
         return;
@@ -578,6 +648,9 @@
         couponId: null,
         couponDiscountRate: 0,
       }));
+      if (customerId.value) {
+        updateSessionPassesForProducts(customerId.value);
+      }
     },
     { immediate: true }
   );
@@ -628,7 +701,11 @@
       toastRef.value?.error('고객을 선택해주세요.');
       return;
     }
-
+    const noManager = selectedProducts.value.find(p => !p.manager);
+    if (noManager) {
+      toastRef.value?.error(`"${noManager.name}" 상품의 담당자를 선택해주세요.`);
+      return;
+    }
     const invalid = selectedProducts.value.find(p => !p.quantity || p.quantity < 1);
     if (invalid) {
       toastRef.value?.error(`"${invalid.name}" 상품의 수량이 올바르지 않습니다.`);
@@ -651,19 +728,21 @@
     };
 
     for (const product of selectedProducts.value) {
-      const salesDateStr = `${date.value}T${time.value}:00`;
+      const datePart = dayjs(date.value).format('YYYY-MM-DD');
+      const timePart = dayjs(time.value).format('HH:mm:ss');
+      const salesDateStr = `${datePart}T${timePart}`;
+
       const payments = [];
 
       if (product.deduction) {
         payments.push({
           paymentsMethod: PaymentsMethodEnum['session_pass'],
-          amount: product.finalPrice || product.price * product.quantity, // 0일 경우 대체
+          amount: product.finalPrice || product.price * product.quantity,
           customerSessionPassId: product.deduction,
           usedCount: product.quantity || 1,
         });
       }
 
-      // 공통 결제 수단 (prepaid 제외)
       selectedMethods.value.forEach(method => {
         if (method === 'session_pass' || method === 'prepaid') return;
 
@@ -673,7 +752,6 @@
         });
       });
 
-      // 선불권 결제
       if (selectedMethods.value.includes('prepaid')) {
         if (!selectedPrepaidPassId.value) {
           toastRef.value?.error('사용할 선불권을 선택해주세요.');
@@ -712,17 +790,32 @@
       }
     }
 
+    if (props.reservationId) {
+      try {
+        await updateReservationStatuses([
+          {
+            reservationId: props.reservationId,
+            reservationStatusName: 'PAID',
+          },
+        ]);
+      } catch (e) {
+        console.error('▶ 예약 상태 변경 실패:', e);
+        toastRef.value?.error('예약 상태를 PAID로 변경하지 못했습니다.');
+      }
+    }
+
     toastRef.value?.success('모든 상품 매출이 등록되었습니다.');
     emit('submit');
     emit('close');
   };
 
-  const updateSessionPassesForProducts = async () => {
-    if (!customerId.value) return;
+  const updateSessionPassesForProducts = async targetId => {
+    const id = targetId || customerId.value;
+    if (!id) return;
 
     let allSessionPasses = [];
     try {
-      allSessionPasses = await getAvailableSessionPasses(customerId.value);
+      allSessionPasses = await getAvailableSessionPasses(id);
     } catch (e) {
       console.warn('[SalesItemsModal] session pass 재조회 실패', e);
     }
@@ -735,14 +828,14 @@
           text: `${pass.sessionPassName} (${pass.remainingCount}회/${pass.totalCount}회, ${pass.expirationDate})`,
         }));
 
-      const availableSessionPasses = [
-        { value: '', text: '횟수권 선택' },
-        ...(filteredPasses.length ? filteredPasses : [{ value: '', text: '해당 상품 사용 불가' }]),
-      ];
-
       return {
         ...product,
-        availableSessionPasses,
+        availableSessionPasses: [
+          { value: '', text: '횟수권 선택' },
+          ...(filteredPasses.length
+            ? filteredPasses
+            : [{ value: '', text: '해당 상품 사용 불가' }]),
+        ],
       };
     });
   };
@@ -793,14 +886,14 @@
             selectedProducts.value[i].couponId = couponInfo.couponId;
             selectedProducts.value[i].couponDiscountRate = couponInfo.discountRate;
 
-            recalculateProduct(i); //
+            recalculateProduct(i);
           } catch (e) {
             console.warn('쿠폰 조회 실패:', e);
             selectedProducts.value[i].couponInfo = '유효하지 않은 쿠폰입니다';
             selectedProducts.value[i].couponId = null;
             selectedProducts.value[i].couponDiscountRate = 0;
 
-            recalculateProduct(i); //
+            recalculateProduct(i);
           }
         }
       }

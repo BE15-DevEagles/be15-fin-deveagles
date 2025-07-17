@@ -63,3 +63,8 @@ export const getCustomerDetail = async customerId => {
   const response = await api.get(`/customers/${customerId}`);
   return response.data.data;
 };
+
+export const fetchUnregisteredCustomers = async () => {
+  const response = await api.get('/customers/unregistered');
+  return response.data.data;
+};
