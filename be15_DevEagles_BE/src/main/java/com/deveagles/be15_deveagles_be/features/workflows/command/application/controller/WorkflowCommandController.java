@@ -1,8 +1,12 @@
 package com.deveagles.be15_deveagles_be.features.workflows.command.application.controller;
 
 import com.deveagles.be15_deveagles_be.common.dto.ApiResponse;
+import com.deveagles.be15_deveagles_be.common.exception.BusinessException;
+import com.deveagles.be15_deveagles_be.common.exception.ErrorCode;
+import com.deveagles.be15_deveagles_be.features.auth.command.application.model.CustomUser;
 import com.deveagles.be15_deveagles_be.features.workflows.command.application.dto.request.CreateWorkflowCommand;
 import com.deveagles.be15_deveagles_be.features.workflows.command.application.dto.request.DeleteWorkflowCommand;
+import com.deveagles.be15_deveagles_be.features.workflows.command.application.dto.request.ToggleWorkflowCommand;
 import com.deveagles.be15_deveagles_be.features.workflows.command.application.dto.request.UpdateWorkflowCommand;
 import com.deveagles.be15_deveagles_be.features.workflows.command.application.service.WorkflowCommandService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,8 +18,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -47,14 +53,72 @@ public class WorkflowCommandController {
   })
   @PostMapping
   public ResponseEntity<ApiResponse<WorkflowCreateResponse>> createWorkflow(
+      @AuthenticationPrincipal CustomUser user,
       @Parameter(description = "워크플로우 생성 정보", required = true) @Valid @RequestBody
           CreateWorkflowCommand command) {
-    log.info("워크플로우 생성 요청: 제목={}, 매장ID={}", command.getTitle(), command.getShopId());
+    log.info("워크플로우 생성 요청: 제목={}, 매장ID={}", command.getTitle(), user.getShopId());
 
-    Long workflowId = workflowCommandService.createWorkflow(command);
+    // 입력값 검증
+    if (command.getTitle() == null || command.getTitle().trim().isEmpty()) {
+      return ResponseEntity.status(ErrorCode.WORKFLOW_TITLE_REQUIRED.getHttpStatus())
+          .body(
+              ApiResponse.failure(
+                  ErrorCode.WORKFLOW_TITLE_REQUIRED.getCode(),
+                  ErrorCode.WORKFLOW_TITLE_REQUIRED.getMessage()));
+    }
 
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResponse.success(new WorkflowCreateResponse(workflowId)));
+    if (command.getTriggerType() == null || command.getTriggerType().trim().isEmpty()) {
+      return ResponseEntity.status(ErrorCode.WORKFLOW_TRIGGER_TYPE_REQUIRED.getHttpStatus())
+          .body(
+              ApiResponse.failure(
+                  ErrorCode.WORKFLOW_TRIGGER_TYPE_REQUIRED.getCode(),
+                  ErrorCode.WORKFLOW_TRIGGER_TYPE_REQUIRED.getMessage()));
+    }
+
+    if (command.getActionType() == null || command.getActionType().trim().isEmpty()) {
+      return ResponseEntity.status(ErrorCode.WORKFLOW_ACTION_TYPE_REQUIRED.getHttpStatus())
+          .body(
+              ApiResponse.failure(
+                  ErrorCode.WORKFLOW_ACTION_TYPE_REQUIRED.getCode(),
+                  ErrorCode.WORKFLOW_ACTION_TYPE_REQUIRED.getMessage()));
+    }
+
+    try {
+      CreateWorkflowCommand updatedCommand =
+          CreateWorkflowCommand.builder()
+              .title(command.getTitle())
+              .description(command.getDescription())
+              .shopId(user.getShopId())
+              .staffId(user.getUserId())
+              .targetCustomerGrades(command.getTargetCustomerGrades())
+              .targetTags(command.getTargetTags())
+              .excludeDormantCustomers(command.getExcludeDormantCustomers())
+              .dormantPeriodMonths(command.getDormantPeriodMonths())
+              .excludeRecentMessageReceivers(command.getExcludeRecentMessageReceivers())
+              .recentMessagePeriodDays(command.getRecentMessagePeriodDays())
+              .triggerType(command.getTriggerType())
+              .triggerCategory(command.getTriggerCategory())
+              .triggerConfig(command.getTriggerConfig())
+              .actionType(command.getActionType())
+              .actionConfig(command.getActionConfig())
+              .isActive(command.getIsActive())
+              .build();
+
+      Long workflowId = workflowCommandService.createWorkflow(updatedCommand);
+      return ResponseEntity.status(HttpStatus.CREATED)
+          .body(ApiResponse.success(new WorkflowCreateResponse(workflowId)));
+    } catch (BusinessException e) {
+      log.warn("워크플로우 생성 실패 - 비즈니스 예외: {}", e.getMessage());
+      return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+          .body(ApiResponse.failure(e.getErrorCode().getCode(), e.getMessage()));
+    } catch (Exception e) {
+      log.error("워크플로우 생성 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus())
+          .body(
+              ApiResponse.failure(
+                  ErrorCode.INTERNAL_SERVER_ERROR.getCode(),
+                  ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));
+    }
   }
 
   @Operation(summary = "워크플로우 수정", description = "기존 워크플로우의 정보를 수정합니다.")
@@ -74,36 +138,64 @@ public class WorkflowCommandController {
   })
   @PutMapping("/{workflowId}")
   public ResponseEntity<ApiResponse<Void>> updateWorkflow(
+      @AuthenticationPrincipal CustomUser user,
       @Parameter(description = "워크플로우 ID", required = true, example = "1") @PathVariable
           Long workflowId,
       @Parameter(description = "워크플로우 수정 정보", required = true) @Valid @RequestBody
           UpdateWorkflowCommand command) {
     log.info("워크플로우 수정 요청: ID={}, 제목={}", workflowId, command.getTitle());
 
-    UpdateWorkflowCommand commandWithId =
-        UpdateWorkflowCommand.builder()
-            .workflowId(workflowId)
-            .title(command.getTitle())
-            .description(command.getDescription())
-            .shopId(command.getShopId())
-            .staffId(command.getStaffId())
-            .targetCustomerGrades(command.getTargetCustomerGrades())
-            .targetTags(command.getTargetTags())
-            .excludeDormantCustomers(command.getExcludeDormantCustomers())
-            .dormantPeriodMonths(command.getDormantPeriodMonths())
-            .excludeRecentMessageReceivers(command.getExcludeRecentMessageReceivers())
-            .recentMessagePeriodDays(command.getRecentMessagePeriodDays())
-            .triggerType(command.getTriggerType())
-            .triggerCategory(command.getTriggerCategory())
-            .triggerConfig(command.getTriggerConfig())
-            .actionType(command.getActionType())
-            .actionConfig(command.getActionConfig())
-            .isActive(command.getIsActive())
-            .build();
+    if (workflowId == null || workflowId <= 0) {
+      return ResponseEntity.status(ErrorCode.WORKFLOW_INVALID_INPUT.getHttpStatus())
+          .body(
+              ApiResponse.failure(
+                  ErrorCode.WORKFLOW_INVALID_INPUT.getCode(), "워크플로우 ID는 양수여야 합니다"));
+    }
 
-    workflowCommandService.updateWorkflow(commandWithId);
+    if (command.getTitle() == null || command.getTitle().trim().isEmpty()) {
+      return ResponseEntity.status(ErrorCode.WORKFLOW_TITLE_REQUIRED.getHttpStatus())
+          .body(
+              ApiResponse.failure(
+                  ErrorCode.WORKFLOW_TITLE_REQUIRED.getCode(),
+                  ErrorCode.WORKFLOW_TITLE_REQUIRED.getMessage()));
+    }
 
-    return ResponseEntity.ok(ApiResponse.success(null));
+    try {
+      UpdateWorkflowCommand commandWithId =
+          UpdateWorkflowCommand.builder()
+              .workflowId(workflowId)
+              .title(command.getTitle())
+              .description(command.getDescription())
+              .shopId(user.getShopId())
+              .staffId(user.getUserId())
+              .targetCustomerGrades(command.getTargetCustomerGrades())
+              .targetTags(command.getTargetTags())
+              .excludeDormantCustomers(command.getExcludeDormantCustomers())
+              .dormantPeriodMonths(command.getDormantPeriodMonths())
+              .excludeRecentMessageReceivers(command.getExcludeRecentMessageReceivers())
+              .recentMessagePeriodDays(command.getRecentMessagePeriodDays())
+              .triggerType(command.getTriggerType())
+              .triggerCategory(command.getTriggerCategory())
+              .triggerConfig(command.getTriggerConfig())
+              .actionType(command.getActionType())
+              .actionConfig(command.getActionConfig())
+              .isActive(command.getIsActive())
+              .build();
+
+      workflowCommandService.updateWorkflow(commandWithId);
+      return ResponseEntity.ok(ApiResponse.success(null));
+    } catch (BusinessException e) {
+      log.warn("워크플로우 수정 실패 - 비즈니스 예외: {}", e.getMessage());
+      return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+          .body(ApiResponse.failure(e.getErrorCode().getCode(), e.getMessage()));
+    } catch (Exception e) {
+      log.error("워크플로우 수정 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus())
+          .body(
+              ApiResponse.failure(
+                  ErrorCode.INTERNAL_SERVER_ERROR.getCode(),
+                  ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));
+    }
   }
 
   @Operation(summary = "워크플로우 삭제", description = "기존 워크플로우를 소프트 삭제합니다.")
@@ -120,18 +212,82 @@ public class WorkflowCommandController {
   })
   @DeleteMapping("/{workflowId}")
   public ResponseEntity<ApiResponse<Void>> deleteWorkflow(
+      @AuthenticationPrincipal CustomUser user,
       @Parameter(description = "워크플로우 ID", required = true, example = "1") @PathVariable
-          Long workflowId,
-      @Parameter(description = "워크플로우 삭제 정보", required = true) @Valid @RequestBody
-          DeleteWorkflowCommand command) {
+          Long workflowId) {
     log.info("워크플로우 삭제 요청: ID={}", workflowId);
 
-    DeleteWorkflowCommand commandWithId =
-        new DeleteWorkflowCommand(workflowId, command.getShopId(), command.getStaffId());
+    if (workflowId == null || workflowId <= 0) {
+      return ResponseEntity.status(ErrorCode.WORKFLOW_INVALID_INPUT.getHttpStatus())
+          .body(
+              ApiResponse.failure(
+                  ErrorCode.WORKFLOW_INVALID_INPUT.getCode(), "워크플로우 ID는 양수여야 합니다"));
+    }
 
-    workflowCommandService.deleteWorkflow(commandWithId);
+    try {
+      DeleteWorkflowCommand commandWithId =
+          new DeleteWorkflowCommand(workflowId, user.getShopId(), user.getUserId());
 
-    return ResponseEntity.ok(ApiResponse.success(null));
+      workflowCommandService.deleteWorkflow(commandWithId);
+      return ResponseEntity.ok(ApiResponse.success(null));
+    } catch (BusinessException e) {
+      log.warn("워크플로우 삭제 실패 - 비즈니스 예외: {}", e.getMessage());
+      return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+          .body(ApiResponse.failure(e.getErrorCode().getCode(), e.getMessage()));
+    } catch (Exception e) {
+      log.error("워크플로우 삭제 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus())
+          .body(
+              ApiResponse.failure(
+                  ErrorCode.INTERNAL_SERVER_ERROR.getCode(),
+                  ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));
+    }
+  }
+
+  @Operation(summary = "워크플로우 상태 토글", description = "워크플로우의 활성/비활성 상태를 토글합니다.")
+  @ApiResponses({
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "200",
+        description = "워크플로우 상태 토글 성공"),
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "404",
+        description = "워크플로우를 찾을 수 없음"),
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "403",
+        description = "워크플로우에 대한 접근 권한이 없음")
+  })
+  @PatchMapping("/{workflowId}/toggle")
+  public ResponseEntity<ApiResponse<Void>> toggleWorkflowStatus(
+      @AuthenticationPrincipal CustomUser user,
+      @Parameter(description = "워크플로우 ID", required = true, example = "1") @PathVariable
+          Long workflowId) {
+    log.info("워크플로우 상태 토글 요청: ID={}", workflowId);
+
+    if (workflowId == null || workflowId <= 0) {
+      return ResponseEntity.status(ErrorCode.WORKFLOW_INVALID_INPUT.getHttpStatus())
+          .body(
+              ApiResponse.failure(
+                  ErrorCode.WORKFLOW_INVALID_INPUT.getCode(), "워크플로우 ID는 양수여야 합니다"));
+    }
+
+    try {
+      ToggleWorkflowCommand commandWithId =
+          new ToggleWorkflowCommand(workflowId, user.getShopId(), user.getUserId());
+
+      workflowCommandService.toggleWorkflowStatus(commandWithId);
+      return ResponseEntity.ok(ApiResponse.success(null));
+    } catch (BusinessException e) {
+      log.warn("워크플로우 상태 토글 실패 - 비즈니스 예외: {}", e.getMessage());
+      return ResponseEntity.status(e.getErrorCode().getHttpStatus())
+          .body(ApiResponse.failure(e.getErrorCode().getCode(), e.getMessage()));
+    } catch (Exception e) {
+      log.error("워크플로우 상태 토글 실패: {}", e.getMessage(), e);
+      return ResponseEntity.status(ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus())
+          .body(
+              ApiResponse.failure(
+                  ErrorCode.INTERNAL_SERVER_ERROR.getCode(),
+                  ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));
+    }
   }
 
   public static class WorkflowCreateResponse {
