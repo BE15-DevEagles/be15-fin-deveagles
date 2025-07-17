@@ -25,7 +25,7 @@
   import { ref, onMounted } from 'vue';
   import StaffCard from '@/features/schedules/components/StaffCard.vue';
   import { useRoute } from 'vue-router';
-  import { getStaffList, getStaffDetail } from '@/features/schedules/api/schedules.js';
+  import { getStaffListPublic, getStaffProfileUrl } from '@/features/schedules/api/schedules.js';
 
   const route = useRoute();
   const shopId = route.params.shopId;
@@ -33,7 +33,7 @@
 
   const fetchStaffList = async () => {
     try {
-      const res = await getStaffList({ isActive: true });
+      const res = await getStaffListPublic({ shopId, isActive: true });
 
       const staffList = res.map(staff => ({
         staffId: staff.staffId,
@@ -43,8 +43,8 @@
 
       const detailPromises = staffList.map(async item => {
         try {
-          const detailRes = await getStaffDetail(item.staffId);
-          item.image = detailRes.profileUrl;
+          const profileRes = await getStaffProfileUrl(item.staffId);
+          item.image = profileRes.profileUrl;
         } catch (err) {
           console.error(`스태프(${item.staffId}) 상세 조회 실패:`, err);
         }
