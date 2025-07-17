@@ -28,4 +28,14 @@ public class PrimaryItemQueryController {
     List<PrimaryItemResponse> response = primaryItemQueryService.getAllPrimaryItems(shopId);
     return ResponseEntity.ok(ApiResponse.success(response));
   }
+
+  @GetMapping("/{shopId}")
+  @Operation(
+      summary = "1차 상품 전체 조회 (고객 예약 전용)",
+      description = "shopId를 파라미터로 받아 해당 매장의 1차 상품 목록을 조회합니다.")
+  public ResponseEntity<ApiResponse<List<PrimaryItemResponse>>> getAllPrimaryItemsPublic(
+      @PathVariable("shopId") Long shopId) {
+    List<PrimaryItemResponse> response = primaryItemQueryService.getAllPrimaryItems(shopId);
+    return ResponseEntity.ok(ApiResponse.success(response));
+  }
 }

@@ -62,7 +62,7 @@ public class MessageTemplateQueryRepositoryImpl implements MessageTemplateQueryR
             .where(
                 template.shopId.eq(shopId),
                 template.deletedAt.isNull(),
-                template.automaticEventType.eq(triggerType) // ✅ 핵심 조건
+                template.automaticEventType.eq(triggerType) //  핵심 조건
                 )
             .orderBy(template.createdAt.desc()) // 최신 템플릿 우선
             .fetchFirst();

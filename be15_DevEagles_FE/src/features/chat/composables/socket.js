@@ -33,7 +33,6 @@ export const ensureSocketConnected = async (onReceive, onAuthError) => {
     heartbeatOutgoing: 10000,
 
     onConnect: () => {
-      console.info('✅ WebSocket 연결 성공');
       isConnected = true;
       reconnectAttempts = 0;
     },

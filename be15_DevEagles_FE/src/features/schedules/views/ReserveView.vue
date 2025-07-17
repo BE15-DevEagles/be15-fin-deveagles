@@ -159,8 +159,8 @@
   import BaseConfirm from '@/components/common/BaseConfirm.vue';
 
   import {
-    getActiveSecondaryItems,
-    getAllPrimaryItems,
+    getActiveSecondaryItemsPublic,
+    getAllPrimaryItemsPublic,
     fetchStaffBookedTimes,
     fetchReservationSettings,
     createCustomReservation,
@@ -204,9 +204,7 @@
   const amSlots = computed(() => timeSlots.value.filter(t => Number(t.split(':')[0]) < 12));
 
   const pmSlots = computed(() => timeSlots.value.filter(t => Number(t.split(':')[0]) >= 12));
-  watch(timeSlots, val => {
-    console.log('timeSlots 값:', val);
-  });
+  watch(timeSlots, val => {});
   const generateTimeSlots = (start, end, term, lunchStart, lunchEnd) => {
     const slots = [];
     const toMinutes = t => t.hours * 60 + t.minutes;
@@ -240,15 +238,12 @@
     showConfirm.value = true;
   };
 
-  // 실제 확인 시 실행되는 함수
   const handleConfirmReservation = async () => {
     try {
-      // 예약 등록 로직 실행 (submitReservation 로직 사용)
       const [hour, minute] = form.time.split(':').map(n => parseInt(n, 10));
       const startDateTime = new Date(form.date);
       startDateTime.setHours(hour, minute, 0, 0);
 
-      // 시술 소요시간 계산 (30분 기준, 필요 시 동적으로 변경)
       const unitMinutes = 30;
       const endDateTime = new Date(startDateTime.getTime() + unitMinutes * 60000);
 
@@ -270,14 +265,12 @@
         staffId: Number(form.staffId),
         customerId: null,
         customerName: form.customer,
-        customerPhone: form.phone.replace(/-/g, ''), // 하이픈 제거
+        customerPhone: form.phone.replace(/-/g, ''),
         reservationMemo: form.memo,
         reservationStartAt,
         reservationEndAt,
         secondaryItemIds: selectedIds,
       };
-
-      console.log('전송할 payload:', payload);
 
       const reservationId = await createCustomReservation(payload);
       toast.success('예약이 완료되었습니다! 예약번호: ' + reservationId);
@@ -382,8 +375,8 @@
 
   onMounted(async () => {
     try {
-      primaryItems.value = await getAllPrimaryItems();
-      allSecondaryItems.value = await getActiveSecondaryItems();
+      primaryItems.value = await getAllPrimaryItemsPublic(shopId);
+      allSecondaryItems.value = await getActiveSecondaryItemsPublic(shopId);
       const colorTypes = ['neutral', 'primary', 'secondary', 'success', 'warning', 'error'];
       primaryItems.value.forEach((item, idx) => {
         badgeColorMap[item.primaryItemId] = colorTypes[idx % colorTypes.length];
@@ -473,7 +466,7 @@
     const MM = String(d.getMinutes()).padStart(2, '0');
     const SS = '00';
 
-    return `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}`; // Z 안 붙임
+    return `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}`;
   };
   const formatDateOnly = date => {
     const d = new Date(date);
@@ -501,21 +494,17 @@
     }
 
     try {
-      // 1. 선택한 시술들의 총 소요시간 계산 (분 단위)
       const totalDuration = allSelectedServices.value.reduce((sum, svc) => {
         const item = allSecondaryItems.value.find(i => i.secondaryItemName === svc.name);
         return sum + (item && item.timeTaken ? item.timeTaken : 0);
       }, 0);
 
-      // 2. 시작시간을 Date로 변환
       const startDateTime = new Date(form.date);
       const [startHour, startMin] = form.time.split(':').map(n => parseInt(n, 10));
       startDateTime.setHours(startHour, startMin, 0, 0);
 
-      // 3. 종료시간 = 시작시간 + 총 소요시간(분)
       const endDateTime = new Date(startDateTime.getTime() + totalDuration * 60000);
 
-      // 4. LocalDateTime 포맷으로 변환 (KST 그대로)
       const toLocalDateTimeString = d => {
         const yyyy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -528,7 +517,6 @@
       const reservationStartAt = toLocalDateTimeString(startDateTime);
       const reservationEndAt = toLocalDateTimeString(endDateTime);
 
-      // 5. 선택된 secondaryItemIds
       const secondaryItemIds = allSelectedServices.value
         .map(svc => {
           const item = allSecondaryItems.value.find(i => i.secondaryItemName === svc.name);
@@ -536,7 +524,7 @@
         })
         .filter(id => id !== null);
       const phoneRaw = form.phone.replace(/-/g, '');
-      // 6. payload 구성
+
       const payload = {
         shopId: Number(shopId),
         staffId: Number(form.staffId),
@@ -549,12 +537,8 @@
         secondaryItemIds,
       };
 
-      console.log('전송할 payload:', payload);
-
-      // 7. API 호출
       const reservationId = await createCustomReservation(payload);
       toast.success('예약이 완료되었습니다! 예약번호: ' + reservationId);
-      console.log('생성된 예약 ID:', reservationId);
     } catch (err) {
       console.error('예약 생성 중 오류:', err);
       toast.error('예약 생성 중 오류가 발생했습니다.');
