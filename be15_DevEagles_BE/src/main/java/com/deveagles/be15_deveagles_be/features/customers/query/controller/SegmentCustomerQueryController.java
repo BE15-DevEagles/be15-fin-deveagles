@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "세그먼트별 고객 조회", description = "세그먼트별 고객 ID 목록 조회 API")
 @RestController
-@RequestMapping("/api/segments")
+@RequestMapping("/segments")
 @RequiredArgsConstructor
 @Validated
 @Slf4j
