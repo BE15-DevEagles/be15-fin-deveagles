@@ -9,7 +9,7 @@
       :searchable="true"
       :create-option="false"
       label="tagName"
-      value-prop="tagName"
+      :value-prop="valueProp"
       track-by="tagName"
       :placeholder="placeholder"
       :class="['multiselect-custom', `multiselect-${size}`]"
@@ -60,6 +60,10 @@
           { tagName: '재방문', colorCode: '#FFB347' },
           { tagName: '이벤트', colorCode: '#B0E0E6' },
         ],
+      },
+      valueProp: {
+        type: String,
+        default: 'tagName',
       },
     },
     emits: ['update:modelValue'],
