@@ -14,5 +14,6 @@ public class ChatRoomSummaryResponse {
   private String roomId;
   private String customerName; // 상담사용
   private String customerShopName; // 상담사용
+  private String lastMessage; // ✅ 추가
   private LocalDateTime lastMessageAt;
 }

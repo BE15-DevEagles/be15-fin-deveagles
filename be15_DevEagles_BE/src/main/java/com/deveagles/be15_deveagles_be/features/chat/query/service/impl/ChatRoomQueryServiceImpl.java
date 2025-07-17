@@ -20,7 +20,8 @@ public class ChatRoomQueryServiceImpl implements ChatRoomQueryService {
   private final ChatMessageRepository chatMessageRepository;
 
   @Override
-  public List<ChatRoomSummaryResponse> getMyChatRooms(Long userId, boolean isStaff) {
+  public List<ChatRoomSummaryResponse> getMyChatRooms(
+      String userName, Long userId, boolean isStaff) {
     List<ChatRoom> rooms =
         isStaff
             ? chatRoomQueryRepository.findByAssignedStaffIdAndIsAiActiveFalse(userId)
@@ -34,20 +35,26 @@ public class ChatRoomQueryServiceImpl implements ChatRoomQueryService {
         chatMessageRepository.findTopByChatroomIdOrderByCreatedAtDesc(room.getId());
 
     LocalDateTime lastMessageAt = latestMessageOpt.map(ChatMessage::getCreatedAt).orElse(null);
+    String lastMessage = latestMessageOpt.map(ChatMessage::getContent).orElse(null);
+
+    ChatRoomSummaryResponse.ChatRoomSummaryResponseBuilder builder =
+        ChatRoomSummaryResponse.builder()
+            .roomId(room.getId())
+            .lastMessage(lastMessage)
+            .lastMessageAt(lastMessageAt);
 
     if (isStaff) {
+      // 상담사 → 고객 정보 보여줌
       ChatRoom.Participant p = room.getParticipant();
-      return ChatRoomSummaryResponse.builder()
-          .roomId(room.getId())
-          .customerName(p.getName())
-          .customerShopName(p.getShopName())
-          .lastMessageAt(lastMessageAt)
-          .build();
+      String customerName = (p != null && p.getName() != null) ? p.getName() : "-";
+      String customerShopName = (p != null && p.getShopName() != null) ? p.getShopName() : "-";
+
+      builder.customerName(customerName).customerShopName(customerShopName);
     } else {
-      return ChatRoomSummaryResponse.builder()
-          .roomId(room.getId())
-          .lastMessageAt(lastMessageAt)
-          .build();
+      // 고객 → Beautifly 정보 고정으로 보여줌
+      builder.customerName("Beautifly").customerShopName("Beautifly 본사");
     }
+
+    return builder.build();
   }
 }

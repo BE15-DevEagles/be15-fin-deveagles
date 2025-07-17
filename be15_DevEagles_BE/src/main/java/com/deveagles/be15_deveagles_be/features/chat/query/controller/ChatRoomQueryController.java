@@ -39,7 +39,8 @@ public class ChatRoomQueryController {
       @AuthenticationPrincipal CustomUser customUser) {
     boolean isStaff = (customUser.getUserId() == 17); // 또는 Role 기반으로 변경 가능
     List<ChatRoomSummaryResponse> result =
-        chatRoomQueryService.getMyChatRooms(customUser.getUserId(), isStaff);
+        chatRoomQueryService.getMyChatRooms(
+            customUser.getStaffName(), customUser.getUserId(), isStaff);
     return ResponseEntity.ok(ApiResponse.success(result));
   }
 }
