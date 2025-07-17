@@ -121,9 +121,9 @@
         <div class="items-form-right">
           <div class="items-form-right-body">
             <div class="search-row" style="position: relative">
-              <!-- 예약 모드 + 고객 ID 있음 -->
+              <!-- 고객 ID가 있을 때 (예약 모드 또는 일반 모드) -->
               <BaseForm
-                v-if="isReservationMode && customerId && !isUnregisteredMode"
+                v-if="customerId && !isUnregisteredMode"
                 type="text"
                 :model-value="`${customerName} - ${customerPhone}`"
                 readonly
@@ -148,7 +148,7 @@
                 />
               </div>
 
-              <!-- 예약 모드가 아닐 때 -->
+              <!-- 예약 모드가 아니고 고객 ID도 없을 때 -->
               <div v-else>
                 <BaseForm
                   v-model="searchKeyword"
@@ -588,25 +588,33 @@
     await fetchCustomers();
     await fetchStaffs();
     await loadUnregisteredCustomers();
-    if (props.reservationId) {
+
+    // 고객 ID가 있으면 고객 정보 설정
+    if (props.initialCustomerId) {
       try {
-        if (props.initialCustomerId) {
-          const detail = await getCustomerDetail(props.initialCustomerId);
+        const detail = await getCustomerDetail(props.initialCustomerId);
 
-          customerName.value = detail.customerName || '';
-          customerPhone.value = detail.phoneNumber || '';
-          customerId.value = props.initialCustomerId;
-          await updateSessionPassesForProducts(props.initialCustomerId);
+        customerName.value = detail.customerName || '';
+        customerPhone.value = detail.phoneNumber || '';
+        customerId.value = props.initialCustomerId;
+        await updateSessionPassesForProducts(props.initialCustomerId);
+        await fetchPrepaidTotalAmount();
+      } catch (e) {
+        console.error('고객 정보 조회 실패:', e);
+      }
+    }
+    // 예약 ID가 있고 고객 ID가 없으면 예약에서 고객 정보 가져오기
+    else if (props.reservationId) {
+      try {
+        const reservationDetail = await fetchReservationDetail(props.reservationId);
+
+        if (reservationDetail.customerId) {
+          customerName.value = reservationDetail.customerName || '';
+          customerPhone.value = reservationDetail.customerPhone || '';
+          customerId.value = reservationDetail.customerId;
+          await updateSessionPassesForProducts(reservationDetail.customerId);
         } else {
-          const reservationDetail = await fetchReservationDetail(props.reservationId);
-
-          if (reservationDetail.customerId) {
-            customerName.value = reservationDetail.customerName || '';
-            customerPhone.value = reservationDetail.customerPhone || '';
-            customerId.value = reservationDetail.customerId;
-          } else {
-            handleUnregisteredSelect('M');
-          }
+          handleUnregisteredSelect('M');
         }
         await fetchPrepaidTotalAmount();
       } catch (e) {

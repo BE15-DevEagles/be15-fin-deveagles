@@ -190,7 +190,7 @@
   import { registerPrepaidPassSale, registerSessionPassSale } from '@/features/sales/api/sales.js';
   import { useAuthStore } from '@/store/auth';
 
-  const emit = defineEmits(['close', 'submit']);
+  const emit = defineEmits(['close', 'submit', 'error']);
   const authStore = useAuthStore();
   const date = ref(new Date().toISOString().substring(0, 10));
   const time = ref(new Date().toTimeString().substring(0, 5));
@@ -399,6 +399,7 @@
   const submit = async () => {
     if (!selectedMembership.value || !selectedCustomer.value) {
       alert('회원권과 고객을 모두 선택해주세요.');
+      emit('error', new Error('회원권과 고객을 모두 선택해주세요.'));
       return;
     }
 
@@ -440,12 +441,12 @@
           sessionPassId: membership.id,
         });
       }
-
       emit('submit');
       emit('close');
     } catch (e) {
       console.error('[매출 등록 실패]', e);
       alert('매출 등록 중 오류가 발생했습니다.');
+      emit('error', e);
     }
   };
 

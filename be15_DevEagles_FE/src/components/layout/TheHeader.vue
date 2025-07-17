@@ -5,39 +5,39 @@
         <span class="quick-menu-label">Quick Menu</span>
         <nav class="quick-menu">
           <div class="tooltip-container">
-            <button class="quick-menu-item" @click="openReservationModule">
+            <button class="quick-menu-item" @click="goToCalendar">
               <CalendarIcon :size="16" />
-              <span>예약</span>
+              <span>캘린더</span>
             </button>
-            <span class="tooltip tooltip-bottom tooltip-primary">예약 등록</span>
+            <span class="tooltip tooltip-bottom tooltip-primary">예약 캘린더</span>
           </div>
           <div class="tooltip-container">
-            <button class="quick-menu-item" @click="openCustomerModule">
-              <UsersIcon :size="16" />
-              <span>고객</span>
+            <button class="quick-menu-item" @click="goToReservationList">
+              <ListIcon :size="16" />
+              <span>예약 목록</span>
             </button>
-            <span class="tooltip tooltip-bottom tooltip-primary">고객 목록</span>
+            <span class="tooltip tooltip-bottom tooltip-primary">예약 신청 목록</span>
           </div>
           <div class="tooltip-container">
-            <button class="quick-menu-item" @click="openSalesModule">
-              <DollarIcon :size="16" />
-              <span>매출</span>
+            <button class="quick-menu-item" @click="openReservationRegistModal">
+              <PlusCircleIcon :size="16" />
+              <span>예약 등록</span>
             </button>
-            <span class="tooltip tooltip-bottom tooltip-primary">매출 등록</span>
+            <span class="tooltip tooltip-bottom tooltip-primary">새 예약 등록</span>
           </div>
           <div class="tooltip-container">
-            <button class="quick-menu-item" @click="openMessageModule">
-              <MessageCircleIcon :size="16" />
-              <span>문자</span>
+            <button class="quick-menu-item" @click="openSalesRegistModal">
+              <ReceiptIcon :size="16" />
+              <span>매출 등록</span>
             </button>
-            <span class="tooltip tooltip-bottom tooltip-primary">문자 발신</span>
+            <span class="tooltip tooltip-bottom tooltip-primary">상품 매출 등록</span>
           </div>
           <div class="tooltip-container">
-            <button class="quick-menu-item" @click="openAnalyticsModule">
-              <BarChartIcon :size="16" />
-              <span>분석</span>
+            <button class="quick-menu-item" @click="openMembershipSalesModal">
+              <GiftIcon :size="16" />
+              <span>회원권 판매</span>
             </button>
-            <span class="tooltip tooltip-bottom tooltip-primary">데이터 분석</span>
+            <span class="tooltip tooltip-bottom tooltip-primary">회원권 판매 등록</span>
           </div>
         </nav>
       </div>
@@ -182,6 +182,8 @@
         :customer="selectedCustomer"
         @request-delete="handleDeleteRequest"
         @request-edit="handleEditRequest"
+        @request-reservation="handleReservationRequest"
+        @request-sales="handleSalesRequest"
       />
       <CustomerEditDrawer
         v-model="showEditDrawer"
@@ -190,6 +192,27 @@
         @after-leave="handleEditDrawerAfterLeave"
       />
       <CustomerCreateDrawer v-model="showCreateDrawer" @create="handleCreateCustomer" />
+      <ScheduleRegistModal
+        v-if="showReservationRegistModal"
+        v-model="showReservationRegistModal"
+        :initial-customer="selectedCustomer"
+        @submit="() => showSuccess('예약이 등록되었습니다.')"
+        @error="err => showError(err?.message || '예약 등록에 실패했습니다.')"
+      />
+      <ItemsSalesRegistModal
+        v-if="showSalesRegistModal"
+        v-model="showSalesRegistModal"
+        :initial-customer-id="selectedCustomer?.customerId || selectedCustomer?.customer_id"
+        @close="showSalesRegistModal = false"
+        @submit="() => showSuccess('매출이 등록되었습니다.')"
+        @error="err => showError(err?.message || '매출 등록에 실패했습니다.')"
+      />
+      <MembershipSalesRegistModal
+        v-if="showMembershipSalesModal"
+        @close="showMembershipSalesModal = false"
+        @submit="() => showSuccess('회원권 판매가 등록되었습니다.')"
+        @error="err => showError(err?.message || '회원권 판매 등록에 실패했습니다.')"
+      />
     </Teleport>
   </header>
 </template>
@@ -203,10 +226,10 @@
     UserIcon,
     SettingsIcon,
     CalendarIcon,
-    UsersIcon,
-    DollarIcon,
-    MessageCircleIcon,
-    BarChartIcon,
+    ListIcon,
+    PlusCircleIcon,
+    ReceiptIcon,
+    GiftIcon,
   } from '../icons/index.js';
   import NotificationList from '@/features/notifications/components/NotificationList.vue';
   import CustomerDetailModal from '@/features/customer/components/CustomerDetailModal.vue';
@@ -219,6 +242,10 @@
   import customersAPI from '@/features/customer/api/customers.js';
   import { useMetadataStore } from '@/store/metadata.js';
   import { useNotifications } from '@/features/notifications/composables/useNotifications.js';
+  import ItemsSalesRegistModal from '@/features/sales/components/ItemsSalesRegistModal.vue';
+  import MembershipSalesRegistModal from '@/features/sales/components/MembershipSalesRegistModal.vue';
+  import ScheduleRegistModal from '@/features/schedules/components/ScheduleRegistModal.vue';
+  import { useToast } from '@/composables/useToast.js';
 
   const router = useRouter();
   const searchListRef = ref(null);
@@ -299,7 +326,6 @@
     const rawId = customer.customerId || customer.customer_id;
     if (!rawId) return;
 
-    // 자동완성 항목은 customer_id가 'auto-...' 형태일 수 있으므로 무시
     if (typeof rawId === 'string' && rawId.startsWith('auto-')) {
       return;
     }
@@ -309,7 +335,6 @@
       selectedCustomer.value = detail || customer;
     } catch (err) {
       console.warn('[Header] 고객 상세 조회 실패, 검색 결과 그대로 사용', err);
-      // 검색 결과 객체 필드 이름을 모달에서 인식하는 camelCase 구조로 일부 매핑
       selectedCustomer.value = {
         customerId: customer.customerId || customer.customer_id,
         customerName: customer.customerName || customer.customer_name,
@@ -350,6 +375,29 @@
   const handleEditRequest = customer => {
     showCustomerModal.value = false;
     showEditDrawer.value = true;
+  };
+
+  const handleReservationRequest = customer => {
+    showCustomerModal.value = false;
+    selectedCustomer.value = {
+      ...customer,
+      customerId: customer.customerId || customer.customer_id || null,
+      customer_id: customer.customer_id || customer.customerId || null,
+    };
+    showReservationRegistModal.value = true;
+  };
+
+  const handleSalesRequest = customer => {
+    showCustomerModal.value = false;
+    selectedCustomer.value = {
+      ...customer,
+      customerId: customer.customerId || customer.customer_id || null,
+      customer_id: customer.customer_id || customer.customerId || null,
+      id: customer.customerId || customer.customer_id || null,
+      customer_name: customer.customerName || customer.customer_name || '',
+      phone_number: customer.phoneNumber || customer.phone_number || '',
+    };
+    showSalesRegistModal.value = true;
   };
 
   const selectSuggestion = customer => {
@@ -421,6 +469,9 @@
   // 상태 추가
   const showEditDrawer = ref(false);
   const showCreateDrawer = ref(false);
+  const showReservationRegistModal = ref(false);
+  const showSalesRegistModal = ref(false);
+  const showMembershipSalesModal = ref(false);
 
   // 고객 수정 요청 처리
   const handleUpdateCustomer = async updatedCustomerPayload => {
@@ -671,15 +722,13 @@
     if (activeIndex.value >= 0 && searchSuggestions.value.length > 0) {
       selectSuggestion(searchSuggestions.value[activeIndex.value]);
     } else {
-      // 검색창에서 엔터 시 고객 목록으로 이동하지 않고 검색 결과만 표시
-      // 이미 fetchAutocomplete에서 검색 결과를 보여주고 있으므로,
-      // 여기서는 검색창을 초기화하고 제안 목록을 닫는 역할만 수행
       searchQuery.value = '';
       showSuggestions.value = false;
     }
   };
 
   const metadataStore = useMetadataStore();
+  const { showSuccess, showError } = useToast();
 
   onMounted(async () => {
     document.addEventListener('click', handleClickOutside);
@@ -690,6 +739,15 @@
     document.removeEventListener('click', handleClickOutside);
     document.removeEventListener('keydown', handleKeydown);
   });
+
+  const goToCalendar = () => router.push('/schedule/calendar');
+  const goToReservationList = () => router.push('/reservation/requests');
+  const openReservationRegistModal = () => (showReservationRegistModal.value = true);
+  const openSalesRegistModal = () => {
+    selectedCustomer.value = null; // 고객 선택 없이 모달 열기
+    showSalesRegistModal.value = true;
+  };
+  const openMembershipSalesModal = () => (showMembershipSalesModal.value = true);
 </script>
 
 <style scoped>

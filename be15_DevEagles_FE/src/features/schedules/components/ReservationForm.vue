@@ -127,8 +127,14 @@
   import PrimeDatePicker from '@/components/common/PrimeDatePicker.vue';
   import { searchCustomers, getStaffList } from '@/features/schedules/api/schedules.js';
   import BaseForm from '@/components/common/BaseForm.vue';
-  const customerSuggestions = ref([]);
+  const props = defineProps({
+    initialCustomer: {
+      type: Object,
+      default: null,
+    },
+  });
   const showSuggestions = ref(false);
+  const customerSuggestions = ref([]);
   import SelectSecondaryItemModal from '@/features/schedules/components/SelectSecondaryItemModal.vue';
   const showItemModal = ref(false);
   import dayjs from 'dayjs';
@@ -224,6 +230,9 @@
   };
   onMounted(() => {
     fetchStaffList();
+    if (props.initialCustomer) {
+      selectCustomer(props.initialCustomer);
+    }
   });
   watch(
     () => form.value.customer,
