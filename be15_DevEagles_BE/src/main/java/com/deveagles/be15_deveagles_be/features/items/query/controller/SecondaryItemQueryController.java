@@ -38,4 +38,15 @@ public class SecondaryItemQueryController {
         secondaryItemQueryService.getActiveSecondaryItems(shopId);
     return ResponseEntity.ok(ApiResponse.success(response));
   }
+
+  @GetMapping("/active/{shopId}")
+  @Operation(
+      summary = "2차 상품 활성화 목록 조회 (고객 예약 전용)",
+      description = "shopId를 파라미터로 전달하여 해당 매장의 활성화된 2차 상품 목록을 조회합니다.")
+  public ResponseEntity<ApiResponse<List<SecondaryItemResponse>>> getActiveSecondaryItemsPublic(
+      @PathVariable("shopId") Long shopId) {
+    List<SecondaryItemResponse> response =
+        secondaryItemQueryService.getActiveSecondaryItems(shopId);
+    return ResponseEntity.ok(ApiResponse.success(response));
+  }
 }
