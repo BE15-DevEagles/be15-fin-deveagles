@@ -113,7 +113,7 @@ public class ReservationService {
               .build();
       reservationDetailRepository.save(detail);
     }
-    // ✅ 자동발신 처리
+    // 자동발신 처리
     if (customerId != null) {
       Optional<CustomerDetailResponse> optionalCustomer =
           customerQueryService.getCustomerDetail(customerId, shopId);
