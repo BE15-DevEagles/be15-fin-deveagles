@@ -552,12 +552,14 @@
   const handleLogout = async () => {
     try {
       await logout();
-      console.log('[Header] 서버 로그아웃 완료');
     } catch (err) {
       console.warn(`[Header] 서버 로그아웃 실패 : ${err}`);
     } finally {
+      // 웹소켓 연결 끊기
+      const { disconnectSocket } = await import('@/features/chat/composables/socket.js');
+      disconnectSocket();
+
       authStore.clearAuth();
-      console.log('[Header] 인증 정보 삭제 완료');
       router.push('/login');
     }
   };

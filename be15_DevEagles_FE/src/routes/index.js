@@ -205,7 +205,7 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
 
   const publicPages = [
@@ -226,6 +226,14 @@ router.beforeEach((to, from, next) => {
 
   const authRequired = !isPublicPage;
   if (authRequired && !authStore.isAuthenticated) {
+    // 인증이 필요한 페이지에서 토큰이 없으면 웹소켓 연결도 끊기
+    try {
+      const { disconnectSocket } = await import('@/features/chat/composables/socket.js');
+      disconnectSocket();
+      console.log('[Router] 웹소켓 연결 종료 (인증 실패)');
+    } catch (e) {
+      console.warn('[Router] 웹소켓 연결 종료 실패:', e);
+    }
     return next('/login');
   }
   next();
