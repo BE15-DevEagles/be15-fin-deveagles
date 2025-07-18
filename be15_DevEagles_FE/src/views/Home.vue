@@ -319,7 +319,10 @@
   };
 
   const getSaleItemName = sale => {
-    if (sale.secondaryItemName) return sale.secondaryItemName;
+    if (sale.items && sale.items.length > 0) {
+      const itemNames = sale.items.map(item => item.secondaryItemName);
+      return itemNames.join(', ');
+    }
     if (sale.prepaidPassName) return sale.prepaidPassName;
     if (sale.sessionPassName) return sale.sessionPassName;
     return '상품명 없음';
