@@ -1,20 +1,26 @@
 <script setup>
   import { onMounted, ref } from 'vue';
   import { getChatRooms } from '@/features/chat/api/chat.js';
+  import ChatRoomLoader from './ChatRoomLoader.vue';
 
-  const emit = defineEmits(['select']);
+  const props = defineProps({
+    isLoading: { type: Boolean, default: false },
+  });
+
+  const emit = defineEmits(['select', 'loadingStart', 'loadingEnd']);
   const chatRooms = ref([]);
 
   onMounted(async () => {
     try {
+      emit('loadingStart');
       const res = await getChatRooms();
       chatRooms.value = res.data.sort(
         (a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
       );
-
-      console.log(chatRooms.value);
+      emit('loadingEnd');
     } catch (e) {
       console.error('❌ 채팅방 목록 불러오기 실패:', e);
+      emit('loadingEnd');
     }
   });
 </script>
@@ -23,30 +29,34 @@
   <div class="chat-list">
     <p class="chat-list-title">배정된 채팅방</p>
 
-    <div
-      v-for="room in chatRooms"
-      :key="room.roomId"
-      class="chat-room-card"
-      @click="$emit('select', room.roomId)"
-    >
-      <div class="chat-room-content">
-        <div class="chat-room-info">
-          <p class="customer-name">{{ room.customerName || '고객 이름 없음' }}</p>
-          <p class="shop-name">{{ room.customerShopName || '매장 이름 없음' }}</p>
-        </div>
-        <div class="chat-message-preview">
-          <span class="message-text">{{ room.lastMessage || '메시지 없음' }}</span>
-          <span v-if="room.lastMessageAt" class="message-time">
-            {{
-              new Date(room.lastMessageAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            }}
-          </span>
+    <ChatRoomLoader v-if="props.isLoading" loading-text="채팅방 목록을 불러오는 중..." />
+
+    <template v-else>
+      <div
+        v-for="room in chatRooms"
+        :key="room.roomId"
+        class="chat-room-card"
+        @click="$emit('select', room.roomId)"
+      >
+        <div class="chat-room-content">
+          <div class="chat-room-info">
+            <p class="customer-name">{{ room.customerName || '고객 이름 없음' }}</p>
+            <p class="shop-name">{{ room.customerShopName || '매장 이름 없음' }}</p>
+          </div>
+          <div class="chat-message-preview">
+            <span class="message-text">{{ room.lastMessage || '메시지 없음' }}</span>
+            <span v-if="room.lastMessageAt" class="message-time">
+              {{
+                new Date(room.lastMessageAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              }}
+            </span>
+          </div>
         </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
