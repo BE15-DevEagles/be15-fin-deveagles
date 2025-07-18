@@ -59,9 +59,18 @@ export const ensureSocketConnected = async (onReceive, onAuthError) => {
 
   stompClient.activate();
 
-  // 연결 완료 대기
-  while (!stompClient.connected && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+  // 연결 완료 대기 (최대 5초)
+  const maxWaitTime = 5000;
+  const startTime = Date.now();
+
+  while (!stompClient.connected && Date.now() - startTime < maxWaitTime) {
     await new Promise(res => setTimeout(res, 100));
+  }
+
+  if (!stompClient.connected) {
+    console.error('❌ WebSocket 연결 타임아웃');
+    stompClient.deactivate();
+    throw new Error('WebSocket 연결 타임아웃');
   }
 };
 

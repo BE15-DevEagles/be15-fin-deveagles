@@ -76,20 +76,33 @@
   };
 
   onMounted(async () => {
+    // 인증 초기화가 완료될 때까지 기다림
+    if (!auth.isInitialized) {
+      await auth.initAuth();
+    }
+
+    // 인증되지 않은 상태면 웹소켓 연결 시도하지 않음
+    if (!auth.isAuthenticated) {
+      console.warn('❌ 인증되지 않은 상태, 웹소켓 연결 건너뜀');
+      return;
+    }
+
     chatStore.setCurrentUserId(auth.userId);
 
     if (chatStore.isSubscribed) return;
 
-    await ensureSocketConnected(handleReceiveMessage, () => console.warn('❌ WebSocket 인증 실패'));
-
     try {
+      await ensureSocketConnected(handleReceiveMessage, () =>
+        console.warn('❌ WebSocket 인증 실패')
+      );
+
       const res = await getChatRooms();
       res.data.forEach(room => {
         safeSubscribeToRoom(room.roomId, handleReceiveMessage);
       });
       chatStore.setIsSubscribed(true);
     } catch (e) {
-      console.error('❌ 채팅방 목록 조회 실패:', e);
+      console.error('❌ 웹소켓 연결 또는 채팅방 구독 실패:', e);
     }
   });
 </script>
