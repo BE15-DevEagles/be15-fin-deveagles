@@ -194,28 +194,29 @@
         </div>
       </div>
     </div>
+
+    <BaseToast ref="toast" />
+    <BaseConfirm
+      v-model="showConfirmModal"
+      title="정말 삭제하시겠습니까?"
+      message="해당 일정을 삭제하면 복구할 수 없습니다."
+      confirm-text="삭제"
+      cancel-text="취소"
+      confirm-type="error"
+      icon-type="error"
+      @confirm="handleDelete"
+    />
+    <BaseConfirm
+      v-model="showEditConfirm"
+      title="변경 내용을 저장하시겠습니까?"
+      message="입력한 정보로 휴무를 수정하시겠습니까?"
+      confirm-text="수정"
+      cancel-text="취소"
+      confirm-type="primary"
+      icon-type="info"
+      @confirm="confirmEdit"
+    />
   </div>
-  <BaseToast ref="toast" />
-  <BaseConfirm
-    v-model="showConfirmModal"
-    title="일정 삭제"
-    message="정말 이 일정을 삭제하시겠습니까?"
-    confirm-text="삭제"
-    cancel-text="취소"
-    confirm-type="error"
-    icon-type="error"
-    @confirm="handleDelete"
-  />
-  <BaseConfirm
-    v-model="showEditConfirm"
-    title="변경 내용을 저장하시겠습니까?"
-    message="입력한 정보로 휴무를 수정하시겠습니까?"
-    confirm-text="수정"
-    cancel-text="취소"
-    confirm-type="primary"
-    icon-type="info"
-    @confirm="confirmEdit"
-  />
 </template>
 
 <script setup>
@@ -235,6 +236,7 @@
   import BaseToast from '@/components/common/BaseToast.vue';
   import dayjs from 'dayjs';
 
+  const emit = defineEmits(['update:modelValue', 'closed']);
   const staffOptions = ref([]);
   const fetchStaffList = async () => {
     try {
@@ -255,7 +257,6 @@
 
   const durationText = ref('');
   const toast = ref(null);
-  const emit = defineEmits(['update:modelValue']);
   const isEditMode = ref(false);
   const showMenu = ref(false);
   const edited = ref({});
@@ -300,6 +301,7 @@
 
   const close = () => {
     emit('update:modelValue', false);
+    emit('closed');
     isEditMode.value = false;
     showMenu.value = false;
     edited.value = {};

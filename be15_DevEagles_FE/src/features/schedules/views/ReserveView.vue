@@ -62,7 +62,7 @@
               v-for="t in amSlots"
               :key="t"
               :outline="form.time !== t"
-              :disabled="bookedTimes.includes(t)"
+              :disabled="bookedTimes.includes(t) || isPastTime(t)"
               @click="selectTime(t)"
             >
               {{ t }}
@@ -75,7 +75,7 @@
               v-for="t in pmSlots"
               :key="t"
               :class="['btn', form.time === t ? 'btn-primary' : 'btn-outline btn-primary']"
-              :disabled="bookedTimes.includes(t)"
+              :disabled="bookedTimes.includes(t) || isPastTime(t)"
               @click="selectTime(t)"
             >
               {{ t }}
@@ -417,6 +417,25 @@
       arr.splice(idx, 1);
     }
     form.services = [...arr];
+  };
+
+  const isPastTime = timeStr => {
+    if (!form.date) return false;
+
+    const now = new Date();
+    const selectedDate = new Date(form.date);
+
+    if (
+      selectedDate.getFullYear() === now.getFullYear() &&
+      selectedDate.getMonth() === now.getMonth() &&
+      selectedDate.getDate() === now.getDate()
+    ) {
+      const [h, m] = timeStr.split(':').map(n => parseInt(n, 10));
+      const target = new Date(selectedDate);
+      target.setHours(h, m, 0, 0);
+      return target.getTime() <= now.getTime();
+    }
+    return false;
   };
 
   const removeService = serviceName => {

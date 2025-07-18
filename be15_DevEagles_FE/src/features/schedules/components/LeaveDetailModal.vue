@@ -151,29 +151,29 @@
         </template>
       </div>
     </div>
-  </div>
-  <BaseToast ref="toast" />
-  <BaseConfirm
-    v-model="showDeleteConfirm"
-    title="정말 삭제하시겠습니까?"
-    message="해당 휴무를 삭제하면 복구할 수 없습니다.
+    <BaseToast ref="toast" />
+    <BaseConfirm
+      v-model="showDeleteConfirm"
+      title="정말 삭제하시겠습니까?"
+      message="해당 휴무를 삭제하면 복구할 수 없습니다.
     계속 진행하시겠습니까?"
-    confirm-text="삭제"
-    cancel-text="취소"
-    confirm-type="error"
-    icon-type="error"
-    @confirm="confirmDelete"
-  />
-  <BaseConfirm
-    v-model="showEditConfirm"
-    title="변경 내용을 저장하시겠습니까?"
-    message="입력한 정보로 휴무를 수정하시겠습니까?"
-    confirm-text="수정"
-    cancel-text="취소"
-    confirm-type="primary"
-    icon-type="info"
-    @confirm="confirmEdit"
-  />
+      confirm-text="삭제"
+      cancel-text="취소"
+      confirm-type="error"
+      icon-type="error"
+      @confirm="confirmDelete"
+    />
+    <BaseConfirm
+      v-model="showEditConfirm"
+      title="변경 내용을 저장하시겠습니까?"
+      message="입력한 정보로 휴무를 수정하시겠습니까?"
+      confirm-text="수정"
+      cancel-text="취소"
+      confirm-type="primary"
+      icon-type="info"
+      @confirm="confirmEdit"
+    />
+  </div>
 </template>
 
 <script setup>
@@ -192,6 +192,7 @@
   import BaseToast from '@/components/common/BaseToast.vue';
   import dayjs from 'dayjs';
   import BaseConfirm from '@/components/common/BaseConfirm.vue';
+  const emit = defineEmits(['update:modelValue', 'closed']);
   const toast = ref(null);
   const monthlyDayOptions = Array.from({ length: 31 }, (_, i) => ({
     text: `${i + 1}일`,
@@ -202,7 +203,7 @@
     id: { type: Number, required: true },
     type: { type: String, required: true },
   });
-  const emit = defineEmits(['update:modelValue']);
+
   const showEditConfirm = ref(false);
   const isEditMode = ref(false);
   const showMenu = ref(false);
@@ -218,6 +219,7 @@
   };
   const close = () => {
     emit('update:modelValue', false);
+    emit('closed');
     isEditMode.value = false;
     showMenu.value = false;
     edited.value = {};
@@ -253,9 +255,6 @@
             startAt: props.type === 'leave' ? (data.start ?? data.leaveDate ?? '') : undefined,
             repeatRule: props.type === 'regular_leave' ? (data.repeatRule ?? '') : undefined,
           };
-          console.log('🧪 fetched type:', props.type);
-          console.log('🧪 fetched repeatRule:', data.repeatRule);
-          console.log('🧪 fetched full data:', data);
         } catch (e) {
           console.error('❌ 휴무 상세 조회 실패', e);
         }

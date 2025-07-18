@@ -229,53 +229,54 @@
         </div>
       </div>
     </div>
+
+    <BaseToast ref="toast" />
+
+    <BaseConfirm
+      v-model="showConfirmModal"
+      title="예약 삭제"
+      message="정말 이 예약을 삭제하시겠습니까?"
+      confirm-text="삭제"
+      cancel-text="취소"
+      confirm-type="error"
+      icon-type="error"
+      @confirm="handleDelete"
+    />
+    <BaseConfirm
+      v-model="showEditConfirm"
+      title="변경 내용을 저장하시겠습니까?"
+      message="입력한 정보로 예약을 수정하시겠습니까?"
+      confirm-text="수정"
+      cancel-text="취소"
+      confirm-type="primary"
+      icon-type="info"
+      @confirm="confirmEdit"
+    />
+
+    <SalesItemsModal
+      v-if="showSalesModal"
+      :reservation-id="reservation.reservationId"
+      :initial-customer-id="reservation.customerId"
+      :services="selectedServices.map(s => s.selectedItems)"
+      @close="showSalesModal = false"
+      @submit="handleSalesSubmit"
+    />
+
+    <CustomerDetailModal
+      v-model="showCustomerModal"
+      :customer="customerData"
+      @request-reservation="handleReservationRequest"
+      @request-sales="handleSalesRequest"
+    />
+
+    <ScheduleRegistModal
+      v-if="showReservationRegistModal"
+      v-model="showReservationRegistModal"
+      :initial-customer="customerData"
+      @submit="() => toast?.success('예약이 등록되었습니다.')"
+      @error="err => toast?.error(err?.message || '예약 등록에 실패했습니다.')"
+    />
   </div>
-  <BaseToast ref="toast" />
-
-  <BaseConfirm
-    v-model="showConfirmModal"
-    title="예약 삭제"
-    message="정말 이 예약을 삭제하시겠습니까?"
-    confirm-text="삭제"
-    cancel-text="취소"
-    confirm-type="error"
-    icon-type="error"
-    @confirm="handleDelete"
-  />
-  <BaseConfirm
-    v-model="showEditConfirm"
-    title="변경 내용을 저장하시겠습니까?"
-    message="입력한 정보로 예약을 수정하시겠습니까?"
-    confirm-text="수정"
-    cancel-text="취소"
-    confirm-type="primary"
-    icon-type="info"
-    @confirm="confirmEdit"
-  />
-
-  <SalesItemsModal
-    v-if="showSalesModal"
-    :reservation-id="reservation.reservationId"
-    :initial-customer-id="reservation.customerId"
-    :services="selectedServices.map(s => s.selectedItems)"
-    @close="showSalesModal = false"
-    @submit="handleSalesSubmit"
-  />
-
-  <CustomerDetailModal
-    v-model="showCustomerModal"
-    :customer="customerData"
-    @request-reservation="handleReservationRequest"
-    @request-sales="handleSalesRequest"
-  />
-
-  <ScheduleRegistModal
-    v-if="showReservationRegistModal"
-    v-model="showReservationRegistModal"
-    :initial-customer="customerData"
-    @submit="() => toast?.success('예약이 등록되었습니다.')"
-    @error="err => toast?.error(err?.message || '예약 등록에 실패했습니다.')"
-  />
 </template>
 
 <script setup>
@@ -300,6 +301,7 @@
   import CustomerDetailModal from '@/features/customer/components/CustomerDetailModal.vue';
   import ScheduleRegistModal from '@/features/schedules/components/ScheduleRegistModal.vue';
 
+  const emit = defineEmits(['update:modelValue', 'cancelReservation', 'closed']);
   const showCustomerModal = ref(false);
   const customerData = ref(null);
   const showReservationRegistModal = ref(false);
@@ -328,13 +330,11 @@
 
   const handleReservationRequest = _customer => {
     showCustomerModal.value = false;
-    // 예약 등록 모달 열기
     showReservationRegistModal.value = true;
   };
 
   const handleSalesRequest = _customer => {
     showCustomerModal.value = false;
-    // 매출 등록 모달 열기
     selectedServices.value =
       reservation.value.secondaryItems?.map(item => ({
         selectedItems: [item.secondaryItemId],
@@ -367,8 +367,6 @@
     showMenu.value = false;
     showConfirmModal.value = true;
   };
-
-  const emit = defineEmits(['update:modelValue', 'cancelReservation']);
 
   const reservation = ref({});
   const edited = ref({
@@ -542,6 +540,7 @@
 
   const close = () => {
     emit('update:modelValue', false);
+    emit('closed');
     isEditMode.value = false;
     showMenu.value = false;
   };
