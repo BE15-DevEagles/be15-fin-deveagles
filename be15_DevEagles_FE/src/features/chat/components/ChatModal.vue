@@ -8,7 +8,11 @@
   import ListIcon from '@/components/icons/ListIcon.vue';
   import HomeIcon from '@/components/icons/HomeIcon.vue';
 
-  import { safeSubscribeToRoom, sendSocketMessage } from '@/features/chat/composables/socket.js';
+  import {
+    safeSubscribeToRoom,
+    sendSocketMessage,
+    ensureSocketConnected,
+  } from '@/features/chat/composables/socket.js';
 
   import {
     createChatRoom,
@@ -60,6 +64,22 @@
     try {
       chatStore.setRoomLoading(true);
       currentView.value = 'chat';
+
+      // 웹소켓 연결 확인 및 재연결 시도
+      try {
+        await ensureSocketConnected(
+          msg => {
+            const from =
+              String(msg.senderId) === String(auth.userId) ? 'me' : msg.isCustomer ? 'user' : 'bot';
+            chatStore.addMessage({ from, text: msg.content });
+          },
+          () => console.warn('❌ WebSocket 인증 실패')
+        );
+      } catch (socketError) {
+        console.error('❌ WebSocket 연결 실패:', socketError);
+        chatStore.setRoomLoading(false);
+        return;
+      }
 
       const res = await createChatRoom();
       const roomId = res.data.roomId;
