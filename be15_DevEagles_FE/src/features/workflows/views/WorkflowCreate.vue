@@ -36,8 +36,7 @@
 
           toast.showSuccess('워크플로우가 성공적으로 생성되었습니다.');
           router.push('/workflows');
-        } catch (error) {
-          console.error('Failed to save workflow:', error);
+        } catch {
           toast.showError('워크플로우 생성 중 오류가 발생했습니다.');
         }
       };

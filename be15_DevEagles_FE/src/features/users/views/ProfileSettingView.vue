@@ -108,10 +108,6 @@
     }
 
     try {
-      console.log('file:', profileFile.value);
-      console.log('profileRequest:', formData.get('profileRequest'));
-      console.log('profile:', formData.get('profile'));
-
       await patchProfile(formData);
       toastRef.value?.success?.('프로필이 성공적으로 수정되었어요!');
     } catch (err) {

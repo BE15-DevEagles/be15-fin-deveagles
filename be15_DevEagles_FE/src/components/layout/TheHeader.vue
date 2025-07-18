@@ -333,8 +333,7 @@
     try {
       const detail = await customersAPI.getCustomerDetail(rawId);
       selectedCustomer.value = detail || customer;
-    } catch (err) {
-      console.warn('[Header] 고객 상세 조회 실패, 검색 결과 그대로 사용', err);
+    } catch {
       selectedCustomer.value = {
         customerId: customer.customerId || customer.customer_id,
         customerName: customer.customerName || customer.customer_name,
@@ -372,7 +371,7 @@
     }
   };
 
-  const handleEditRequest = customer => {
+  const handleEditRequest = () => {
     showCustomerModal.value = false;
     showEditDrawer.value = true;
   };
@@ -445,27 +444,6 @@
     }
   };
 
-  // Quick Menu 액션들
-  const openReservationModule = () => {
-    console.log('예약 모듈 열기');
-  };
-
-  const openCustomerModule = () => {
-    console.log('고객 모듈 열기');
-  };
-
-  const openSalesModule = () => {
-    console.log('매출 모듈 열기');
-  };
-
-  const openMessageModule = () => {
-    console.log('문자 모듈 열기');
-  };
-
-  const openAnalyticsModule = () => {
-    console.log('분석 모듈 열기');
-  };
-
   // 상태 추가
   const showEditDrawer = ref(false);
   const showCreateDrawer = ref(false);
@@ -487,7 +465,7 @@
       delete customerPayload.tags;
 
       const customerId = originalCustomer.customerId || originalCustomer.customer_id;
-      const updatedCustomer = await customersAPI.updateCustomer(customerId, customerPayload);
+      await customersAPI.updateCustomer(customerId, customerPayload);
 
       // Add new tags
       for (const tagId of newTagIds) {
@@ -496,8 +474,8 @@
             await customersAPI.addTagToCustomer(customerId, tagId);
             // 메타데이터 스토어 갱신
             await metadataStore.loadMetadata(true);
-          } catch (e) {
-            console.error(`태그 추가 실패: customerId=${customerId}, tagId=${tagId}`, e);
+          } catch {
+            // 오류 무시
           }
         }
       }
@@ -527,23 +505,18 @@
     }
   };
 
-  // 고객 수정 드로어 afterLeave 처리
   const handleEditDrawerAfterLeave = () => {
     selectedCustomer.value = null;
   };
 
-  // 새 고객 등록 액션
   const createCustomer = () => {
     showCreateDrawer.value = true;
   };
 
-  // 고객 생성 완료 처리
   const handleCreateCustomer = async newCustomerPayload => {
     try {
-      // create customer with tags in one request to reduce API calls
       await customersAPI.createCustomer(newCustomerPayload);
 
-      // 리스트 새로고침 (캐시 초기화 후 재조회)
       cachedCustomers.value = [];
       lastFetchTime.value = 0;
       await fetchCustomers();
@@ -555,7 +528,6 @@
     }
   };
 
-  // 메뉴 토글
   const toggleUserMenu = () => {
     showUserMenu.value = !showUserMenu.value;
   };
@@ -703,8 +675,6 @@
 
       const sortedResults = sortSuggestions(results, keyword);
       searchSuggestions.value = sortedResults;
-      // activeIndex는 제안 목록이 새로 표시될 때만 -1로 초기화
-      // 이미 표시 중인 경우 (예: 키보드 탐색 중)에는 유지
       if (!showSuggestions.value) {
         activeIndex.value = -1;
       }
