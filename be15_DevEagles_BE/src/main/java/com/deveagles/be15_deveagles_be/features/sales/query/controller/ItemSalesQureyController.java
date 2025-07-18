@@ -20,11 +20,11 @@ public class ItemSalesQureyController {
 
   private final SalesQueryService salesQueryService;
 
-  @GetMapping("/{itemSalesId}")
-  @Operation(summary = "상품 매출 상세 조회", description = "상품 매출 ID로 매출 상세 내역을 조회합니다.")
+  @GetMapping("/{salesId}")
+  @Operation(summary = "상품 매출 상세 조회", description = "매출 ID로 상품 매출 상세 내역을 조회합니다.")
   public ResponseEntity<ApiResponse<ItemSalesDetailResponse>> getItemSalesDetail(
-      @PathVariable Long itemSalesId) {
-    ItemSalesDetailResponse response = salesQueryService.getItemSalesDetail(itemSalesId);
+      @PathVariable Long salesId) {
+    ItemSalesDetailResponse response = salesQueryService.getItemSalesDetailBySalesId(salesId);
     return ResponseEntity.ok(ApiResponse.success(response));
   }
 }

@@ -204,10 +204,20 @@
     // optional: 검색 키워드 처리
   };
 
-  const formatDate = date => {
-    if (!date) return '';
+  const formatDate = (date, endOfDay = false) => {
+    if (!date) return null;
+
     const d = new Date(date);
-    return d.toISOString().split('T')[0]; // YYYY-MM-DD
+    if (endOfDay) {
+      d.setHours(23, 59, 59, 999);
+    } else {
+      d.setHours(0, 0, 0, 0);
+    }
+
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   };
 
   // ✅ 초기 만료 필터 설정 함수

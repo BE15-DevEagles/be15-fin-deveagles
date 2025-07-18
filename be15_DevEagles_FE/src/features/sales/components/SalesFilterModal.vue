@@ -98,15 +98,29 @@
     emit('close');
   };
 
-  const applyFilter = () => {
-    const formattedStart = startDate.value
-      ? new Date(startDate.value).toISOString().split('.')[0]
-      : null;
+  const formatDateTimeKST = (date, endOfDay = false) => {
+    if (!date) return null;
 
-    const adjustedEnd = endDate.value
-      ? new Date(new Date(endDate.value).setHours(23, 59, 59, 999))
-      : null;
-    const formattedEnd = adjustedEnd ? new Date(adjustedEnd).toISOString().split('.')[0] : null;
+    const d = new Date(date);
+    if (endOfDay) {
+      d.setHours(23, 59, 59, 999);
+    } else {
+      d.setHours(0, 0, 0, 0);
+    }
+
+    // yyyy-MM-ddTHH:mm:ss 형식으로 반환
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}`;
+  };
+
+  const applyFilter = () => {
+    const formattedStart = formatDateTimeKST(startDate.value, false);
+    const formattedEnd = formatDateTimeKST(endDate.value, true);
 
     const saleTypeMap = {
       상품: 'ITEMS',
@@ -126,6 +140,7 @@
 
     close();
   };
+
   const getStaffNameById = id => {
     return staffOptions.value.find(opt => opt.value === id)?.text || '';
   };

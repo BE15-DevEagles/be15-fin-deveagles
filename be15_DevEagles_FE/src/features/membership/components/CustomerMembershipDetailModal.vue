@@ -47,18 +47,6 @@
                 </BaseTable>
               </div>
             </div>
-
-            <!-- 사용 내역 -->
-            <div class="section">
-              <h3>사용 내역</h3>
-              <div class="base-table-wrapper scrollable-table">
-                <BaseTable
-                  :columns="usageColumns"
-                  :data="customer.usageHistory ?? []"
-                  row-key="id"
-                />
-              </div>
-            </div>
           </div>
 
           <BaseToast ref="toastRef" />

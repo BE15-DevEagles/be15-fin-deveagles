@@ -45,8 +45,8 @@ export const getSessionPassSalesDetail = async sessionPassSalesId => {
   return await api.get(`/membership-sales/session/${sessionPassSalesId}`);
 };
 // 상품 매출 상세 조회
-export const getItemSalesDetail = async itemSalesId => {
-  return await api.get(`/item-sales/${itemSalesId}`);
+export const getItemSalesDetail = async salesId => {
+  return await api.get(`/item-sales/${salesId}`);
 };
 
 // 상품 매출 수정
