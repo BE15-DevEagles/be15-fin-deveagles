@@ -30,7 +30,6 @@
 
       // API 데이터 → formData 변환 함수
       function mapApiToFormData(data) {
-        console.log('[mapApiToFormData] input:', data);
         // 등급/태그는 id 배열로만 저장되어 있음 → 객체 배열로 변환
         const grades = (data.targetCustomerGrades || []).map(g =>
           typeof g === 'object' ? g.id : g
@@ -145,13 +144,9 @@
             return;
           }
 
-          console.log('[onMounted] Fetching workflow data for ID:', workflowId);
           workflowData.value = await fetchWorkflowData(workflowId);
-          console.log('[onMounted] Workflow data loaded successfully:', workflowData.value);
         } catch (error) {
           console.error('Error loading workflow data:', error);
-          console.error('Error response:', error.response?.data);
-          console.error('Error status:', error.response?.status);
           toast.showError(
             `워크플로우 데이터를 불러오는데 실패했습니다: ${error.response?.data?.message || error.message}`
           );

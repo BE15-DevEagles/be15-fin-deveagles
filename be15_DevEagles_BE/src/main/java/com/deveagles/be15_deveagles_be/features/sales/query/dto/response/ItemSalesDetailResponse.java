@@ -25,13 +25,7 @@ public class ItemSalesDetailResponse {
   private String couponName;
   private String salesMemo;
 
-  // item_sales
-  private Long itemSalesId;
-  private Long secondaryItemId;
-  private String secondaryItemName;
-  private Integer itemDiscountRate;
-  private Integer quantity;
-
+  private List<ItemSalesDetailDTO> items;
   // payments
   private List<PaymentsDTO> payments;
 

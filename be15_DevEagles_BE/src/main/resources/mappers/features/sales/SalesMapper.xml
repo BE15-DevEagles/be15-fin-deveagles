@@ -4,8 +4,6 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.deveagles.be15_deveagles_be.features.sales.query.mapper.SalesMapper">
-
-    <!-- 매출만 조회 (payments 제외) -->
     <resultMap id="SalesListWithoutPaymentsMap" type="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.SalesListResponse">
         <id property="salesId" column="sales_id"/>
         <result property="salesDate" column="sales_date"/>
@@ -13,15 +11,11 @@
         <result property="staffId" column="staff_id"/>
         <result property="staffName" column="staff_name"/>
         <result property="customerName" column="customer_name"/>
-        <result property="secondaryItemName" column="item_name"/>
         <result property="prepaidPassName" column="prepaid_pass_name"/>
         <result property="sessionPassName" column="session_pass_name"/>
         <result property="retailPrice" column="retail_price"/>
         <result property="discountAmount" column="discount_amount"/>
         <result property="totalAmount" column="total_amount"/>
-
-        <!-- 상세 조회용 식별자 -->
-        <result property="itemSalesId" column="item_sales_id"/>
         <result property="prepaidPassSalesId" column="prepaid_pass_sales_id"/>
         <result property="sessionPassSalesId" column="session_pass_sales_id"/>
     </resultMap>
@@ -43,20 +37,16 @@
         END AS sales_type,
         st.staff_name,
         c.customer_name,
-        IFNULL(si.secondary_item_name, '') AS item_name,
         ppp.prepaid_pass_name AS prepaid_pass_name,
         spp.session_pass_name AS session_pass_name,
         s.retail_price,
         s.discount_amount,
         s.total_amount,
-        i.item_sales_id,
         pp.prepaid_pass_sales_id,
         sp.session_pass_sales_id
         FROM sales s
         LEFT JOIN staff st ON s.staff_id = st.staff_id
         LEFT JOIN customer c ON s.customer_id = c.customer_id
-        LEFT JOIN item_sales i ON s.sales_id = i.sales_id
-        LEFT JOIN secondary_item si ON i.secondary_item_id = si.secondary_item_id
         LEFT JOIN session_pass_sales sp ON s.sales_id = sp.sales_id
         LEFT JOIN session_pass spp ON sp.session_pass_id = spp.session_pass_id
         LEFT JOIN prepaid_pass_sales pp ON s.sales_id = pp.sales_id
@@ -118,6 +108,22 @@
             #{id}
         </foreach>
         AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 상품 조회 -->
+    <select id="findItemSalesBySalesIds" resultType="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.ItemSalesListDTO">
+        SELECT
+        i.item_sales_id AS itemSalesId,
+        i.secondary_item_id AS secondaryItemId,
+        s.secondary_item_name AS secondaryItemName,
+        s.secondary_item_price AS secondaryItemPrice,
+        i.sales_id AS salesId
+        FROM item_sales i
+        JOIN secondary_item s ON s.secondary_item_id = i.secondary_item_id
+        WHERE i.sales_id IN
+        <foreach item="id" collection="salesIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
     </select>
 
     <!-- 전체 건수 조회 -->

@@ -7,7 +7,13 @@
           <h2 class="title">상품 매출 상세 조회</h2>
         </div>
         <div class="actions">
-          <Button class="close-button" @click="emit('close')">&times;</Button>
+          <BaseButton
+            class="close-button"
+            style="background-color: white; color: black"
+            @click="emit('close')"
+          >
+            &times;
+          </BaseButton>
         </div>
       </div>
 
@@ -25,7 +31,8 @@
 
             <div v-for="(item, index) in selectedItems" :key="index" class="sales-row">
               <div class="row-left">
-                <strong>{{ item.item }}</strong> / 1개 / {{ item.staff || '담당자 없음' }}
+                <strong>{{ item.item }}</strong> / {{ item.quantity }}개 /
+                {{ item.staff || '담당자 없음' }}
               </div>
               <div class="row-right">
                 <input type="checkbox" disabled :checked="false" />
@@ -40,7 +47,6 @@
               <span>{{ formatPrice(totalAmount) }}</span>
             </div>
 
-            <!-- ✅ 여러 결제 수단 처리 -->
             <div v-for="(pay, idx) in props.salesItem.payments" :key="idx" class="receipt-row">
               <span>
                 [결제]
@@ -94,29 +100,16 @@
       </div>
 
       <!-- 모달 연결 -->
-      <ItemSalesDeleteModal
-        v-model="showDeleteModal"
-        :sales-id="props.salesItem.salesId"
-        @confirm="handleDeleteConfirm"
-      />
+      <ItemSalesDeleteModal v-model="showDeleteModal" :sales-id="props.salesItem.salesId" />
       <ItemSalesRefundModal
         v-model="showRefundModal"
         :sales-id="props.salesItem.salesId"
         @confirm="handleRefundConfirm"
       />
       <ItemSalesEditModal
-        v-if="showEditModal"
-        :initial-sales-id="props.salesItem.salesId"
-        :initial-items="[selectedItems[0]]"
-        :initial-memo="memo"
-        :initial-date="date"
-        :initial-time="time"
-        :initial-customer="selectedItems[0]?.customer"
-        :initial-payments="props.salesItem.payments"
-        :shop-id="props.salesItem.shopId"
-        :customer-id="selectedItems[0]?.customerId"
+        v-if="showEditModal && initialEditData"
+        :initial-data="initialEditData"
         @close="handleEditCancel"
-        @submit="handleEditConfirm"
       />
 
       <!-- ✅ 토스트 컴포넌트 추가 -->
@@ -136,7 +129,16 @@
   import '@/features/sales/styles/SalesDetailModal.css';
   import { getItemSalesDetail } from '@/features/sales/api/sales.js';
 
-  const props = defineProps({ salesItem: Object });
+  const props = defineProps({
+    salesItem: {
+      type: Object,
+      default: () => ({}),
+    },
+    salesId: {
+      type: Number,
+      default: 0,
+    },
+  });
   const emit = defineEmits(['close']);
   const dropdownVisible = ref(false);
   const showDeleteModal = ref(false);
@@ -178,6 +180,42 @@
     }
   };
 
+  const initialEditData = ref(null);
+
+  const openEditModal = async () => {
+    if (!props.salesItem || !props.salesItem.salesId) {
+      toastRef.value?.error('매출 상세 데이터가 없습니다.');
+      return;
+    }
+
+    try {
+      const { data } = await getItemSalesDetail(props.salesItem.salesId);
+      const detail = data.data;
+
+      const dateTimeParts = detail.salesDate?.includes('T')
+        ? detail.salesDate.split('T')
+        : detail.salesDate?.split(' ') || [
+            new Date().toISOString().substring(0, 10),
+            new Date().toTimeString().substring(0, 8),
+          ];
+
+      initialEditData.value = {
+        ...detail,
+        customerId: detail.customerId,
+        initialSalesId: props.salesItem.salesId,
+        salesDate: dateTimeParts[0] || new Date().toISOString().substring(0, 10),
+        salesTime: dateTimeParts[1]?.substring(0, 5) || new Date().toTimeString().substring(0, 5),
+        customerName: detail.customerName,
+        staffName: detail.staffName,
+        items: detail.items || [],
+      };
+      showEditModal.value = true;
+    } catch (error) {
+      console.error('매출 상세 데이터 조회 실패:', error);
+      toastRef.value?.error('매출 상세 데이터를 불러올 수 없습니다.');
+    }
+  };
+
   const methodLabelMap = {
     card: '카드',
     cash: '현금',
@@ -209,15 +247,18 @@
   onBeforeUnmount(() => {
     document.removeEventListener('click', handleClickOutside);
   });
+
   onMounted(async () => {
-    window.addEventListener('keydown', handleKeydown);
-    document.addEventListener('click', handleClickOutside);
+    const salesId = props.salesId;
+    if (!salesId) {
+      toastRef.value?.error('salesId가 없습니다.');
+      return;
+    }
 
     try {
-      const { data } = await getItemSalesDetail(props.salesItem.itemSalesId);
+      const { data } = await getItemSalesDetail(salesId);
       const detail = data.data;
 
-      // 날짜 분리
       const dateTime = (detail.salesDate || '').replace('T', ' ').split(' ');
       date.value = dateTime[0] ?? '';
       time.value = dateTime[1] ?? '';
@@ -225,19 +266,21 @@
       memo.value = detail.salesMemo || '';
       selectedMethod.value = mapMethodToKey(detail.payments?.[0]?.paymentsMethod || '');
 
-      selectedItems.value = [
-        {
-          id: detail.secondaryItemId,
-          item: detail.secondaryItemName || '알 수 없음',
-          staff: detail.staffName,
-          salesTotal: detail.retailPrice,
-          discount: detail.discountAmount,
-          netSales: detail.totalAmount,
-          customer: detail.customerName,
-          customerId: detail.customerId,
-          shopId: detail.shopId,
-        },
-      ];
+      selectedItems.value = detail.items.map(i => ({
+        id: i.secondaryItemId,
+        item: i.secondaryItemName || '알 수 없음',
+        quantity: i.quantity,
+        staff: detail.staffName,
+        salesTotal: Number(i.secondaryItemPrice) * i.quantity,
+        discount:
+          Math.floor((Number(i.secondaryItemPrice) * i.itemDiscountRate) / 100) * i.quantity,
+        netSales:
+          Number(i.secondaryItemPrice) * i.quantity -
+          Math.floor((Number(i.secondaryItemPrice) * i.itemDiscountRate) / 100) * i.quantity,
+        customer: detail.customerName,
+        customerId: detail.customerId,
+        shopId: detail.shopId,
+      }));
     } catch (err) {
       console.error('상품 매출 상세 조회 실패:', err);
       toastRef.value?.error('매출 상세 조회에 실패했습니다.');
@@ -245,6 +288,7 @@
       loading.value = false;
     }
   });
+
   const handleAction = type => {
     dropdownVisible.value = false;
     switch (type) {
@@ -255,10 +299,6 @@
         showRefundModal.value = true;
         break;
     }
-  };
-
-  const openEditModal = () => {
-    showEditModal.value = true;
   };
 
   const handleRefundConfirm = () => {

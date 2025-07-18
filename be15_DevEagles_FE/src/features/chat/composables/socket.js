@@ -8,7 +8,6 @@ const SUB_PREFIX = '/sub/chatroom';
 const PUB_DESTINATION = '/pub/chat/send';
 
 let stompClient = null;
-let isConnected = false;
 const subscriptionMap = new Map();
 
 let reconnectAttempts = 0;
@@ -33,13 +32,11 @@ export const ensureSocketConnected = async (onReceive, onAuthError) => {
     heartbeatOutgoing: 10000,
 
     onConnect: () => {
-      isConnected = true;
       reconnectAttempts = 0;
     },
 
     onStompError: frame => {
       console.error('🚫 STOMP 오류', frame);
-      isConnected = false;
       onAuthError?.();
     },
 
@@ -48,7 +45,6 @@ export const ensureSocketConnected = async (onReceive, onAuthError) => {
       console.warn(
         `🔌 WebSocket 연결 종료됨 (시도 ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`
       );
-      isConnected = false;
 
       if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
         console.error('❌ WebSocket 재연결 포기');
@@ -58,15 +54,23 @@ export const ensureSocketConnected = async (onReceive, onAuthError) => {
 
     onWebSocketError: err => {
       console.error('❗ WebSocket 에러', err);
-      isConnected = false;
     },
   });
 
   stompClient.activate();
 
-  // 연결 완료 대기
-  while (!stompClient.connected && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+  // 연결 완료 대기 (최대 5초)
+  const maxWaitTime = 5000;
+  const startTime = Date.now();
+
+  while (!stompClient.connected && Date.now() - startTime < maxWaitTime) {
     await new Promise(res => setTimeout(res, 100));
+  }
+
+  if (!stompClient.connected) {
+    console.error('❌ WebSocket 연결 타임아웃');
+    stompClient.deactivate();
+    throw new Error('WebSocket 연결 타임아웃');
   }
 };
 
@@ -79,7 +83,6 @@ export const safeSubscribeToRoom = (roomId, onReceive) => {
 
   const sub = stompClient.subscribe(`${SUB_PREFIX}/${roomId}`, msg => {
     const parsed = JSON.parse(msg.body);
-    console.log('💬 [WebSocket 메시지 수신됨]', parsed);
     onReceive(parsed);
   });
 
@@ -119,7 +122,6 @@ export const disconnectSocket = () => {
     stompClient = null;
   }
 
-  isConnected = false;
   reconnectAttempts = 0;
   console.info('🔌 WebSocket 수동 연결 종료');
 };

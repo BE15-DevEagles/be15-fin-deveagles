@@ -68,6 +68,17 @@
   const startDate = ref(null); // Date 객체
   const endDate = ref(null);
 
+  const formatDateKST = (date, endOfDay = false) => {
+    if (!date) return null;
+
+    // 로컬 시간 기준 그대로 YYYY-MM-DD 추출
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+
+    const time = endOfDay ? '23:59:59' : '00:00:00';
+    return `${y}-${m}-${d}T${time}`;
+  };
   // 모달 닫기
   const closeModal = () => {
     modalVisible.value = false;
@@ -76,8 +87,8 @@
   // 필터 적용 → 상위로 emit
   const applyFilter = () => {
     const payload = {
-      startDate: startDate.value,
-      endDate: endDate.value,
+      startDate: formatDateKST(startDate.value, false),
+      endDate: formatDateKST(endDate.value, true),
     };
 
     if (props.type === '선불') {

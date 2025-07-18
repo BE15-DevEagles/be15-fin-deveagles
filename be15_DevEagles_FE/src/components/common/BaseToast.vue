@@ -210,6 +210,10 @@
   .toast-message {
     font-size: 14px;
     line-height: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
   .toast-close {

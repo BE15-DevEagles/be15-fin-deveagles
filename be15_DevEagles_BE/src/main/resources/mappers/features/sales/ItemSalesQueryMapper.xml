@@ -20,13 +20,6 @@
         <result property="couponName" column="coupon_name"/>
         <result property="salesMemo" column="sales_memo"/>
 
-        <!-- item_sales -->
-        <result property="itemSalesId" column="item_sales_id"/>
-        <result property="secondaryItemId" column="secondary_item_id"/>
-        <result property="secondaryItemName" column="secondary_item_name"/>
-        <result property="itemDiscountRate" column="item_discount_rate"/>
-        <result property="quantity" column="quantity"/>
-
         <!-- customer_membership_history -->
         <result property="customerPrepaidPassId" column="customer_prepaid_pass_id"/>
         <result property="customerSessionPassId" column="customer_session_pass_id"/>
@@ -34,9 +27,8 @@
     </resultMap>
 
 
-    <select id="findItemSalesDetail" resultMap="ItemSalesDetailResponseMap">
+    <select id="findItemSalesDetailBySalesId" resultMap="ItemSalesDetailResponseMap">
         SELECT
-            -- sales
             s.sales_id,
             s.sales_date,
             s.customer_id,
@@ -47,42 +39,43 @@
             s.sales_memo,
             c.customer_name,
             st.staff_name,
-
-            -- item_sales
-            i.item_sales_id,
-            i.secondary_item_id,
-            si.secondary_item_name,
-            i.discount_rate AS item_discount_rate,
-            i.quantity,
-            cp.coupon_title AS coupon_name,
-
-            -- membership history (nullable)
+            -- customer_membership_history
             cmh.customer_prepaid_pass_id,
             cmh.customer_session_pass_id,
-            cmh.used_count AS used_count
+            cmh.used_count
 
-        FROM item_sales i
-                 JOIN sales s ON i.sales_id = s.sales_id
+        FROM sales s
                  JOIN customer c ON s.customer_id = c.customer_id
                  JOIN staff st ON s.staff_id = st.staff_id
-                 LEFT JOIN secondary_item si ON i.secondary_item_id = si.secondary_item_id
-                 LEFT JOIN coupon cp ON i.coupon_id = cp.coupon_id
-                 LEFT JOIN customer_membership_history cmh ON i.sales_id = cmh.sales_id
+                 LEFT JOIN customer_membership_history cmh ON s.sales_id = cmh.sales_id
 
-        WHERE i.item_sales_id = #{itemSalesId}
-          AND i.deleted_at IS NULL
+        WHERE s.sales_id = #{salesId}
           AND s.deleted_at IS NULL
     </select>
 
 
+    <select id="findItemSalesListBySalesId" resultType="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.ItemSalesDetailDTO">
+        SELECT
+            i.item_sales_id AS itemSalesId,
+            i.secondary_item_id AS secondaryItemId,
+            si.secondary_item_name AS secondaryItemName,
+            si.secondary_item_price AS secondaryItemPrice,
+            i.discount_rate AS itemDiscountRate,
+            i.quantity
+        FROM item_sales i
+                 JOIN secondary_item si ON i.secondary_item_id = si.secondary_item_id
+        WHERE i.sales_id = #{salesId}
+          AND i.deleted_at IS NULL
+    </select>
+
     <select id="findPaymentsBySalesId" resultType="com.deveagles.be15_deveagles_be.features.sales.query.dto.response.PaymentsDTO">
         SELECT
-            payments_id,
-            payments_method,
-            amount
-        FROM payments
-        WHERE sales_id = #{salesId}
-          AND deleted_at IS NULL
+            p.payments_id AS paymenstId,
+            p.sales_id AS salesId,
+            p.payments_method AS paymentsMethod,
+            p.amount AS amount
+        FROM payments p
+        WHERE p.sales_id = #{salesId}
     </select>
 
 </mapper>

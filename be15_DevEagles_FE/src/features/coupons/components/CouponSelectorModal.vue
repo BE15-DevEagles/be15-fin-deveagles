@@ -300,15 +300,11 @@
           searchParams.shopId = props.filterOptions.shopId;
         }
 
-        console.log('CouponSelectorModal - loadCoupons searchParams:', searchParams);
-        console.log('CouponSelectorModal - filterOptions:', props.filterOptions);
-
         const response = await executeWithErrorHandling(
           () => couponsAPI.getCoupons(searchParams),
           '쿠폰 선택 모달에서 쿠폰 목록 로드'
         );
 
-        console.log('CouponSelectorModal - API response:', response);
         coupons.value = response.content;
         logger.info('쿠폰 목록 로드 완료', { count: response.content.length });
       };

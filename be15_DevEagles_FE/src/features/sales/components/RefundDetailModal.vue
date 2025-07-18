@@ -7,7 +7,7 @@
           <h2 class="title">환불 내역 상세 조회</h2>
         </div>
         <div class="actions">
-          <Button class="close-button" @click="emit('close')">&times;</Button>
+          <BaseButton class="close-button" @click="emit('close')">&times;</BaseButton>
         </div>
       </div>
 
@@ -154,15 +154,24 @@
       selectedMethod.value = paymentMethod;
 
       // selectedMemberships 데이터 구성
-      selectedMemberships.value = [
-        {
-          item: val.prepaidPassName ?? val.sessionPassName ?? val.secondaryItemName ?? '알 수 없음',
-          staff: val.staffName,
-          salesTotal: val.retailPrice,
-          netSales: val.totalAmount,
-          customer: val.customerName,
-        },
-      ];
+      selectedMemberships.value =
+        Array.isArray(val.items) && val.items.length
+          ? val.items.map(item => ({
+              item: item.secondaryItemName ?? '알 수 없음',
+              staff: val.staffName,
+              salesTotal: Number(item.secondaryItemPrice) || 0,
+              netSales: Number(item.secondaryItemPrice) || 0, // 환불액 = 원가 기준
+              customer: val.customerName,
+            }))
+          : [
+              {
+                item: val.prepaidPassName ?? val.sessionPassName ?? '알 수 없음',
+                staff: val.staffName,
+                salesTotal: val.retailPrice ?? 0,
+                netSales: val.totalAmount ?? 0,
+                customer: val.customerName,
+              },
+            ];
     },
     { immediate: true }
   );
