@@ -172,14 +172,16 @@ public class ItemSalesCommandServiceImpl implements ItemSalesCommandService {
       }
     }
     // 3. item_sales 저장
-    itemSalesRepository.save(
-        ItemSales.builder()
-            .salesId(sales.getSalesId())
-            .secondaryItemId(request.getSecondaryItemId())
-            .quantity(request.getQuantity())
-            .discountRate(request.getDiscountRate())
-            .couponId(request.getCouponId())
-            .build());
+    for (ItemSalesRequest.ItemInfo item : request.getItems()) {
+      itemSalesRepository.save(
+          ItemSales.builder()
+              .salesId(sales.getSalesId())
+              .secondaryItemId(item.getSecondaryItemId())
+              .quantity(item.getQuantity())
+              .discountRate(item.getDiscountRate())
+              .couponId(item.getCouponId())
+              .build());
+    }
 
     // 4. 고객 정보 갱신
     Customer customer =
@@ -297,16 +299,19 @@ public class ItemSalesCommandServiceImpl implements ItemSalesCommandService {
               .build());
     }
 
-    // 5. ItemSales 수정
-    ItemSales itemSales =
-        itemSalesRepository
-            .findBySalesId(salesId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.ITEMSALES_NOT_FOUND));
-    itemSales.updateItemSales(
-        request.getSecondaryItemId(),
-        request.getQuantity(),
-        request.getDiscountRate(),
-        request.getCouponId());
+    // 5. ItemSales 수정 (여러 개)
+    List<ItemSales> itemSalesList = itemSalesRepository.findAllBySalesId(salesId);
+
+    for (int i = 0; i < itemSalesList.size(); i++) {
+      ItemSales itemSales = itemSalesList.get(i);
+      ItemSalesRequest.ItemInfo item = request.getItems().get(i);
+
+      itemSales.updateItemSales(
+          item.getSecondaryItemId(),
+          item.getQuantity(),
+          item.getDiscountRate(),
+          item.getCouponId());
+    }
 
     // 6. 고객 정보 갱신 (금액 차이 반영)
     Customer customer =

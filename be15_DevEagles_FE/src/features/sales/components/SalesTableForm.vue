@@ -49,6 +49,7 @@
     <ItemSalesDetailModal
       v-if="detailModalVisible && selectedSalesItem?.salesType === 'ITEMS'"
       :sales-item="selectedSalesItem"
+      :sales-id="selectedSalesItem.salesId || selectedSalesItem.id"
       @close="closeModal"
     />
     <MembershipSalesDetailModal
@@ -160,33 +161,40 @@
 
       const result = await getSalesList(filters);
 
-      displaySales.value = result.list.map(item => ({
-        id: item.salesId,
-        date: item.salesDate ? item.salesDate.replace('T', ' ').slice(0, 16) : '-',
-        type:
-          item.salesType === 'ITEMS'
-            ? '상품'
-            : item.salesType === 'MEMBERSHIP'
-              ? '회원권'
-              : item.salesType === 'REFUND'
-                ? '환불'
-                : item.salesType,
-        staff: item.staffName || '-',
-        customer: item.customerName || '-',
-        item:
-          item.salesType === 'ITEMS'
-            ? item.secondaryItemName || '-'
-            : item.salesType === 'MEMBERSHIP'
-              ? item.prepaidPassName || item.sessionPassName || '-'
-              : '-',
-        salesTotal: item.retailPrice ?? '-',
-        discount: item.discountAmount ?? '-',
-        netSales: item.totalAmount ?? '-',
-        paymentMethod: item.payments?.length
-          ? item.payments.map(p => mapPaymentMethodToKorean(p.paymentsMethod)).join(', ')
-          : '-',
-        original: item,
-      }));
+      displaySales.value = result.list.map(item => {
+        const isItemsOrRefund = ['ITEMS', 'REFUND'].includes(item.salesType);
+        const items = item.items || [];
+
+        // 총 영업액 계산 (상품 or 환불일 때만 합산)
+        const totalRetail = item.discountAmount + item.totalAmount;
+
+        return {
+          id: item.salesId,
+          date: item.salesDate ? item.salesDate.replace('T', ' ').slice(0, 16) : '-',
+          type:
+            item.salesType === 'ITEMS'
+              ? '상품'
+              : item.salesType === 'MEMBERSHIP'
+                ? '회원권'
+                : item.salesType === 'REFUND'
+                  ? '환불'
+                  : item.salesType,
+          staff: item.staffName || '-',
+          customer: item.customerName || '-',
+          item: isItemsOrRefund
+            ? items.length
+              ? items.map(i => i.secondaryItemName).join(', ')
+              : '-'
+            : item.prepaidPassName || item.sessionPassName || '-',
+          salesTotal: totalRetail,
+          discount: item.discountAmount ?? 0,
+          netSales: item.totalAmount ?? 0,
+          paymentMethod: item.payments?.length
+            ? item.payments.map(p => mapPaymentMethodToKorean(p.paymentsMethod)).join(', ')
+            : '-',
+          original: item,
+        };
+      });
 
       pagination.value.totalPages = result.pagination?.totalPages ?? 1;
       pagination.value.totalItems = result.pagination?.totalItems ?? 0;

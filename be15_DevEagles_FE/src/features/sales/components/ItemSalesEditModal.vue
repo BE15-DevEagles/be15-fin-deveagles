@@ -135,7 +135,6 @@
                     v-model="globalDiscountRate"
                     type="select"
                     :options="discountRateOptions"
-                    @change="applyGlobalDiscount"
                   />
                 </div>
                 <div class="items-discount-amount-group">
@@ -236,31 +235,18 @@
   const staffOptions = ref([]);
 
   const props = defineProps({
-    initialSalesId: Number,
-    initialItems: Array,
-    initialMemo: String,
-    initialDate: String,
-    initialTime: String,
-    initialPayments: Array,
-    initialDiscountRate: Number,
-    initialCustomer: String,
-    customerId: Number,
+    initialData: Object, //
   });
 
   const selectedItems = ref([]);
-  const date = ref(props.initialDate || new Date().toISOString().substring(0, 10));
-  const time = ref(
-    props.initialTime
-      ? props.initialTime.substring(0, 5)
-      : new Date().toTimeString().substring(0, 5)
-  );
-  const memo = ref(props.initialMemo || '');
-  const globalDiscountRate = ref(props.initialDiscountRate || 0);
+  const date = ref(props.initialData.salesDate || new Date().toISOString().substring(0, 10));
+  const time = ref(props.initialData.salesTime || new Date().toTimeString().substring(0, 5));
+  const memo = ref(props.initialData.salesMemo || '');
+  const globalDiscountRate = ref(props.initialData.salesDiscountRate || 0);
   const customer = ref(props.initialCustomer || '');
   const selectedPrepaidPassId = ref(null);
   const customerPrepaidPassOptions = ref([]);
   const prepaidTotalAmount = ref(0);
-
   const discountRates = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
   const discountRateOptions = discountRates.map(rate => ({
     value: rate,
@@ -458,23 +444,59 @@
   onMounted(async () => {
     window.addEventListener('keydown', handleKeydown);
     await fetchStaffs();
-    selectedItems.value = (props.initialItems || []).map(item => ({
-      name: item.item || '',
-      price: item.salesTotal || 0,
-      quantity: item.quantity || 1,
-      discountRate:
-        item.discountRate !== undefined && item.discountRate !== null
-          ? Number(item.discountRate)
-          : 0,
-      discountAmount: item.discount || 0,
-      finalPrice: item.netSales || 0,
-      manager: staffOptions.value.find(opt => opt.text === item.staff)?.value || '',
-      deduction: '',
-      couponCode: '',
-      couponInfo: '',
-      availableSessionPasses: [],
-      id: item.secondaryItemId || item.id,
-    }));
+
+    if (!props.initialData) {
+      toastRef.value?.error('초기 데이터가 없습니다.');
+      return;
+    }
+
+    console.log('[자식] initialData:', props.initialData);
+    console.log('[자식] initialData.items:', props.initialData.items);
+
+    // 기본값 세팅
+    customer.value = props.initialData.customerName || '';
+    date.value = props.initialData.salesDate || new Date().toISOString().substring(0, 10);
+    time.value = props.initialData.salesTime || new Date().toTimeString().substring(0, 5);
+    memo.value = props.initialData.salesMemo || '';
+    globalDiscountRate.value = props.initialData.salesDiscountRate || 0;
+
+    selectedMethods.value =
+      props.initialData.payments?.map(p => p.paymentsMethod?.toLowerCase()) || [];
+
+    paymentAmounts.value = Object.fromEntries(
+      (props.initialData.payments || []).map(p => [p.paymentsMethod?.toLowerCase(), p.amount])
+    );
+
+    if (props.initialData.customerPrepaidPassId) {
+      selectedPrepaidPassId.value = props.initialData.customerPrepaidPassId;
+    }
+
+    // 상품 항목 세팅
+    selectedItems.value = (props.initialData.items || []).map(item => {
+      const price = Number(item.secondaryItemPrice) || 0;
+      const quantity = Number(item.quantity) || 1;
+      const discountRate = Number(item.itemDiscountRate) || 0;
+      const discountAmount = Math.floor((price * discountRate) / 100) * quantity;
+      const finalPrice = price * quantity - discountAmount;
+
+      return {
+        itemSalesId: item.itemSalesId,
+        secondaryItemId: Number(item.secondaryItemId) || 0,
+        name: item.secondaryItemName || '알 수 없음',
+        price,
+        quantity,
+        discountRate,
+        discountAmount,
+        finalPrice,
+        manager:
+          staffOptions.value.find(opt => opt.text === props.initialData.staffName)?.value || '',
+        deduction: props.initialData.customerSessionPassId || '',
+        couponCode: '',
+        couponInfo: '',
+        availableSessionPasses: [],
+      };
+    });
+
     await fetchSessionPassesForEdit();
     await fetchPrepaidPassesForEdit();
   });

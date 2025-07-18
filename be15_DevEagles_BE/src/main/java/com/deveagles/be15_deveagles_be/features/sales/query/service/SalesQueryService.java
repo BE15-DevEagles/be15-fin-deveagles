@@ -9,7 +9,7 @@ import com.deveagles.be15_deveagles_be.features.sales.query.dto.response.Session
 public interface SalesQueryService {
   SalesListResult getSalesList(Long shopId, SalesListFilterRequest filter);
 
-  ItemSalesDetailResponse getItemSalesDetail(Long itemSalesId);
+  ItemSalesDetailResponse getItemSalesDetailBySalesId(Long salesId);
 
   PrepaidPassSalesDetailResponse getPrepaidPassSalesDetail(Long prepaidPassSalesId);
 

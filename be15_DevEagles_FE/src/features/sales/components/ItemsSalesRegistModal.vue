@@ -55,7 +55,13 @@
                       v-model.number="product.quantity"
                       type="number"
                       min="1"
-                      @input="recalculateProduct(index)"
+                      @input="
+                        val => {
+                          product.quantity = Number(val);
+                          recalculateProduct(index);
+                        }
+                      "
+                      @change="recalculateProduct(index)"
                     />
                   </div>
                   <div class="items-input-group">
@@ -677,7 +683,6 @@
     const price = product.price || 0;
 
     const baseTotal = price * quantity;
-
     const sessionPassApplied = !!product.deduction;
     const couponDiscountRate = product.couponDiscountRate || 0;
     const discountRate = sessionPassApplied ? 0 : product.discountRate || 0;
@@ -687,7 +692,6 @@
       (baseTotal - couponDiscountAmount) * (discountRate / 100)
     );
     const finalDiscount = couponDiscountAmount + normalDiscountAmount;
-
     const finalPrice = sessionPassApplied ? 0 : baseTotal - finalDiscount;
 
     product.discountAmount = finalDiscount;
@@ -727,13 +731,14 @@
       session_pass: 'SESSION_PASS',
     };
 
-    for (const product of selectedProducts.value) {
-      const datePart = dayjs(date.value).format('YYYY-MM-DD');
-      const timePart = dayjs(time.value).format('HH:mm:ss');
-      const salesDateStr = `${datePart}T${timePart}`;
+    const datePart = dayjs(date.value).format('YYYY-MM-DD');
+    const timePart = dayjs(time.value).format('HH:mm:ss');
+    const salesDateStr = `${datePart}T${timePart}`;
 
-      const payments = [];
+    const payments = [];
 
+    // session pass 결제
+    selectedProducts.value.forEach(product => {
       if (product.deduction) {
         payments.push({
           paymentsMethod: PaymentsMethodEnum['session_pass'],
@@ -742,52 +747,57 @@
           usedCount: product.quantity || 1,
         });
       }
+    });
 
-      selectedMethods.value.forEach(method => {
-        if (method === 'session_pass' || method === 'prepaid') return;
+    // 일반 결제 수단
+    selectedMethods.value.forEach(method => {
+      if (method === 'session_pass' || method === 'prepaid') return;
 
-        payments.push({
-          paymentsMethod: PaymentsMethodEnum[method],
-          amount: paymentAmounts.value[method] || 0,
-        });
+      payments.push({
+        paymentsMethod: PaymentsMethodEnum[method],
+        amount: paymentAmounts.value[method] || 0,
       });
+    });
 
-      if (selectedMethods.value.includes('prepaid')) {
-        if (!selectedPrepaidPassId.value) {
-          toastRef.value?.error('사용할 선불권을 선택해주세요.');
-          return;
-        }
-        payments.push({
-          paymentsMethod: PaymentsMethodEnum['prepaid'],
-          amount: paymentAmounts.value['prepaid'] || 0,
-          customerPrepaidPassId: selectedPrepaidPassId.value,
-        });
-      }
-
-      const payload = {
-        secondaryItemId: product.id,
-        customerId: customerId.value,
-        staffId: product.manager,
-        shopId: Number(authStore.shopId),
-        reservationId: props.reservationId,
-        discountRate: product.discountRate || 0,
-        couponId: product.couponId || null,
-        quantity: product.quantity,
-        retailPrice: product.price,
-        discountAmount: product.discountAmount || 0,
-        totalAmount: product.finalPrice,
-        salesMemo: memo.value,
-        salesDate: salesDateStr,
-        payments,
-      };
-
-      try {
-        await registerItemSale(payload);
-      } catch (e) {
-        toastRef.value?.error('상품 매출 등록 중 오류가 발생했습니다.');
-        console.error('[SalesItemsModal] 상품 매출 등록 실패', e);
+    // 선불권 결제
+    if (selectedMethods.value.includes('prepaid')) {
+      if (!selectedPrepaidPassId.value) {
+        toastRef.value?.error('사용할 선불권을 선택해주세요.');
         return;
       }
+      payments.push({
+        paymentsMethod: PaymentsMethodEnum['prepaid'],
+        amount: paymentAmounts.value['prepaid'] || 0,
+        customerPrepaidPassId: selectedPrepaidPassId.value,
+      });
+    }
+
+    const payload = {
+      customerId: customerId.value,
+      staffId: selectedProducts.value[0].manager, // 모든 상품 동일한 담당자 가정 시
+      shopId: Number(authStore.shopId),
+      reservationId: props.reservationId,
+      discountRate: globalDiscountRate.value || 0,
+      retailPrice: totalPrice.value,
+      discountAmount: globalDiscountAmount.value,
+      totalAmount: finalTotalPrice.value,
+      salesMemo: memo.value,
+      salesDate: salesDateStr,
+      payments,
+      items: selectedProducts.value.map(product => ({
+        secondaryItemId: product.id,
+        quantity: product.quantity,
+        discountRate: product.discountRate || 0,
+        couponId: product.couponId || null,
+      })),
+    };
+
+    try {
+      await registerItemSale(payload);
+    } catch (e) {
+      toastRef.value?.error('상품 매출 등록 중 오류가 발생했습니다.');
+      console.error('[SalesItemsModal] 상품 매출 등록 실패', e);
+      return;
     }
 
     if (props.reservationId) {
