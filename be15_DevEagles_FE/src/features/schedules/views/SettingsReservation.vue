@@ -225,10 +225,6 @@
       lunchTimes.value = lunch;
       activeDays.value = active;
       lunchEnabled.value = hasLunchTime;
-
-      console.log('availableTimes:', available);
-      console.log('lunchTimes:', lunch);
-      console.log('점심시간 활성화:', hasLunchTime);
     } catch (err) {
       console.error('예약 설정 조회 실패:', err);
       toastRef.value?.error('예약 설정 정보를 불러오는 데 실패했습니다.');

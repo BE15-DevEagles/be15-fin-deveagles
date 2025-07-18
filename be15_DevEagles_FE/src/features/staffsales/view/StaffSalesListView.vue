@@ -550,4 +550,8 @@
       opacity: 0.6;
     }
   }
+  :deep(.sticky-header thead th) {
+    top: -24px !important;
+    z-index: 20;
+  }
 </style>

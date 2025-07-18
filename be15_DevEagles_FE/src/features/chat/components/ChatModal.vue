@@ -4,6 +4,7 @@
   import ChatMessages from './ChatMessages.vue';
   import ChatInput from './ChatInput.vue';
   import ChatListView from './ChatListView.vue';
+  import ChatRoomLoader from './ChatRoomLoader.vue';
   import ListIcon from '@/components/icons/ListIcon.vue';
   import HomeIcon from '@/components/icons/HomeIcon.vue';
 
@@ -57,17 +58,20 @@
 
   async function openNewChat() {
     try {
+      chatStore.setRoomLoading(true);
+      currentView.value = 'chat';
+
       const res = await createChatRoom();
       const roomId = res.data.roomId;
 
       chatStore.setCurrentRoomId(roomId);
       chatStore.clearMessages();
-      currentView.value = 'chat';
 
       if (chatStore.subscribedRoomId !== roomId) {
         safeSubscribeToRoom(roomId, msg => {
           const from =
             String(msg.senderId) === String(auth.userId) ? 'me' : msg.isCustomer ? 'user' : 'bot';
+
           chatStore.addMessage({ from, text: msg.content });
         });
         chatStore.setSubscribedRoomId(roomId);
@@ -75,12 +79,22 @@
 
       await sendGreetingMessage(roomId);
       chatStore.setAiActive(true);
+      chatStore.setRoomLoading(false);
     } catch (e) {
       console.error('❌ 채팅방 생성 실패:', e);
+      chatStore.setRoomLoading(false);
     }
   }
 
   function handleSend(text) {
+    // 3초 쿨다운 체크
+    if (!chatStore.canSendMessage()) {
+      return;
+    }
+
+    // 메시지 전송 시간 업데이트
+    chatStore.updateMessageTime();
+
     const isStaff = auth.userId === 17;
     const msg = {
       roomId: chatStore.currentRoomId,
@@ -89,6 +103,11 @@
       content: text,
       isCustomer: !isStaff,
     };
+
+    if (chatStore.isAiActive) {
+      chatStore.addLoadingMessage();
+    }
+
     sendSocketMessage(chatStore.currentRoomId, msg);
   }
 
@@ -96,11 +115,13 @@
     try {
       await switchToStaff(chatStore.currentRoomId);
       chatStore.setAiActive(false);
+      chatStore.removeAllLoadingMessages();
       chatStore.addMessage({
         from: 'bot',
         text: '상담사에게 연결되었어요. 잠시만 기다려주세요.',
       });
     } catch (err) {
+      chatStore.removeAllLoadingMessages();
       chatStore.addMessage({
         from: 'bot',
         text: '상담사 전환에 실패했어요. 나중에 다시 시도해주세요.',
@@ -117,16 +138,27 @@
     chatStore.resetChatState();
   }
 
+  function handleListLoadingStart() {
+    chatStore.setListLoading(true);
+  }
+
+  function handleListLoadingEnd() {
+    chatStore.setListLoading(false);
+  }
+
   async function enterExistingChat(chatRoomId) {
     try {
+      chatStore.setRoomLoading(true);
+      currentView.value = 'chat';
+
       chatStore.setCurrentRoomId(chatRoomId);
       chatStore.clearMessages();
-      currentView.value = 'chat';
 
       if (chatStore.subscribedRoomId !== chatRoomId) {
         safeSubscribeToRoom(chatRoomId, msg => {
           const from =
             String(msg.senderId) === String(auth.userId) ? 'me' : msg.isCustomer ? 'user' : 'bot';
+
           chatStore.addMessage({ from, text: msg.content });
         });
         chatStore.setSubscribedRoomId(chatRoomId);
@@ -140,8 +172,10 @@
       });
 
       await nextTick();
+      chatStore.setRoomLoading(false);
     } catch (e) {
       console.error('❌ 기존 채팅방 입장 실패:', e);
+      chatStore.setRoomLoading(false);
       alert('기존 채팅방 입장에 실패했습니다.');
     }
   }
@@ -174,16 +208,26 @@
           <button class="home-new-button" @click="openNewChat">새 문의하기</button>
         </div>
       </div>
+      <ChatRoomLoader
+        v-else-if="currentView === 'chat' && chatStore.isRoomLoading"
+        loading-text="채팅방을 불러오는 중..."
+      />
       <ChatMessages
-        v-else-if="currentView === 'chat'"
+        v-else-if="currentView === 'chat' && !chatStore.isRoomLoading"
         :messages="chatStore.messages"
         @switch="handleSwitch"
       />
-      <ChatListView v-else-if="currentView === 'list'" @select="enterExistingChat" />
+      <ChatListView
+        v-else-if="currentView === 'list'"
+        :is-loading="chatStore.isListLoading"
+        @select="enterExistingChat"
+        @loading-start="handleListLoadingStart"
+        @loading-end="handleListLoadingEnd"
+      />
     </div>
 
     <div class="chat-modal-footer">
-      <ChatInput v-if="currentView === 'chat'" @send="handleSend" />
+      <ChatInput v-if="currentView === 'chat' && !chatStore.isRoomLoading" @send="handleSend" />
       <div class="chat-footer-buttons">
         <div class="chat-footer-half">
           <button class="chat-btn" title="대화 목록" @click="openList">
