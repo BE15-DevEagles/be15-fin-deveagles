@@ -44,7 +44,7 @@ public class AutomaticMessageTriggerController {
   @GetMapping
   public ResponseEntity<ApiResponse<List<AutomaticTemplateResponse>>> getTemplates(
       @AuthenticationPrincipal CustomUser customUser) {
-    Long shopId = customUser.getShopId(); // ✅ 여기서 가져옴
+    Long shopId = customUser.getShopId(); //
     List<AutomaticTemplateResponse> templates =
         automaticMessageTriggerService.getAutomaticMessages(shopId);
     return ResponseEntity.ok(ApiResponse.success(templates));

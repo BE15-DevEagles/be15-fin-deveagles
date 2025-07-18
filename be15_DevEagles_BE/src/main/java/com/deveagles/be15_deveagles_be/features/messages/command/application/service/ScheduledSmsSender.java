@@ -36,7 +36,7 @@ public class ScheduledSmsSender {
 
   @Scheduled(fixedDelay = 60000) // 이전 작업이 끝난 후 60초 뒤에 실행
   public void sendScheduledMessages() {
-    log.info("✅ 예약 메시지 스케줄러 실행됨 - {}", LocalDateTime.now());
+    log.info("예약 메시지 스케줄러 실행됨 - {}", LocalDateTime.now());
 
     LocalDateTime now = LocalDateTime.now().withSecond(0).withNano(0);
 
@@ -57,7 +57,7 @@ public class ScheduledSmsSender {
       phoneNumberMap.put(customerIds.get(i), phoneNumbers.get(i));
     }
 
-    // ✅ 3. shopId → senderNumber 캐싱 처리
+    // 3. shopId → senderNumber 캐싱 처리
     Map<Long, String> senderNumberMap = new HashMap<>();
     for (Sms sms : scheduledMessages) {
       senderNumberMap.computeIfAbsent(
@@ -69,7 +69,7 @@ public class ScheduledSmsSender {
                   .orElseThrow(() -> new BusinessException(ErrorCode.MESSAGE_SETTINGS_NOT_FOUND)));
     }
 
-    // ✅ 4. senderNumber + messageContent 로 그룹핑
+    // 4. senderNumber + messageContent 로 그룹핑
     Map<String, List<Sms>> grouped =
         scheduledMessages.stream()
             .filter(sms -> phoneNumberMap.containsKey(sms.getCustomerId()))

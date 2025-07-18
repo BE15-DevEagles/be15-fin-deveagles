@@ -17,7 +17,7 @@ public class ChatRoom {
   private boolean isAiActive;
   private LocalDateTime createdAt;
   private LocalDateTime deletedAt;
-  private Long assignedStaffId; // ✅ 추가: 상담사 ID
+  private Long assignedStaffId; // 추가: 상담사 ID
 
   @Getter
   @Setter

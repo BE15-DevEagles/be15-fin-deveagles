@@ -4,10 +4,14 @@ import com.deveagles.be15_deveagles_be.common.exception.BusinessException;
 import com.deveagles.be15_deveagles_be.common.exception.ErrorCode;
 import com.deveagles.be15_deveagles_be.features.workflows.command.application.dto.request.CreateWorkflowCommand;
 import com.deveagles.be15_deveagles_be.features.workflows.command.application.dto.request.DeleteWorkflowCommand;
+import com.deveagles.be15_deveagles_be.features.workflows.command.application.dto.request.ToggleWorkflowCommand;
 import com.deveagles.be15_deveagles_be.features.workflows.command.application.dto.request.UpdateWorkflowCommand;
 import com.deveagles.be15_deveagles_be.features.workflows.command.application.service.WorkflowCommandService;
 import com.deveagles.be15_deveagles_be.features.workflows.command.domain.aggregate.Workflow;
 import com.deveagles.be15_deveagles_be.features.workflows.command.domain.repository.WorkflowRepository;
+import com.deveagles.be15_deveagles_be.features.workflows.command.domain.vo.ActionType;
+import com.deveagles.be15_deveagles_be.features.workflows.command.domain.vo.TriggerType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class WorkflowCommandServiceImpl implements WorkflowCommandService {
 
   private final WorkflowRepository workflowRepository;
+  private final ObjectMapper objectMapper;
 
   @Override
   public Long createWorkflow(CreateWorkflowCommand command) {
@@ -37,6 +42,9 @@ public class WorkflowCommandServiceImpl implements WorkflowCommandService {
   @Override
   public void updateWorkflow(UpdateWorkflowCommand command) {
     log.info("워크플로우 수정 시작: ID={}, 제목={}", command.getWorkflowId(), command.getTitle());
+
+    // Validate command data before processing
+    validateUpdateCommand(command);
 
     Workflow workflow = findWorkflowByIdAndShopId(command.getWorkflowId(), command.getShopId());
 
@@ -63,6 +71,20 @@ public class WorkflowCommandServiceImpl implements WorkflowCommandService {
     workflowRepository.save(workflow);
 
     log.info("워크플로우 삭제 완료: ID={}", workflow.getId());
+  }
+
+  @Override
+  public void toggleWorkflowStatus(ToggleWorkflowCommand command) {
+    log.info("워크플로우 상태 토글 시작: ID={}", command.getWorkflowId());
+
+    Workflow workflow = findWorkflowByIdAndShopId(command.getWorkflowId(), command.getShopId());
+
+    validateWorkflowOwnership(workflow, command.getStaffId());
+
+    workflow.toggleStatus();
+    workflowRepository.save(workflow);
+
+    log.info("워크플로우 상태 토글 완료: ID={}, 새 상태={}", workflow.getId(), workflow.getIsActive());
   }
 
   private void validateWorkflowTitleNotExists(String title, Long shopId) {
@@ -125,5 +147,48 @@ public class WorkflowCommandServiceImpl implements WorkflowCommandService {
         command.getTriggerType(), command.getTriggerCategory(), command.getTriggerConfig());
 
     workflow.updateAction(command.getActionType(), command.getActionConfig());
+  }
+
+  private void validateUpdateCommand(UpdateWorkflowCommand command) {
+    log.debug("Validating update command for workflow ID: {}", command.getWorkflowId());
+
+    // Validate trigger type
+    if (command.getTriggerType() != null && !command.getTriggerType().trim().isEmpty()) {
+      try {
+        TriggerType.fromCode(command.getTriggerType());
+      } catch (IllegalArgumentException e) {
+        log.error("Invalid trigger type: {}", command.getTriggerType());
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+      }
+    }
+
+    // Validate action type
+    if (command.getActionType() != null && !command.getActionType().trim().isEmpty()) {
+      try {
+        ActionType.fromCode(command.getActionType());
+      } catch (IllegalArgumentException e) {
+        log.error("Invalid action type: {}", command.getActionType());
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+      }
+    }
+
+    // Validate JSON fields
+    validateJsonField(command.getTargetCustomerGrades(), "targetCustomerGrades");
+    validateJsonField(command.getTargetTags(), "targetTags");
+    validateJsonField(command.getTriggerConfig(), "triggerConfig");
+    validateJsonField(command.getActionConfig(), "actionConfig");
+
+    log.debug("Update command validation completed successfully");
+  }
+
+  private void validateJsonField(String jsonField, String fieldName) {
+    if (jsonField != null && !jsonField.trim().isEmpty()) {
+      try {
+        objectMapper.readTree(jsonField);
+      } catch (Exception e) {
+        log.error("Invalid JSON format in field {}: {}", fieldName, e.getMessage());
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+      }
+    }
   }
 }

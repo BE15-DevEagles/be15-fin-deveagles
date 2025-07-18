@@ -60,56 +60,129 @@ public class WorkflowQueryResponse {
   private LocalDateTime modifiedAt;
 
   public static WorkflowQueryResponse from(Workflow workflow) {
+    if (workflow == null) {
+      throw new IllegalArgumentException("Workflow cannot be null");
+    }
+
     ObjectMapper objectMapper = new ObjectMapper();
 
-    return WorkflowQueryResponse.builder()
-        .id(workflow.getId())
-        .title(workflow.getTitle())
-        .description(workflow.getDescription())
-        .shopId(workflow.getShopId())
-        .staffId(workflow.getStaffId())
-        .isActive(workflow.getIsActive())
-        .targetCustomerGrades(parseJsonToList(workflow.getTargetCustomerGrades(), objectMapper))
-        .targetTags(parseJsonToList(workflow.getTargetTags(), objectMapper))
-        .excludeDormantCustomers(workflow.getExcludeDormantCustomers())
-        .dormantPeriodMonths(workflow.getDormantPeriodMonths())
-        .excludeRecentMessageReceivers(workflow.getExcludeRecentMessageReceivers())
-        .recentMessagePeriodDays(workflow.getRecentMessagePeriodDays())
-        .triggerType(workflow.getTriggerType())
-        .triggerCategory(workflow.getTriggerCategory())
-        .triggerConfig(parseJsonToObject(workflow.getTriggerConfig(), objectMapper))
-        .actionType(workflow.getActionType())
-        .actionConfig(parseJsonToObject(workflow.getActionConfig(), objectMapper))
-        .executionCount(workflow.getExecutionCount())
-        .successCount(workflow.getSuccessCount())
-        .failureCount(workflow.getFailureCount())
-        .successRate(workflow.getSuccessRate())
-        .lastExecutedAt(workflow.getLastExecutedAt())
-        .nextScheduledAt(workflow.getNextScheduledAt())
-        .createdAt(workflow.getCreatedAt())
-        .modifiedAt(workflow.getModifiedAt())
-        .build();
+    try {
+
+      // Calculate success rate safely
+      Double successRate = calculateSuccessRate(workflow);
+
+      return WorkflowQueryResponse.builder()
+          .id(workflow.getId())
+          .title(workflow.getTitle())
+          .description(workflow.getDescription())
+          .shopId(workflow.getShopId())
+          .staffId(workflow.getStaffId())
+          .isActive(workflow.getIsActive() != null ? workflow.getIsActive() : false)
+          .targetCustomerGrades(parseJsonToList(workflow.getTargetCustomerGrades(), objectMapper))
+          .targetTags(parseJsonToList(workflow.getTargetTags(), objectMapper))
+          .excludeDormantCustomers(
+              workflow.getExcludeDormantCustomers() != null
+                  ? workflow.getExcludeDormantCustomers()
+                  : false)
+          .dormantPeriodMonths(
+              workflow.getDormantPeriodMonths() != null ? workflow.getDormantPeriodMonths() : 6)
+          .excludeRecentMessageReceivers(
+              workflow.getExcludeRecentMessageReceivers() != null
+                  ? workflow.getExcludeRecentMessageReceivers()
+                  : false)
+          .recentMessagePeriodDays(
+              workflow.getRecentMessagePeriodDays() != null
+                  ? workflow.getRecentMessagePeriodDays()
+                  : 30)
+          .triggerType(workflow.getTriggerType())
+          .triggerCategory(workflow.getTriggerCategory())
+          .triggerConfig(parseJsonToObject(workflow.getTriggerConfig(), objectMapper))
+          .actionType(workflow.getActionType())
+          .actionConfig(parseJsonToObject(workflow.getActionConfig(), objectMapper))
+          .executionCount(workflow.getExecutionCount() != null ? workflow.getExecutionCount() : 0L)
+          .successCount(workflow.getSuccessCount() != null ? workflow.getSuccessCount() : 0L)
+          .failureCount(workflow.getFailureCount() != null ? workflow.getFailureCount() : 0L)
+          .successRate(successRate)
+          .lastExecutedAt(workflow.getLastExecutedAt())
+          .nextScheduledAt(workflow.getNextScheduledAt())
+          .createdAt(workflow.getCreatedAt())
+          .modifiedAt(workflow.getModifiedAt())
+          .build();
+    } catch (Exception e) {
+      throw new RuntimeException(
+          "Error converting Workflow to WorkflowQueryResponse for workflow ID: "
+              + workflow.getId()
+              + ". Error: "
+              + e.getMessage(),
+          e);
+    }
+  }
+
+  private static Double calculateSuccessRate(Workflow workflow) {
+    try {
+      Long executionCount = workflow.getExecutionCount();
+      Long successCount = workflow.getSuccessCount();
+
+      if (executionCount == null || executionCount == 0) {
+        return 0.0;
+      }
+
+      if (successCount == null) {
+        return 0.0;
+      }
+
+      return (double) successCount / executionCount * 100;
+    } catch (Exception e) {
+      // Log the error but don't fail the entire conversion
+      return 0.0;
+    }
   }
 
   @SuppressWarnings("unchecked")
   private static List<String> parseJsonToList(String json, ObjectMapper objectMapper) {
-    if (json == null || json.trim().isEmpty()) {
+    if (json == null || json.trim().isEmpty() || "null".equals(json.trim())) {
       return List.of();
     }
     try {
-      return objectMapper.readValue(json, List.class);
+      // Handle cases where the JSON might be malformed
+      String trimmedJson = json.trim();
+      if (!trimmedJson.startsWith("[") && !trimmedJson.startsWith("{")) {
+        // If it's not a proper JSON array or object, return empty list
+        return List.of();
+      }
+      return objectMapper.readValue(trimmedJson, List.class);
     } catch (JsonProcessingException e) {
+      // Log the error for debugging but don't fail
+      System.err.println("Failed to parse JSON to List: " + json + ", Error: " + e.getMessage());
+      return List.of();
+    } catch (Exception e) {
+      System.err.println(
+          "Unexpected error parsing JSON to List: " + json + ", Error: " + e.getMessage());
       return List.of();
     }
   }
 
   private static Object parseJsonToObject(String json, ObjectMapper objectMapper) {
-    if (json == null || json.trim().isEmpty()) {
+    if (json == null || json.trim().isEmpty() || "null".equals(json.trim())) {
       return null;
     }
     try {
-      return objectMapper.readValue(json, Object.class);
+      // Handle cases where the JSON might be malformed
+      String trimmedJson = json.trim();
+      if (!trimmedJson.startsWith("{")
+          && !trimmedJson.startsWith("[")
+          && !trimmedJson.startsWith("\"")) {
+        // If it's not a proper JSON object, array, or string, return null
+        return null;
+      }
+      return objectMapper.readValue(trimmedJson, Object.class);
     } catch (JsonProcessingException e) {
+      // Log the error for debugging but don't fail
+      System.err.println("Failed to parse JSON to Object: " + json + ", Error: " + e.getMessage());
+      return null;
+    } catch (Exception e) {
+      System.err.println(
+          "Unexpected error parsing JSON to Object: " + json + ", Error: " + e.getMessage());
       return null;
     }
   }

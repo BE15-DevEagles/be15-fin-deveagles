@@ -56,11 +56,13 @@
     <div class="form-row">
       <div class="form-col">
         <CompactCouponSelector
-          v-model="couponIdArray"
+          v-model="selectedCoupon"
           label="쿠폰 선택"
           :multiple="false"
           :placeholder="'쿠폰을 선택하세요'"
-          :filter-options="{ shopId: authStore.shopId }"
+          :filter-options="{ shopId: authStore.shopId, onlyActive: true }"
+          @coupon-selected="handleCouponSelected"
+          @update:model-value="handleCouponModelValueUpdate"
         />
       </div>
       <div class="form-col">
@@ -124,15 +126,23 @@
     templateId: '',
   });
 
-  // CompactCouponSelector는 Array만 허용하므로 변환용 computed
-  const couponIdArray = computed({
-    get() {
-      return formData.value.couponId ? [formData.value.couponId] : [];
-    },
-    set(val) {
-      formData.value.couponId = Array.isArray(val) && val.length > 0 ? val[0] : '';
-    },
-  });
+  // 선택된 쿠폰 관리
+  const selectedCoupon = ref(null);
+
+  // 쿠폰 선택 핸들러
+  const handleCouponSelected = coupon => {
+    if (coupon) {
+      selectedCoupon.value = coupon;
+      formData.value.couponId = coupon.id || coupon.value;
+    }
+  };
+
+  const handleCouponModelValueUpdate = coupon => {
+    if (coupon) {
+      selectedCoupon.value = coupon;
+      formData.value.couponId = coupon.id || coupon.value;
+    }
+  };
 
   const errors = ref({});
 
@@ -238,6 +248,7 @@
       messageSendAt: '',
       templateId: '',
     };
+    selectedCoupon.value = null;
     errors.value = {};
   }
 

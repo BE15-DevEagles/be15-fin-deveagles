@@ -130,6 +130,10 @@ public class Workflow {
     this.isActive = false;
   }
 
+  public void toggleStatus() {
+    this.isActive = !this.isActive;
+  }
+
   public void softDelete() {
     this.deletedAt = LocalDateTime.now();
     this.isActive = false;

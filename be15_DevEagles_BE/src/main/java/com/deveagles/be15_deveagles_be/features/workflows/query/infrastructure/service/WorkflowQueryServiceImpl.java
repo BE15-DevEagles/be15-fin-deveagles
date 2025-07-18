@@ -34,15 +34,35 @@ public class WorkflowQueryServiceImpl implements WorkflowQueryService {
   public WorkflowQueryResponse getWorkflowById(Long workflowId, Long shopId) {
     log.debug("워크플로우 상세 조회 시작 - workflowId: {}, shopId: {}", workflowId, shopId);
 
-    Workflow workflow =
-        workflowQueryRepository
-            .findByIdAndShopId(workflowId, shopId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.WORKFLOW_NOT_FOUND));
+    try {
+      Workflow workflow =
+          workflowQueryRepository
+              .findByIdAndShopId(workflowId, shopId)
+              .orElseThrow(
+                  () -> {
+                    log.warn("워크플로우를 찾을 수 없음 - workflowId: {}, shopId: {}", workflowId, shopId);
+                    return new BusinessException(ErrorCode.WORKFLOW_NOT_FOUND);
+                  });
 
-    WorkflowQueryResponse response = WorkflowQueryResponse.from(workflow);
+      log.debug("워크플로우 엔티티 조회 완료 - workflowId: {}, title: {}", workflowId, workflow.getTitle());
 
-    log.debug("워크플로우 상세 조회 완료 - workflowId: {}", workflowId);
-    return response;
+      WorkflowQueryResponse response;
+      try {
+        response = WorkflowQueryResponse.from(workflow);
+      } catch (Exception e) {
+        log.error("워크플로우 데이터 변환 실패 - workflowId: {}", workflowId, e);
+        throw new BusinessException(ErrorCode.WORKFLOW_CONVERSION_FAILED);
+      }
+
+      log.debug("워크플로우 상세 조회 완료 - workflowId: {}", workflowId);
+      return response;
+    } catch (BusinessException e) {
+      // Re-throw business exceptions as-is
+      throw e;
+    } catch (Exception e) {
+      log.error("워크플로우 조회 중 예상치 못한 오류 발생 - workflowId: {}, shopId: {}", workflowId, shopId, e);
+      throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @Override
@@ -53,62 +73,74 @@ public class WorkflowQueryServiceImpl implements WorkflowQueryService {
         request.getPage(),
         request.getSize());
 
-    Page<Workflow> workflowPage = workflowQueryRepository.searchWorkflows(request);
+    try {
+      Page<Workflow> workflowPage = workflowQueryRepository.searchWorkflows(request);
 
-    List<WorkflowSummaryResponse> responses =
-        WorkflowSummaryResponse.from(workflowPage.getContent());
+      List<WorkflowSummaryResponse> responses =
+          WorkflowSummaryResponse.from(workflowPage.getContent());
 
-    PagedResult<WorkflowSummaryResponse> pagedResult =
-        PagedResult.from(workflowPage.map(WorkflowSummaryResponse::from));
-    PagedResponse<WorkflowSummaryResponse> pagedResponse =
-        new PagedResponse<>(responses, pagedResult.getPagination());
+      PagedResult<WorkflowSummaryResponse> pagedResult =
+          PagedResult.from(workflowPage.map(WorkflowSummaryResponse::from));
+      PagedResponse<WorkflowSummaryResponse> pagedResponse =
+          new PagedResponse<>(responses, pagedResult.getPagination());
 
-    log.debug(
-        "워크플로우 목록 검색 완료 - shopId: {}, totalElements: {}",
-        request.getShopId(),
-        workflowPage.getTotalElements());
+      log.debug(
+          "워크플로우 목록 검색 완료 - shopId: {}, totalElements: {}",
+          request.getShopId(),
+          workflowPage.getTotalElements());
 
-    return pagedResponse;
+      return pagedResponse;
+    } catch (Exception e) {
+      log.error("워크플로우 검색 중 오류 발생 - shopId: {}", request.getShopId(), e);
+      throw new BusinessException(ErrorCode.WORKFLOW_SEARCH_FAILED);
+    }
   }
 
   @Override
   public WorkflowStatsResponse getWorkflowStats(Long shopId) {
     log.debug("워크플로우 통계 조회 시작 - shopId: {}", shopId);
 
-    // 기본 통계
-    long totalWorkflows = workflowQueryRepository.countByShopId(shopId);
-    long activeWorkflows = workflowQueryRepository.countActiveByShopId(shopId);
-    long inactiveWorkflows = workflowQueryRepository.countInactiveByShopId(shopId);
+    try {
+      // 기본 통계
+      long totalWorkflows = workflowQueryRepository.countByShopId(shopId);
+      long activeWorkflows = workflowQueryRepository.countActiveByShopId(shopId);
+      long inactiveWorkflows = workflowQueryRepository.countInactiveByShopId(shopId);
 
-    // 이번 달 실행 통계
-    YearMonth currentMonth = YearMonth.now();
-    LocalDateTime monthStart = currentMonth.atDay(1).atStartOfDay();
-    LocalDateTime monthEnd = currentMonth.atEndOfMonth().atTime(23, 59, 59);
+      // 이번 달 실행 통계
+      YearMonth currentMonth = YearMonth.now();
+      LocalDateTime monthStart = currentMonth.atDay(1).atStartOfDay();
+      LocalDateTime monthEnd = currentMonth.atEndOfMonth().atTime(23, 59, 59);
 
-    long monthlyExecutions =
-        workflowQueryRepository.countExecutionsByShopIdAndPeriod(shopId, monthStart, monthEnd);
+      long monthlyExecutions =
+          workflowQueryRepository.countExecutionsByShopIdAndPeriod(shopId, monthStart, monthEnd);
 
-    // 성공/실패 통계는 WorkflowExecution 테이블에서 조회
-    long monthlySuccessfulExecutions =
-        workflowExecutionRepository.countByShopIdAndCreatedAtBetween(shopId, monthStart, monthEnd);
+      // 성공/실패 통계는 WorkflowExecution 테이블에서 조회
+      long monthlySuccessfulExecutions =
+          workflowExecutionRepository.countByShopIdAndCreatedAtBetween(
+              shopId, monthStart, monthEnd);
 
-    long monthlyFailedExecutions = monthlyExecutions - monthlySuccessfulExecutions;
+      long monthlyFailedExecutions = monthlyExecutions - monthlySuccessfulExecutions;
 
-    // 평균 성공률
-    Double averageSuccessRate = workflowQueryRepository.calculateAverageSuccessRateByShopId(shopId);
+      // 평균 성공률
+      Double averageSuccessRate =
+          workflowQueryRepository.calculateAverageSuccessRateByShopId(shopId);
 
-    WorkflowStatsResponse response =
-        WorkflowStatsResponse.of(
-            totalWorkflows,
-            activeWorkflows,
-            inactiveWorkflows,
-            monthlyExecutions,
-            monthlySuccessfulExecutions,
-            monthlyFailedExecutions,
-            averageSuccessRate != null ? averageSuccessRate : 0.0);
+      WorkflowStatsResponse response =
+          WorkflowStatsResponse.of(
+              totalWorkflows,
+              activeWorkflows,
+              inactiveWorkflows,
+              monthlyExecutions,
+              monthlySuccessfulExecutions,
+              monthlyFailedExecutions,
+              averageSuccessRate != null ? averageSuccessRate : 0.0);
 
-    log.debug("워크플로우 통계 조회 완료 - shopId: {}, totalWorkflows: {}", shopId, totalWorkflows);
-    return response;
+      log.debug("워크플로우 통계 조회 완료 - shopId: {}, totalWorkflows: {}", shopId, totalWorkflows);
+      return response;
+    } catch (Exception e) {
+      log.error("워크플로우 통계 계산 중 오류 발생 - shopId: {}", shopId, e);
+      throw new BusinessException(ErrorCode.WORKFLOW_STATS_CALCULATION_FAILED);
+    }
   }
 
   @Override

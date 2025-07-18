@@ -17,7 +17,11 @@
             <BaseButton :outline="tab !== 'plan'" @click="tab = 'plan'">일정</BaseButton>
             <BaseButton :outline="tab !== 'leave'" @click="tab = 'leave'">휴무</BaseButton>
           </div>
-          <component :is="currentTabComponent" ref="formRef" />
+          <component
+            :is="currentTabComponent"
+            ref="formRef"
+            :initial-customer="props.initialCustomer"
+          />
         </div>
       </div>
 
@@ -67,9 +71,10 @@
   const props = defineProps({
     modelValue: { type: Boolean, required: true },
     defaultTab: { type: String, default: 'reservation' },
+    initialCustomer: { type: Object, default: null },
   });
 
-  const emit = defineEmits(['update:modelValue']);
+  const emit = defineEmits(['update:modelValue', 'submit', 'error']);
 
   const tab = ref(props.defaultTab);
 
@@ -234,12 +239,11 @@
             regularPlanEndAt: formatTime(formData.endTime),
           });
         }
-
         toast.value?.success('일정이 등록되었습니다.');
+        emit('submit');
         close();
         return;
       }
-
       if (tab.value === 'leave') {
         if (formData.repeat === 'none') {
           await createLeave({
@@ -257,12 +261,11 @@
             monthlyLeave: formData.repeat === 'monthly' ? formData.monthlyLeave : null,
           });
         }
-
         toast.value?.success('휴무가 등록되었습니다.');
+        emit('submit');
         close();
         return;
       }
-
       const payload = {
         customerId: isAnonymous ? null : formData.customerId,
         staffId: formData.staffId,
@@ -274,10 +277,11 @@
         staffMemo: formData.staffMemo || '',
       };
       await createReservation(payload);
-
+      emit('submit');
       close();
     } catch (err) {
       toast.value?.error('예약 등록 중 오류가 발생했습니다.');
+      emit('error', err);
       console.error(err);
     }
   };

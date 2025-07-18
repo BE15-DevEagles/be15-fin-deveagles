@@ -38,7 +38,6 @@ export const fetchLeaveList = async params => {
   return response.data.data;
 };
 
-// 직원 목록 조회 API
 export const getStaffList = async ({
   page = 1,
   size = 100,
@@ -54,6 +53,24 @@ export const getStaffList = async ({
     },
   });
 
+  return response.data.data.staffList ?? [];
+};
+
+export const getStaffListPublic = async ({
+  shopId,
+  page = 1,
+  size = 100,
+  keyword = '',
+  isActive = true,
+}) => {
+  const response = await api.get(`/staffs/public/${shopId}`, {
+    params: {
+      page,
+      size,
+      keyword,
+      isActive,
+    },
+  });
   return response.data.data.staffList ?? [];
 };
 
@@ -157,8 +174,18 @@ export const getActiveSecondaryItems = async () => {
   return response.data.data;
 };
 
+export const getActiveSecondaryItemsPublic = async shopId => {
+  const response = await api.get(`/secondary-items/active/${shopId}`);
+  return response.data.data;
+};
+
 export const getAllPrimaryItems = async () => {
   const response = await api.get('/primary-items');
+  return response.data.data;
+};
+
+export const getAllPrimaryItemsPublic = async shopId => {
+  const response = await api.get(`/primary-items/${shopId}`);
   return response.data.data;
 };
 
@@ -212,6 +239,11 @@ export const switchScheduleType = payload => {
 export const getStaffDetail = async staffId => {
   const response = await api.get(`/staffs/${staffId}`);
   return response.data.data;
+};
+
+export const getStaffProfileUrl = async staffId => {
+  const response = await api.get(`/staffs/${staffId}/profile-url`);
+  return response.data;
 };
 
 export const fetchStaffBookedTimes = async (staffId, date) => {

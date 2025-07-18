@@ -555,8 +555,8 @@ public class CustomerQueryServiceImpl implements CustomerQueryService {
   }
 
   @Override
-  public SegmentCustomersResponse getCustomersBySegmentTag(String segmentTag) {
-    log.info("세그먼트 태그별 고객 조회: {}", segmentTag);
+  public SegmentCustomersResponse getCustomersBySegmentTag(String segmentTag, Long shopId) {
+    log.info("세그먼트 태그별 고객 조회: {}, 매장ID: {}", segmentTag, shopId);
 
     // 세그먼트 정보 조회
     var segment =
@@ -568,17 +568,20 @@ public class CustomerQueryServiceImpl implements CustomerQueryService {
                         ErrorCode.SEGMENT_NOT_FOUND, "세그먼트를 찾을 수 없습니다: " + segmentTag));
 
     // 해당 세그먼트의 고객 ID 목록 조회
-    List<Long> customerIds = segmentByCustomerRepository.findCustomerIdsBySegmentTag(segmentTag);
+    List<Long> allCustomerIds = segmentByCustomerRepository.findCustomerIdsBySegmentTag(segmentTag);
 
-    log.info("세그먼트 '{}' 고객 수: {}", segmentTag, customerIds.size());
+    // shopId로 필터링된 고객 ID 목록
+    List<Long> filteredCustomerIds = filterCustomerIdsByShopId(allCustomerIds, shopId);
+
+    log.info("세그먼트 '{}' 고객 수 (매장 {}): {}", segmentTag, shopId, filteredCustomerIds.size());
 
     return SegmentCustomersResponse.of(
-        segment.getSegmentTag(), segment.getSegmentTitle(), customerIds);
+        segment.getSegmentTag(), segment.getSegmentTitle(), filteredCustomerIds);
   }
 
   @Override
-  public SegmentCustomersResponse getCustomersBySegmentId(Long segmentId) {
-    log.info("세그먼트 ID별 고객 조회: {}", segmentId);
+  public SegmentCustomersResponse getCustomersBySegmentId(Long segmentId, Long shopId) {
+    log.info("세그먼트 ID별 고객 조회: {}, 매장ID: {}", segmentId, shopId);
 
     // 세그먼트 정보 조회
     var segment =
@@ -590,18 +593,22 @@ public class CustomerQueryServiceImpl implements CustomerQueryService {
                         ErrorCode.SEGMENT_NOT_FOUND, "세그먼트를 찾을 수 없습니다: " + segmentId));
 
     // 해당 세그먼트의 고객 ID 목록 조회
-    List<Long> customerIds = segmentByCustomerRepository.findCustomerIdsBySegmentId(segmentId);
+    List<Long> allCustomerIds = segmentByCustomerRepository.findCustomerIdsBySegmentId(segmentId);
 
-    log.info("세그먼트 '{}' 고객 수: {}", segment.getSegmentTag(), customerIds.size());
+    // shopId로 필터링된 고객 ID 목록
+    List<Long> filteredCustomerIds = filterCustomerIdsByShopId(allCustomerIds, shopId);
+
+    log.info(
+        "세그먼트 '{}' 고객 수 (매장 {}): {}", segment.getSegmentTag(), shopId, filteredCustomerIds.size());
 
     return SegmentCustomersResponse.of(
-        segment.getSegmentTag(), segment.getSegmentTitle(), customerIds);
+        segment.getSegmentTag(), segment.getSegmentTitle(), filteredCustomerIds);
   }
 
   @Override
   public List<SegmentCustomersResponse> getCustomersByMultipleSegmentTags(
-      List<String> segmentTags) {
-    log.info("다중 세그먼트 태그별 고객 조회: {}", segmentTags);
+      List<String> segmentTags, Long shopId) {
+    log.info("다중 세그먼트 태그별 고객 조회: {}, 매장ID: {}", segmentTags, shopId);
 
     // 세그먼트 정보들 조회
     var segments = segmentRepository.findBySegmentTagIn(segmentTags);
@@ -622,13 +629,29 @@ public class CustomerQueryServiceImpl implements CustomerQueryService {
                     segmentTag, "Unknown Segment", Collections.emptyList());
               }
 
-              List<Long> customerIds =
+              List<Long> allCustomerIds =
                   segmentByCustomerRepository.findCustomerIdsBySegmentTag(segmentTag);
-              log.info("세그먼트 '{}' 고객 수: {}", segmentTag, customerIds.size());
 
-              return SegmentCustomersResponse.of(segmentTag, segmentTitle, customerIds);
+              // shopId로 필터링된 고객 ID 목록
+              List<Long> filteredCustomerIds = filterCustomerIdsByShopId(allCustomerIds, shopId);
+
+              log.info(
+                  "세그먼트 '{}' 고객 수 (매장 {}): {}", segmentTag, shopId, filteredCustomerIds.size());
+
+              return SegmentCustomersResponse.of(segmentTag, segmentTitle, filteredCustomerIds);
             })
         .collect(Collectors.toList());
+  }
+
+  private List<Long> filterCustomerIdsByShopId(List<Long> customerIds, Long shopId) {
+    if (customerIds.isEmpty()) {
+      return customerIds;
+    }
+
+    return customerJpaRepository.findAllById(customerIds).stream()
+        .filter(customer -> Objects.equals(customer.getShopId(), shopId))
+        .map(Customer::getId)
+        .toList();
   }
 
   @Override

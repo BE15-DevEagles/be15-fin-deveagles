@@ -66,18 +66,20 @@
   const calendarOptions = ref({
     plugins: [interactionPlugin, resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin],
     initialView: 'dayGridMonth',
-    editable: true,
+    editable: false,
     eventStartEditable: false,
     eventDurationEditable: false,
     locale: koLocale,
     resources: [],
+    slotMinTime: '09:00:00',
+    slotMaxTime: '21:00:00',
     resourceOrder: 'customOrder',
     height: 'auto',
 
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
-      right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth',
+      right: 'resourceTimeGridDay,dayGridMonth',
     },
     views: {
       resourceTimeGridDay: {

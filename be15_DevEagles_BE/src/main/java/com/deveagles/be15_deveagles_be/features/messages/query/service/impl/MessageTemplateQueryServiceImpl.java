@@ -24,7 +24,7 @@ public class MessageTemplateQueryServiceImpl implements MessageTemplateQueryServ
 
     Page<MessageTemplateResponse> mapped = page.map(MessageTemplateResponse::from);
 
-    return PagedResult.from(mapped); // ✅ 변경 포인트
+    return PagedResult.from(mapped); //  변경 포인트
   }
 
   @Override

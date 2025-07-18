@@ -44,7 +44,7 @@ class SmsQueryServiceImplTest {
             new SmsListResponse(
                 1L, "예약", "예약 메시지입니다", "고객A", "SENT", LocalDateTime.now(), true, true, "", "AUTO"));
 
-    // ✅ mockPage 생성
+    // mockPage 생성
     Page<SmsListResponse> mockPage = new PageImpl<>(content, pageable, content.size());
 
     given(smsQueryRepository.findSmsListByShopId(shopId, pageable)).willReturn(mockPage);

@@ -124,7 +124,7 @@ public class ItemSalesCommandServiceImpl implements ItemSalesCommandService {
                   .customerPrepaidPassId(pass.getCustomerPrepaidPassId())
                   .build());
 
-          // ✅ 자동발신 트리거
+          //  자동발신 트리거
           Optional<CustomerDetailResponse> optionalCustomer =
               customerQueryService.getCustomerDetail(request.getCustomerId(), request.getShopId());
 

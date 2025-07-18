@@ -1,6 +1,7 @@
 package com.deveagles.be15_deveagles_be.features.customers.query.controller;
 
 import com.deveagles.be15_deveagles_be.common.dto.ApiResponse;
+import com.deveagles.be15_deveagles_be.features.auth.command.application.model.CustomUser;
 import com.deveagles.be15_deveagles_be.features.customers.query.dto.response.SegmentCustomersResponse;
 import com.deveagles.be15_deveagles_be.features.customers.query.service.CustomerQueryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,8 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,8 +24,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "세그먼트별 고객 조회", description = "세그먼트별 고객 ID 목록 조회 API")
 @RestController
-@RequestMapping("/api/segments")
+@RequestMapping("/segments")
 @RequiredArgsConstructor
+@Validated
 @Slf4j
 public class SegmentCustomerQueryController {
 
@@ -40,16 +44,21 @@ public class SegmentCustomerQueryController {
   })
   @GetMapping("/{segmentTag}/customers")
   public ResponseEntity<ApiResponse<SegmentCustomersResponse>> getCustomersBySegmentTag(
+      @AuthenticationPrincipal CustomUser user,
       @Parameter(description = "세그먼트 태그 (예: NEW, GROWING, LOYAL, VIP, DORMANT)", required = true)
           @PathVariable
           String segmentTag) {
 
-    log.info("세그먼트 태그별 고객 조회 요청: {}", segmentTag);
+    log.info("세그먼트 태그별 고객 조회 요청: {}, 매장ID: {}", segmentTag, user.getShopId());
 
     SegmentCustomersResponse response =
-        customerQueryService.getCustomersBySegmentTag(segmentTag.toUpperCase());
+        customerQueryService.getCustomersBySegmentTag(segmentTag.toUpperCase(), user.getShopId());
 
-    log.info("세그먼트 '{}' 조회 완료: {} 명의 고객", segmentTag, response.customerCount());
+    log.info(
+        "세그먼트 '{}' 조회 완료: {} 명의 고객 (매장 {})",
+        segmentTag,
+        response.customerCount(),
+        user.getShopId());
 
     return ResponseEntity.ok(ApiResponse.success(response));
   }
@@ -66,13 +75,19 @@ public class SegmentCustomerQueryController {
   })
   @GetMapping("/id/{segmentId}/customers")
   public ResponseEntity<ApiResponse<SegmentCustomersResponse>> getCustomersBySegmentId(
+      @AuthenticationPrincipal CustomUser user,
       @Parameter(description = "세그먼트 ID", required = true) @PathVariable Long segmentId) {
 
-    log.info("세그먼트 ID별 고객 조회 요청: {}", segmentId);
+    log.info("세그먼트 ID별 고객 조회 요청: {}, 매장ID: {}", segmentId, user.getShopId());
 
-    SegmentCustomersResponse response = customerQueryService.getCustomersBySegmentId(segmentId);
+    SegmentCustomersResponse response =
+        customerQueryService.getCustomersBySegmentId(segmentId, user.getShopId());
 
-    log.info("세그먼트 ID '{}' 조회 완료: {} 명의 고객", segmentId, response.customerCount());
+    log.info(
+        "세그먼트 ID '{}' 조회 완료: {} 명의 고객 (매장 {})",
+        segmentId,
+        response.customerCount(),
+        user.getShopId());
 
     return ResponseEntity.ok(ApiResponse.success(response));
   }
@@ -90,21 +105,26 @@ public class SegmentCustomerQueryController {
   @GetMapping("/customers")
   public ResponseEntity<ApiResponse<List<SegmentCustomersResponse>>>
       getCustomersByMultipleSegmentTags(
+          @AuthenticationPrincipal CustomUser user,
           @Parameter(description = "세그먼트 태그 목록 (쉼표로 구분, 예: NEW,GROWING,LOYAL)", required = true)
               @RequestParam
               List<String> segmentTags) {
 
-    log.info("다중 세그먼트별 고객 조회 요청: {}", segmentTags);
+    log.info("다중 세그먼트별 고객 조회 요청: {}, 매장ID: {}", segmentTags, user.getShopId());
 
     // 태그들을 대문자로 변환
     List<String> upperCaseTags = segmentTags.stream().map(String::toUpperCase).toList();
 
     List<SegmentCustomersResponse> responses =
-        customerQueryService.getCustomersByMultipleSegmentTags(upperCaseTags);
+        customerQueryService.getCustomersByMultipleSegmentTags(upperCaseTags, user.getShopId());
 
     int totalCustomers = responses.stream().mapToInt(SegmentCustomersResponse::customerCount).sum();
 
-    log.info("다중 세그먼트 조회 완료: {} 개 세그먼트, 총 {} 명의 고객", responses.size(), totalCustomers);
+    log.info(
+        "다중 세그먼트 조회 완료: {} 개 세그먼트, 총 {} 명의 고객 (매장 {})",
+        responses.size(),
+        totalCustomers,
+        user.getShopId());
 
     return ResponseEntity.ok(ApiResponse.success(responses));
   }
@@ -120,9 +140,9 @@ public class SegmentCustomerQueryController {
   })
   @GetMapping("/lifecycle/customers")
   public ResponseEntity<ApiResponse<List<SegmentCustomersResponse>>>
-      getCustomersByLifecycleSegments() {
+      getCustomersByLifecycleSegments(@AuthenticationPrincipal CustomUser user) {
 
-    log.info("라이프사이클 세그먼트별 고객 조회 요청");
+    log.info("라이프사이클 세그먼트별 고객 조회 요청, 매장ID: {}", user.getShopId());
 
     List<String> lifecycleSegmentTags =
         List.of(
@@ -138,11 +158,16 @@ public class SegmentCustomerQueryController {
             "LOYAL_DELAYED");
 
     List<SegmentCustomersResponse> responses =
-        customerQueryService.getCustomersByMultipleSegmentTags(lifecycleSegmentTags);
+        customerQueryService.getCustomersByMultipleSegmentTags(
+            lifecycleSegmentTags, user.getShopId());
 
     int totalCustomers = responses.stream().mapToInt(SegmentCustomersResponse::customerCount).sum();
 
-    log.info("라이프사이클 세그먼트 조회 완료: {} 개 세그먼트, 총 {} 명의 고객", responses.size(), totalCustomers);
+    log.info(
+        "라이프사이클 세그먼트 조회 완료: {} 개 세그먼트, 총 {} 명의 고객 (매장 {})",
+        responses.size(),
+        totalCustomers,
+        user.getShopId());
 
     return ResponseEntity.ok(ApiResponse.success(responses));
   }

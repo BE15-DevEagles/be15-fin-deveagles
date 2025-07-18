@@ -7,11 +7,17 @@ import {
   messageTemplateOptions,
   couponOptions,
 } from '../constants/workflowOptions.js';
+import GradesAPI from '@/features/customer/api/grades.js';
+import TagsAPI from '@/features/customer/api/tags.js';
 
 export function useWorkflowForm(initialData = null) {
   const sidebarOpen = ref(false);
   const currentSidebarType = ref('');
   const currentTriggerView = ref('category'); // 'category' | 'detail'
+
+  // Store for grade and tag data
+  const grades = ref([]);
+  const tags = ref([]);
 
   // Form data with default values
   const defaultFormData = {
@@ -41,7 +47,11 @@ export function useWorkflowForm(initialData = null) {
     action: '',
     actionConfig: {
       messageTemplateId: '',
+      messageTemplateName: '',
+      selectedTemplate: null,
       couponId: '',
+      couponName: '',
+      selectedCoupon: null,
       notificationTitle: '',
       notificationContent: '',
       sendTime: null,
@@ -213,12 +223,30 @@ export function useWorkflowForm(initialData = null) {
   };
 
   const getMessageTemplateText = templateId => {
-    const option = messageTemplateOptions.find(opt => opt.value === templateId);
+    // First try to get name from actionConfig (preferred)
+    if (
+      formData.actionConfig.messageTemplateName &&
+      String(formData.actionConfig.messageTemplateId) === String(templateId)
+    ) {
+      return formData.actionConfig.messageTemplateName;
+    }
+
+    // Fallback to static options
+    const option = messageTemplateOptions.find(opt => String(opt.value) === String(templateId));
     return option ? option.text : templateId;
   };
 
   const getCouponText = couponId => {
-    const option = couponOptions.find(opt => opt.value === couponId);
+    // First try to get name from actionConfig (preferred)
+    if (
+      formData.actionConfig.couponName &&
+      String(formData.actionConfig.couponId) === String(couponId)
+    ) {
+      return formData.actionConfig.couponName;
+    }
+
+    // Fallback to static options
+    const option = couponOptions.find(opt => String(opt.value) === String(couponId));
     return option ? option.text : couponId;
   };
 
@@ -229,6 +257,34 @@ export function useWorkflowForm(initialData = null) {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
+    });
+  };
+
+  // Load grade and tag data
+  const loadGradesAndTags = async () => {
+    try {
+      grades.value = await GradesAPI.getGradesByShop();
+      tags.value = await TagsAPI.getTagsByShop();
+    } catch (error) {
+      console.error('Failed to load grades and tags:', error);
+    }
+  };
+
+  // Convert grade IDs to names
+  const getGradeNames = gradeIds => {
+    if (!gradeIds || !Array.isArray(gradeIds)) return [];
+    return gradeIds.map(id => {
+      const grade = grades.value.find(g => String(g.id) === String(id));
+      return grade ? grade.name : id;
+    });
+  };
+
+  // Convert tag IDs to names
+  const getTagNames = tagIds => {
+    if (!tagIds || !Array.isArray(tagIds)) return [];
+    return tagIds.map(id => {
+      const tag = tags.value.find(t => String(t.tagId) === String(id));
+      return tag ? tag.tagName : id;
     });
   };
 
@@ -289,6 +345,9 @@ export function useWorkflowForm(initialData = null) {
     getMessageTemplateText,
     getCouponText,
     formatSendTime,
+    loadGradesAndTags,
+    getGradeNames,
+    getTagNames,
     resetForm,
     setFormData,
   };
