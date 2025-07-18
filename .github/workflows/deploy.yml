@@ -51,6 +51,17 @@ jobs:
               properties:
                 hibernate:
                   '[format_sql]': true
+            
+            data:
+             redis:
+             host: localhost
+             port: 6379
+          
+          jwt:
+             secret: ${JWT_SECRET}
+             expiration: 1800000
+             refresh-expiration: 604800000
+          
           EOL
 
       - name: Set Yaml
@@ -64,6 +75,7 @@ jobs:
           RDS_DB_NAME: ${{ secrets.RDS_DB_NAME }}
           RDS_USERNAME: ${{ secrets.RDS_USERNAME }}
           RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET}}
 
       - name: Build with Gradle
         run: cd be15_DevEagles_BE && ./gradlew clean build test
