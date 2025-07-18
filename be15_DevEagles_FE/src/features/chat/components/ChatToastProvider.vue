@@ -12,11 +12,11 @@
 
   onMounted(() => {
     chatStore.setToastHandler(async msg => {
-      console.log('[ChatToastProvider] 🔔 알림 메시지:', msg);
-
-      // 안전하게 메시지 구성
       const title = '새 메시지';
-      const content = msg?.content || '확인해보세요.';
+      const rawContent = msg?.content || '확인해보세요.';
+      const maxLength = 20;
+      const content =
+        rawContent.length > maxLength ? rawContent.substring(0, maxLength) + '...' : rawContent;
 
       toastRef.value?.success(`${title}: ${content}`, {
         duration: 5000,
