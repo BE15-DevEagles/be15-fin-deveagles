@@ -56,10 +56,22 @@ public class GlobalExceptionHandler {
 
     if (e.getMessage() != null
         && e.getMessage().contains("not one of the values accepted for Enum")) {
-      message = "잘못된 enum 값이 포함되어 있습니다. triggerType과 actionType 값을 확인해주세요.";
+      if (e.getMessage().contains("triggerType") || e.getMessage().contains("actionType")) {
+        message = "잘못된 enum 값이 포함되어 있습니다. triggerType과 actionType 값을 확인해주세요.";
+      } else {
+        message = "잘못된 enum 값이 포함되어 있습니다. 요청 데이터의 enum 값을 확인해주세요.";
+      }
     } else if (e.getMessage() != null && e.getMessage().contains("JSON")) {
-      message =
-          "JSON 형식이 올바르지 않습니다. targetCustomerGrades, targetTags, triggerConfig, actionConfig 필드의 JSON 형식을 확인해주세요.";
+      // 요청 URI를 통해 워크플로우 관련인지 확인
+      if (e.getMessage().contains("targetCustomerGrades")
+          || e.getMessage().contains("targetTags")
+          || e.getMessage().contains("triggerConfig")
+          || e.getMessage().contains("actionConfig")) {
+        message =
+            "JSON 형식이 올바르지 않습니다. targetCustomerGrades, targetTags, triggerConfig, actionConfig 필드의 JSON 형식을 확인해주세요.";
+      } else {
+        message = "JSON 형식이 올바르지 않습니다. 요청 데이터의 형식을 확인해주세요.";
+      }
     }
 
     ApiResponse<Void> response = ApiResponse.failure(errorCode.getCode(), message);

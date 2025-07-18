@@ -129,7 +129,16 @@
   import '@/features/sales/styles/SalesDetailModal.css';
   import { getItemSalesDetail } from '@/features/sales/api/sales.js';
 
-  const props = defineProps({ salesItem: Object, salesId: Number });
+  const props = defineProps({
+    salesItem: {
+      type: Object,
+      default: () => ({}),
+    },
+    salesId: {
+      type: Number,
+      default: 0,
+    },
+  });
   const emit = defineEmits(['close']);
   const dropdownVisible = ref(false);
   const showDeleteModal = ref(false);
@@ -173,15 +182,38 @@
 
   const initialEditData = ref(null);
 
-  const openEditModal = () => {
+  const openEditModal = async () => {
     if (!props.salesItem || !props.salesItem.salesId) {
       toastRef.value?.error('매출 상세 데이터가 없습니다.');
       return;
     }
 
-    initialEditData.value = JSON.parse(JSON.stringify(props.salesItem));
-    console.log('[DEBUG] initialEditData.value', initialEditData.value);
-    showEditModal.value = true;
+    try {
+      const { data } = await getItemSalesDetail(props.salesItem.salesId);
+      const detail = data.data;
+
+      const dateTimeParts = detail.salesDate?.includes('T')
+        ? detail.salesDate.split('T')
+        : detail.salesDate?.split(' ') || [
+            new Date().toISOString().substring(0, 10),
+            new Date().toTimeString().substring(0, 8),
+          ];
+
+      initialEditData.value = {
+        ...detail,
+        customerId: detail.customerId,
+        initialSalesId: props.salesItem.salesId,
+        salesDate: dateTimeParts[0] || new Date().toISOString().substring(0, 10),
+        salesTime: dateTimeParts[1]?.substring(0, 5) || new Date().toTimeString().substring(0, 5),
+        customerName: detail.customerName,
+        staffName: detail.staffName,
+        items: detail.items || [],
+      };
+      showEditModal.value = true;
+    } catch (error) {
+      console.error('매출 상세 데이터 조회 실패:', error);
+      toastRef.value?.error('매출 상세 데이터를 불러올 수 없습니다.');
+    }
   };
 
   const methodLabelMap = {

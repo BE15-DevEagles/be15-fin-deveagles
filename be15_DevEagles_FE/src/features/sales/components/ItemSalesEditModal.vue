@@ -87,12 +87,15 @@
                     />
                   </div>
                   <div class="items-input-group">
-                    <label>할인율</label>
+                    <label>할인율(%)</label>
                     <BaseForm
                       v-model.number="item.discountRate"
-                      type="select"
-                      :options="discountRateOptions"
-                      @update:model-value="() => recalculateItem(index)"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      placeholder="할인율 입력"
+                      @input="recalculateItem(index)"
                     />
                   </div>
                   <div class="items-input-group">
@@ -129,12 +132,15 @@
             <div class="items-discount-row">
               <div class="items-discount-group">
                 <div class="items-discount-rate-group">
-                  <label for="discountRate">할인율</label>
+                  <label for="discountRate">할인율(%)</label>
                   <BaseForm
                     id="discountRate"
-                    v-model="globalDiscountRate"
-                    type="select"
-                    :options="discountRateOptions"
+                    v-model.number="globalDiscountRate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    placeholder="할인율 입력"
                   />
                 </div>
                 <div class="items-discount-amount-group">
@@ -235,23 +241,26 @@
   const staffOptions = ref([]);
 
   const props = defineProps({
-    initialData: Object, //
+    initialData: {
+      type: Object,
+      default: () => ({}),
+    },
   });
 
+  const customerId = computed(() => props.initialData?.customerId);
+  const initialSalesId = computed(
+    () => props.initialData?.initialSalesId || props.initialData?.salesId
+  );
+
   const selectedItems = ref([]);
-  const date = ref(props.initialData.salesDate || new Date().toISOString().substring(0, 10));
-  const time = ref(props.initialData.salesTime || new Date().toTimeString().substring(0, 5));
-  const memo = ref(props.initialData.salesMemo || '');
-  const globalDiscountRate = ref(props.initialData.salesDiscountRate || 0);
-  const customer = ref(props.initialCustomer || '');
+  const date = ref(new Date().toISOString().substring(0, 10));
+  const time = ref(new Date().toTimeString().substring(0, 5));
+  const memo = ref('');
+  const globalDiscountRate = ref(0);
+  const customer = ref('');
   const selectedPrepaidPassId = ref(null);
   const customerPrepaidPassOptions = ref([]);
   const prepaidTotalAmount = ref(0);
-  const discountRates = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
-  const discountRateOptions = discountRates.map(rate => ({
-    value: rate,
-    text: `${rate}%`,
-  }));
 
   const PaymentsMethodEnum = {
     card: 'CARD',
@@ -259,6 +268,7 @@
     naver: 'NAVER_PAY',
     local: 'LOCAL',
     prepaid: 'PREPAID_PASS',
+    prepaid_pass: 'PREPAID_PASS',
     session_pass: 'SESSION_PASS',
   };
 
@@ -293,10 +303,10 @@
   };
 
   const fetchSessionPassesForEdit = async () => {
-    if (!props.customerId) return;
+    if (!customerId.value) return;
     let allSessionPasses = [];
     try {
-      allSessionPasses = await getAvailableSessionPasses(props.customerId);
+      allSessionPasses = await getAvailableSessionPasses(customerId.value);
     } catch (e) {
       console.warn('[ItemSalesEditModal] session pass 조회 실패', e);
       return;
@@ -316,10 +326,10 @@
   };
 
   const fetchPrepaidPassesForEdit = async () => {
-    if (!props.customerId) return;
+    if (!customerId.value) return;
 
     try {
-      const list = await getCustomerPrepaidPasses(props.customerId);
+      const list = await getCustomerPrepaidPasses(customerId.value);
 
       if (list.length === 0) {
         customerPrepaidPassOptions.value = [{ value: '', text: '사용 가능한 선불권 없음' }];
@@ -370,7 +380,9 @@
     }
 
     const item = selectedItems.value[0];
-    const salesDateStr = `${date.value}T${time.value}:00`;
+    const dateOnly = date.value.split(' ')[0]; // "2025-07-21"
+    const timeOnly = time.value.includes(':') ? time.value : `${time.value}:00`; // "11:27:00"
+    const salesDateStr = `${dateOnly}T${timeOnly}`;
 
     const payments = [];
 
@@ -384,11 +396,15 @@
     }
 
     selectedMethods.value.forEach(method => {
-      if (method === 'session_pass' || method === 'prepaid') return;
+      if (method === 'session_pass') return;
 
       const paymentsMethod = PaymentsMethodEnum[method];
       if (!paymentsMethod) {
         console.warn(`❌ 잘못된 결제 수단: ${method}`);
+        return;
+      }
+
+      if (method === 'prepaid' || method === 'prepaid_pass') {
         return;
       }
 
@@ -407,31 +423,37 @@
     }
 
     const payload = {
-      secondaryItemId: item.id,
-      customerId: props.customerId,
-      staffId: item.manager,
-      shopId: authStore.shopId,
-      reservationId: null,
-      discountRate: item.discountRate,
-      couponId: null,
-      quantity: item.quantity,
-      retailPrice: item.price,
-      discountAmount: item.discountAmount,
-      totalAmount: item.finalPrice,
-      salesMemo: memo.value,
+      customerId: Number(customerId.value) || 0,
+      staffId: Number(item.manager) || null,
+      shopId: Number(authStore.shopId) || 0,
+      discountRate: Number(globalDiscountRate.value) || 0,
+      retailPrice: selectedItems.value.reduce((sum, item) => sum + item.price * item.quantity, 0),
+      discountAmount: selectedItems.value.reduce(
+        (sum, item) => sum + (item.discountAmount || 0),
+        0
+      ),
+      totalAmount: selectedItems.value.reduce((sum, item) => sum + (item.finalPrice || 0), 0),
+      salesMemo: memo.value || '',
       salesDate: salesDateStr,
-      payments,
+      payments: payments.filter(p => p.amount > 0),
+      items: selectedItems.value.map(item => ({
+        secondaryItemId: Number(item.id) || 0,
+        quantity: Number(item.quantity) || 1,
+        discountRate: Number(item.discountRate) || 0,
+        couponId: item.couponId || null,
+      })),
     };
-
     try {
-      await updateItemSales(props.initialSalesId, payload);
+      await updateItemSales(initialSalesId.value, payload);
       alert('상품매출이 수정되었습니다.');
       emit('submit');
       emit('close');
       location.reload();
     } catch (e) {
       console.error('상품 매출 수정 실패:', e);
-      toastRef.value?.error('상품 매출 수정에 실패했습니다.');
+      console.error('Error response:', e.response?.data);
+      const errorMessage = e.response?.data?.message || '상품 매출 수정에 실패했습니다.';
+      toastRef.value?.error(errorMessage);
     }
   };
 
@@ -450,21 +472,40 @@
       return;
     }
 
-    console.log('[자식] initialData:', props.initialData);
-    console.log('[자식] initialData.items:', props.initialData.items);
-
     // 기본값 세팅
     customer.value = props.initialData.customerName || '';
-    date.value = props.initialData.salesDate || new Date().toISOString().substring(0, 10);
+
+    if (props.initialData.salesDate) {
+      if (props.initialData.salesDate.includes('T')) {
+        date.value = props.initialData.salesDate.split('T')[0];
+      } else {
+        date.value = props.initialData.salesDate;
+      }
+    } else {
+      date.value = new Date().toISOString().substring(0, 10);
+    }
+
     time.value = props.initialData.salesTime || new Date().toTimeString().substring(0, 5);
     memo.value = props.initialData.salesMemo || '';
     globalDiscountRate.value = props.initialData.salesDiscountRate || 0;
 
-    selectedMethods.value =
-      props.initialData.payments?.map(p => p.paymentsMethod?.toLowerCase()) || [];
+    const paymentMethodMap = {
+      CARD: 'card',
+      CASH: 'cash',
+      NAVER_PAY: 'naver',
+      LOCAL: 'local',
+      PREPAID_PASS: 'prepaid',
+      SESSION_PASS: 'session_pass',
+    };
+
+    selectedMethods.value = (props.initialData.payments || [])
+      .map(p => paymentMethodMap[p.paymentsMethod] || p.paymentsMethod?.toLowerCase())
+      .filter(Boolean);
 
     paymentAmounts.value = Object.fromEntries(
-      (props.initialData.payments || []).map(p => [p.paymentsMethod?.toLowerCase(), p.amount])
+      (props.initialData.payments || [])
+        .map(p => [paymentMethodMap[p.paymentsMethod] || p.paymentsMethod?.toLowerCase(), p.amount])
+        .filter(([key]) => key)
     );
 
     if (props.initialData.customerPrepaidPassId) {
@@ -481,7 +522,7 @@
 
       return {
         itemSalesId: item.itemSalesId,
-        secondaryItemId: Number(item.secondaryItemId) || 0,
+        id: Number(item.secondaryItemId) || 0,
         name: item.secondaryItemName || '알 수 없음',
         price,
         quantity,
