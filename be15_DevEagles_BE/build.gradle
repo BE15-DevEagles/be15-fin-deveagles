@@ -141,10 +141,12 @@ jacocoTestCoverageVerification {
     }
 }
 processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from("src/main/resources") {
         include "**/*.yml"
     }
 }
+
 // 커버리지 검증을 테스트 시 자동으로 실행 (선택사항)
 // check.dependsOn jacocoTestCoverageVerification
 
