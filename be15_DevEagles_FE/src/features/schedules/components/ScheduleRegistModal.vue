@@ -74,7 +74,7 @@
     initialCustomer: { type: Object, default: null },
   });
 
-  const emit = defineEmits(['update:modelValue', 'submit', 'error']);
+  const emit = defineEmits(['update:modelValue', 'submit', 'error', 'closed']);
 
   const tab = ref(props.defaultTab);
 
@@ -292,6 +292,7 @@
 
   const close = () => {
     emit('update:modelValue', false);
+    emit('closed');
   };
 
   const handleEsc = e => {

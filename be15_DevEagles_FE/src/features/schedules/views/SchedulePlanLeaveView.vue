@@ -132,6 +132,7 @@
       :model-value="isModalOpen"
       :type="selectedItem?.type"
       @update:model-value="closeModal"
+      @closed="fetchList"
     />
 
     <!-- 등록 모달 -->
@@ -139,6 +140,7 @@
       v-if="isRegistModalOpen"
       v-model="isRegistModalOpen"
       :default-tab="currentTab"
+      @closed="fetchList"
     />
   </div>
 
