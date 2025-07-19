@@ -48,6 +48,7 @@ def setup_logging() -> None:
                 "filename": "logs/analytics.log",
                 "maxBytes": 10485760,  # 10MB
                 "backupCount": 5,
+                "encoding": "utf-8",
             },
             "error_file": {
                 "level": "ERROR",
@@ -56,6 +57,7 @@ def setup_logging() -> None:
                 "filename": "logs/errors.log",
                 "maxBytes": 10485760,  # 10MB
                 "backupCount": 5,
+                "encoding": "utf-8",
             },
         },
         "loggers": {
