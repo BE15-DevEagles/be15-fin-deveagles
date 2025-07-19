@@ -37,7 +37,7 @@ jobs:
           mkdir -p be15_DevEagles_BE/src/main/resources
           cat > be15_DevEagles_BE/src/main/resources/application.yml.template <<EOL
           server:
-            port: 5000
+            port: 8080
 
           spring:
             datasource:
@@ -147,9 +147,6 @@ jobs:
         run: |
           mkdir -p deploy
           cp be15_DevEagles_BE/build/libs/*.jar deploy/application.jar
-          cp be15_DevEagles_BE/Procfile deploy/Procfile
-          cp -r be15_DevEagles_BE/.ebextensions deploy/.ebextensions || true
-          cp -r be15_DevEagles_BE/.platform deploy/.platform || true
           cd deploy && zip -r deploy.zip .
 
       - name: Beanstalk Deploy
@@ -157,8 +154,8 @@ jobs:
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          application_name: beautifly-backend-02
-          environment_name: Beautifly-backend-02-env
+          application_name: beautifly-backend-docker
+          environment_name: Beautifly-backend-docker-env
           version_label: github-action-${{ steps.current-time.outputs.formattedTime }}
           region: ap-northeast-2
           deployment_package: deploy/deploy.zip
