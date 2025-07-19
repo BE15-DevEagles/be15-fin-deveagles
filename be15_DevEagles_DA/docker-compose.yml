@@ -1,102 +1,225 @@
 version: "3.8"
 
+x-airflow-common: &airflow-common
+  build: 
+    context: .
+    target: ${DOCKER_TARGET:-development}
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  environment: &airflow-common-env
+    # Airflow Configuration
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${POSTGRES_PASSWORD:-airflow}@postgres/airflow
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-dev-secret-key}
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-dev-fernet-key}
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: ${AIRFLOW_EXPOSE_CONFIG:-true}
+    
+    # CRM Database Connection
+    CRM_DB_HOST: ${CRM_DB_HOST:-host.docker.internal}
+    CRM_DB_PORT: ${CRM_DB_PORT:-3306}
+    CRM_DB_USER: ${CRM_DB_USER:-swcamp}
+    CRM_DB_PASSWORD: ${CRM_DB_PASSWORD:-swcamp}
+    CRM_DB_NAME: ${CRM_DB_NAME:-beautifly}
+    
+    # Analytics Configuration
+    CRM_DATABASE_URL: ${CRM_DATABASE_URL:-mysql+pymysql://${CRM_DB_USER:-swcamp}:${CRM_DB_PASSWORD:-swcamp}@${CRM_DB_HOST:-host.docker.internal}:${CRM_DB_PORT:-3306}/${CRM_DB_NAME:-beautifly}}
+    ANALYTICS_DB_PATH: ${ANALYTICS_DB_PATH:-data/analytics.duckdb}
+    LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    DEBUG: ${DEBUG:-false}
+    
+    # AWS Configuration
+    AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+    AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+    AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    
+    # SSL Configuration for RDS
+    SSL_CA_CERT_PATH: ${SSL_CA_CERT_PATH:-/opt/ssl/rds-ca-2019-root.pem}
+    SSL_VERIFY_CERT: ${SSL_VERIFY_CERT:-false}
+    
+    # Encoding
+    PYTHONIOENCODING: utf-8
+    LC_ALL: C.UTF-8
+    LANG: C.UTF-8
+    
+  volumes:
+    - ${AIRFLOW_PROJ_DIR:-.}/src/airflow/dags:/opt/airflow/dags
+    - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+    - ${AIRFLOW_PROJ_DIR:-.}/src/airflow/plugins:/opt/airflow/plugins
+    - ${AIRFLOW_PROJ_DIR:-.}/data:/opt/airflow/data
+    - ${AIRFLOW_PROJ_DIR:-.}/src:/opt/airflow/src
+    - ${AIRFLOW_PROJ_DIR:-.}/config.yaml:/opt/airflow/config.yaml
+    - ${AIRFLOW_PROJ_DIR:-.}/output:/opt/airflow/output
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on: &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
+
 services:
-  # Analytics API Service
-  analytics-api:
-    build:
-      context: .
-      target: development
-    ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
-      - analytics-data:/app/data
-      - analytics-models:/app/models
-      - analytics-logs:/app/logs
+  # PostgreSQL for Airflow
+  postgres:
+    image: postgres:13
     environment:
-      - ANALYTICS_DEBUG=true
-      - ANALYTICS_RELOAD=true
-      - ANALYTICS_LOG_LEVEL=DEBUG
-      - ANALYTICS_CRM_DATABASE_URL=mysql+pymysql://readonly_user:password@crm-db:3306/crm
-      - ANALYTICS_ANALYTICS_DB_PATH=data/analytics.db
-    depends_on:
-      - crm-db
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     networks:
       - analytics-network
-    restart: unless-stopped
+
+  # Airflow Web Server
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "${AIRFLOW_WEBSERVER_PORT:-8080}:8080"
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import requests; requests.get('http://localhost:8000/health')",
-        ]
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    networks:
+      - analytics-network
+
+  # Airflow Scheduler
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--local"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    networks:
+      - analytics-network
+
+  # Airflow Initialization
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        function ver() {
+          printf "%04d%04d%04d%04d" $${1//./ }
+        }
+        airflow_version=$$(gosu airflow airflow version)
+        airflow_version_comparable=$$(ver $${airflow_version})
+        min_airflow_version=2.2.0
+        min_airflow_version_comparable=$$(ver $${min_airflow_version})
+        if (( airflow_version_comparable < min_airflow_version_comparable )); then
+          echo
+          echo -e "\033[1;31mERROR!!!: Too old Airflow version $${airflow_version}!\e[0m"
+          echo "The minimum Airflow version supported: $${min_airflow_version}. Only use this or higher!"
+          echo
+          exit 1
+        fi
+        mkdir -p /sources/logs /sources/src/airflow/dags /sources/src/airflow/plugins /sources/data /sources/output
+        chown -R "${AIRFLOW_UID}:0" /sources/logs /sources/src /sources/data /sources/output
+        exec /entrypoint airflow version
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+    user: "0:0"
+    volumes:
+      - ${AIRFLOW_PROJ_DIR:-.}:/sources
+    networks:
+      - analytics-network
+
+  # Analytics Dashboard Server
+  analytics-dashboard:
+    <<: *airflow-common
+    command: ["python", "run_dashboard.py"]
+    ports:
+      - "${DASHBOARD_PORT:-8050}:8050"
+    environment:
+      <<: *airflow-common-env
+      DASH_HOST: "0.0.0.0"
+      DASH_PORT: "8050"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - analytics-network
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8050"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Scheduler Service
-  analytics-scheduler:
-    build:
-      context: .
-      target: development
-    volumes:
-      - .:/app
-      - analytics-data:/app/data
-      - analytics-models:/app/models
-      - analytics-logs:/app/logs
+  # Segment Scheduler Service
+  segment-scheduler:
+    <<: *airflow-common
+    command: ["python", "segment_update.py", "--mode", "schedule"]
     environment:
-      - ANALYTICS_CRM_DATABASE_URL=mysql+pymysql://readonly_user:password@crm-db:3306/crm
-      - ANALYTICS_ANALYTICS_DB_PATH=data/analytics.db
-      - ANALYTICS_LOG_LEVEL=INFO
-    command: ["python", "-m", "analytics.scheduler"]
+      <<: *airflow-common-env
+      SCHEDULER_ENABLED: "true"
+      SCHEDULER_INTERVAL: ${SCHEDULER_INTERVAL:-3600}
     depends_on:
-      - analytics-api
-      - crm-db
+      - postgres
+    restart: unless-stopped
     networks:
       - analytics-network
-    restart: unless-stopped
 
-  # Mock CRM Database (for development)
+  # Development CRM Database (only in dev profile)
   crm-db:
     image: mariadb:11.0
     environment:
-      MARIADB_ROOT_PASSWORD: 1791
-      MARIADB_DATABASE: beautifly
-      MARIADB_USER: swcamp
-      MARIADB_PASSWORD: swcamp
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-1791}
+      MARIADB_DATABASE: ${CRM_DB_NAME:-beautifly}
+      MARIADB_USER: ${CRM_DB_USER:-swcamp}
+      MARIADB_PASSWORD: ${CRM_DB_PASSWORD:-swcamp}
     ports:
-      - "3306:3306"
+      - "${CRM_DB_PORT:-3306}:3306"
     volumes:
       - crm-data:/var/lib/mysql
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - analytics-network
     restart: unless-stopped
     healthcheck:
-      test:
-        [
-          "CMD",
-          "mariadb-admin",
-          "ping",
-          "-h",
-          "localhost",
-          "-u",
-          "readonly_user",
-          "-ppassword",
-        ]
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "${CRM_DB_USER:-swcamp}", "-p${CRM_DB_PASSWORD:-swcamp}"]
       interval: 30s
       timeout: 10s
       retries: 5
+    profiles:
+      - dev
+      - development
 
-  # Monitoring - Prometheus
+  # Monitoring - Prometheus (optional)
   prometheus:
     image: prom/prometheus:latest
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -108,113 +231,35 @@ services:
     networks:
       - analytics-network
     restart: unless-stopped
+    profiles:
+      - monitoring
 
-  # Monitoring - Grafana
+  # Monitoring - Grafana (optional)
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "3001:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
     networks:
       - analytics-network
     restart: unless-stopped
     depends_on:
       - prometheus
-
-  # Jupyter Lab (for data exploration)
-  jupyter:
-    build:
-      context: .
-      target: development
-    ports:
-      - "8888:8888"
-    volumes:
-      - .:/app
-      - analytics-data:/app/data
-      - analytics-models:/app/models
-      - ./notebooks:/app/notebooks
-    environment:
-      - JUPYTER_ENABLE_LAB=yes
-      - JUPYTER_TOKEN=deveagles
-    command:
-      [
-        "jupyter",
-        "lab",
-        "--ip=0.0.0.0",
-        "--port=8888",
-        "--no-browser",
-        "--allow-root",
-        "--notebook-dir=/app",
-      ]
-    networks:
-      - analytics-network
-    restart: unless-stopped
+    profiles:
+      - monitoring
 
 volumes:
-  analytics-data:
-    driver: local
-  analytics-models:
-    driver: local
-  analytics-logs:
-    driver: local
+  postgres-db-volume:
   crm-data:
-    driver: local
   prometheus-data:
-    driver: local
   grafana-data:
-    driver: local
 
 networks:
   analytics-network:
     driver: bridge
-
----
-# Production override file: docker-compose.prod.yml
-version: "3.8"
-
-services:
-  analytics-api:
-    build:
-      context: .
-      target: production
-    environment:
-      - ANALYTICS_DEBUG=false
-      - ANALYTICS_RELOAD=false
-      - ANALYTICS_LOG_LEVEL=INFO
-      - ANALYTICS_WORKERS=4
-    volumes:
-      - analytics-data:/app/data
-      - analytics-models:/app/models
-      - analytics-logs:/app/logs
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          memory: 2G
-          cpus: "1.0"
-        reservations:
-          memory: 1G
-          cpus: "0.5"
-
-  analytics-scheduler:
-    build:
-      context: .
-      target: production
-    environment:
-      - ANALYTICS_LOG_LEVEL=INFO
-    volumes:
-      - analytics-data:/app/data
-      - analytics-models:/app/models
-      - analytics-logs:/app/logs
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          memory: 1G
-          cpus: "0.5"
