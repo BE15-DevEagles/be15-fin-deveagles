@@ -1,0 +1,114 @@
+# DevEagles Analytics Configuration
+# Environment variables override these settings
+
+app:
+  name: "DevEagles Analytics"
+  version: "0.1.0"
+  debug: true
+  log_level: "INFO"
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  reload: true
+
+database:
+  crm:
+    # Environment variables override these defaults
+    url: "mysql+pymysql://swcamp:swcamp@localhost:3306/beautifly?charset=utf8mb4"
+    backup_urls:
+      - "mysql+pymysql://swcamp:swcamp@localhost:3306/beautifly"
+      - "mysql+pymysql://swcamp:swcamp@127.0.0.1:3306/beautifly"
+      - "mysql+pymysql://swcamp:swcamp@host.docker.internal:3306/beautifly"
+    pool_size: 5
+    max_overflow: 10
+    
+  analytics:
+    url: "data/analytics.duckdb"
+    pool_size: 4
+    max_overflow: 0
+
+etl:
+  batch_size: 1000
+  incremental: true
+  timestamp_file: "data/last_etl.txt"
+
+ml:
+  model_storage_path: "models"
+  retrain_threshold: 0.1
+  feature_columns:
+    - "age"
+    - "frequency" 
+    - "avg_monetary"
+    - "lifecycle_days"
+    - "service_variety"
+    - "employee_variety"
+    - "visits_3m"
+
+scheduling:
+  jobstore_url: "sqlite:///data/scheduler.db"
+  etl_schedule_hour: 2
+  tagging_schedule_hour: 3
+  training_schedule_day: "sun"
+  training_schedule_hour: 4
+  
+  # 고객 이탈분석 및 세그먼트 업데이트 스케줄
+  churn_analysis:
+    enabled: true
+    schedule_hour: 3
+    schedule_minute: 0
+    timezone: "Asia/Seoul"
+    max_retries: 3
+    retry_delay_minutes: 30
+    dry_run: false
+    segment_update_method: "api"
+    auto_apply_segments: true
+    
+    notification:
+      enabled: false
+      webhook_url: null
+      on_success: true
+      on_failure: true
+      include_summary: true
+
+customer_segmentation:
+  new_customer_visit_threshold: 3
+  growing_customer_visit_threshold: 10
+  vip_customer_amount_threshold: 100000
+
+risk_assessment:
+  new_customer_followup_days: 7
+  new_customer_risk_days: 20
+  reactivation_needed_days: 30
+  growing_customer_delay_multiplier: 1.5
+  loyal_customer_delay_multiplier: 2.0
+
+api:
+  prefix: "/api/v1"
+  docs_url: "/docs"
+  redoc_url: "/redoc"
+  openapi_url: "/openapi.json"
+
+security:
+  secret_key: "dev-secret-key-please-change-in-production"
+  access_token_expire_minutes: 60
+  algorithm: "HS256"
+
+monitoring:
+  enable_metrics: false
+  metrics_path: "/metrics"
+  enable_tracing: false
+
+external_services:
+  workflow_service_url: null
+  notification_webhook_url: null
+  be_api_url: "http://localhost:8080"
+  be_api_timeout: 30
+
+# Development-specific settings (activated when DEBUG=true)
+local_dev:
+  auto_reload_templates: true
+  enable_debug_toolbar: false
+  mock_external_apis: false
+  sample_data_size: 1000
