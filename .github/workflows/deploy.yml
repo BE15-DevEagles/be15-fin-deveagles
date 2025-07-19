@@ -6,7 +6,7 @@ permissions:
 
 on:
   pull_request:
-    types: [ opened, reopened, synchronize ]
+    types: [opened, reopened, synchronize]
   push:
     branches:
       - "main"
@@ -37,7 +37,7 @@ jobs:
           mkdir -p be15_DevEagles_BE/src/main/resources
           cat > be15_DevEagles_BE/src/main/resources/application.yml.template <<EOL
           server:
-            port: 5000
+            port: 80
 
           spring:
             datasource:
@@ -46,11 +46,61 @@ jobs:
               username: \${RDS_USERNAME}
               password: \${RDS_PASSWORD}
 
+            data:
+              redis:
+                host: \${REDIS_HOST}
+                port: \${REDIS_PORT}
+
             jpa:
               show-sql: true
               properties:
                 hibernate:
                   '[format_sql]': true
+
+          jwt:
+            secret: \${JWT_SECRET}
+            expiration: 1800000
+            refresh-expiration: 604800000
+
+          aes:
+            key: \${AES_SECRET_KEY}
+            iv: \${AES_IV}
+
+          sms:
+            api-key: \${SMS_API_KEY}
+            secret-key: \${SMS_SECRET_API_KEY}
+
+          aws:
+            bucket: \${BUCKET}
+            access-key: \${ACCESSKEY}
+            secret-key: \${SECRETKEY}
+
+          mail:
+            host: \${EMAIL_HOST}
+            port: 587
+            username: \${EMAIL_ADDRESS}
+            password: \${EMAIL_PASSWORD}
+            properties:
+              mail:
+                smtp:
+                  auth: true
+                  starttls:
+                    enable: true
+                    required: true
+                  connectiontimeout: 5000
+                  timeout: 5000
+                  writetimeout: 5000
+              auth-code-expiration-millis: 1800000
+            pwd-url: \${PWD-URL}
+
+          mongodb:
+            uri: \${MONGODB_URI}
+
+          ai:
+            chat-webhook: \${AI_CHAT_WEBHOOK}
+
+          redirect:
+            url: \${REDIRECT_URL}
           EOL
 
       - name: Set Yaml
@@ -64,6 +114,23 @@ jobs:
           RDS_DB_NAME: ${{ secrets.RDS_DB_NAME }}
           RDS_USERNAME: ${{ secrets.RDS_USERNAME }}
           RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          AES_SECRET_KEY: ${{ secrets.AES_SECRET_KEY }}
+          AES_IV: ${{ secrets.AES_IV }}
+          SMS_API_KEY: ${{ secrets.SMS_API_KEY }}
+          SMS_SECRET_API_KEY: ${{ secrets.SMS_SECRET_API_KEY }}
+          BUCKET: ${{ secrets.BUCKET }}
+          ACCESSKEY: ${{ secrets.ACCESSKEY }}
+          SECRETKEY: ${{ secrets.SECRETKEY }}
+          EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+          EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          PWD_URL: ${{ secrets.PWD_URL }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          AI_CHAT_WEBHOOK: ${{ secrets.AI_CHAT_WEBHOOK }}
+          REDIRECT_URL: ${{ secrets.REDIRECT_URL }}
 
       - name: Build with Gradle
         run: cd be15_DevEagles_BE && ./gradlew clean build test
@@ -80,9 +147,6 @@ jobs:
         run: |
           mkdir -p deploy
           cp be15_DevEagles_BE/build/libs/*.jar deploy/application.jar
-          cp be15_DevEagles_BE/Procfile deploy/Procfile
-          cp -r be15_DevEagles_BE/.ebextensions deploy/.ebextensions || true
-          cp -r be15_DevEagles_BE/.platform deploy/.platform || true
           cd deploy && zip -r deploy.zip .
 
       - name: Beanstalk Deploy
@@ -92,7 +156,7 @@ jobs:
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: beautifly-backend-02
           environment_name: Beautifly-backend-02-env
-          version_label: github-action-${{steps.current-time.outputs.formattedTime}}
+          version_label: github-action-${{ steps.current-time.outputs.formattedTime }}
           region: ap-northeast-2
           deployment_package: deploy/deploy.zip
           use_existing_version_if_available: false

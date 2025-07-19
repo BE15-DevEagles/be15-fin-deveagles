@@ -150,8 +150,6 @@ class ItemSalesCommandServiceImplTest {
     req.setCustomerId(2L);
     req.setStaffId(3L);
     req.setReservationId(4L);
-    req.setSecondaryItemId(5L);
-    req.setQuantity(1);
     req.setRetailPrice(10000);
     req.setDiscountRate(10);
     req.setDiscountAmount(1000);
@@ -159,6 +157,15 @@ class ItemSalesCommandServiceImplTest {
     req.setSalesMemo("테스트 메모");
     req.setSalesDate(LocalDateTime.now());
     req.setPayments(List.of(new PaymentsInfo(PaymentsMethod.CARD, 9000, null, null, null)));
+
+    // ✅ 상품 리스트 추가
+    ItemSalesRequest.ItemInfo item = new ItemSalesRequest.ItemInfo();
+    item.setSecondaryItemId(5L);
+    item.setQuantity(2);
+    item.setDiscountRate(10);
+    item.setCouponId(null);
+
+    req.setItems(List.of(item));
     return req;
   }
 
@@ -181,8 +188,11 @@ class ItemSalesCommandServiceImplTest {
     when(salesRepository.findById(salesId)).thenReturn(Optional.of(sales));
     when(paymentsRepository.findAllBySalesId(salesId)).thenReturn(List.of(oldPayment));
     when(customerMembershipHistoryRepository.findBySalesIdAndPaymentsId(anyLong(), anyLong()))
-        .thenReturn(Optional.empty()); // history 없이 진행
-    when(itemSalesRepository.findBySalesId(salesId)).thenReturn(Optional.of(itemSales));
+        .thenReturn(Optional.empty());
+
+    // ✅ 수정된 부분: 리스트로 반환
+    when(itemSalesRepository.findAllBySalesId(salesId)).thenReturn(List.of(itemSales));
+
     when(customerRepository.findById(req.getCustomerId())).thenReturn(Optional.of(customer));
 
     // when
@@ -200,10 +210,17 @@ class ItemSalesCommandServiceImplTest {
             req.getTotalAmount(),
             req.getSalesMemo(),
             req.getSalesDate());
+
     verify(paymentsRepository).save(any());
+
+    ItemSalesRequest.ItemInfo item = req.getItems().get(0);
     verify(itemSales)
         .updateItemSales(
-            req.getSecondaryItemId(), req.getQuantity(), req.getDiscountRate(), req.getCouponId());
+            item.getSecondaryItemId(),
+            item.getQuantity(),
+            item.getDiscountRate(),
+            item.getCouponId());
+
     verify(customer).addRevenue(anyInt());
   }
 
