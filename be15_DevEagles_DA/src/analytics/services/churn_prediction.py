@@ -263,47 +263,6 @@ class ChurnPredictionService:  # pylint: disable=too-many-instance-attributes
         df['churn_risk_tag'] = 'NORMAL'
         df['risk_level'] = 'low'
         
-        # 1. 신규 고객 관련 태그
-        new_customers = df['customer_segment'] == 'New'
-        
-        # NEW_FOLLOWUP: 신규 고객 팔로업 필요 (가입 후 7-20일)
-        new_followup_condition = (
-            new_customers & 
-            (df['customer_lifetime_days'] >= 7) & 
-            (df['customer_lifetime_days'] <= 20) &
-            (df['visit_count'] <= 2)
-        )
-        df.loc[new_followup_condition, 'churn_risk_tag'] = 'NEW_FOLLOWUP'
-        df.loc[new_followup_condition, 'risk_level'] = 'medium'
-        
-        # NEW_AT_RISK: 신규 고객 이탈 위험 (30일 이상 미방문)
-        new_at_risk_condition = (
-            new_customers &
-            (df['days_since_last_visit'] >= 30) &
-            (df['customer_lifetime_days'] >= 30)
-        )
-        df.loc[new_at_risk_condition, 'churn_risk_tag'] = 'NEW_AT_RISK'
-        df.loc[new_at_risk_condition, 'risk_level'] = 'high'
-        
-        # 2. 기존 고객 관련 태그
-        # REACTIVATION_NEEDED: 재활성화 필요 (60일 이상 미방문)
-        reactivation_condition = (
-            (df['customer_segment'].isin(['Growing', 'Regular', 'VIP'])) &
-            (df['days_since_last_visit'] >= 60) &
-            (df['visit_count'] >= 3)
-        )
-        df.loc[reactivation_condition, 'churn_risk_tag'] = 'REACTIVATION_NEEDED'
-        df.loc[reactivation_condition, 'risk_level'] = 'high'
-        
-        # GROWING_DELAYED: 성장 고객 방문 지연
-        growing_delayed_condition = (
-            (df['customer_segment'] == 'Growing') &
-            (df['days_since_last_visit'] >= 45) &
-            (df['days_since_last_visit'] < 60)
-        )
-        df.loc[growing_delayed_condition, 'churn_risk_tag'] = 'GROWING_DELAYED'
-        df.loc[growing_delayed_condition, 'risk_level'] = 'medium'
-        
         # VIP_ATTENTION: VIP 고객 패턴 변화/이상
         vip_attention_condition = (
             (df['customer_segment'] == 'VIP') &
@@ -315,7 +274,6 @@ class ChurnPredictionService:  # pylint: disable=too-many-instance-attributes
         df.loc[vip_attention_condition, 'churn_risk_tag'] = 'VIP_ATTENTION'
         df.loc[vip_attention_condition, 'risk_level'] = 'high'
         
-        # 3. 모델 기반 이탈 위험 태그
         # CHURN_RISK_HIGH: 모델이 예측한 이탈 위험 고객
         high_churn_prob_condition = (
             (df['churn_probability'] >= 0.7) &
@@ -324,7 +282,7 @@ class ChurnPredictionService:  # pylint: disable=too-many-instance-attributes
         df.loc[high_churn_prob_condition, 'churn_risk_tag'] = 'CHURN_RISK_HIGH'
         df.loc[high_churn_prob_condition, 'risk_level'] = 'high'
         
-        # 4. 위험 수준 재조정 (이탈 확률 기반)
+        # 위험 수준 재조정 (이탈 확률 기반)
         # 높은 이탈 확률을 가진 고객들의 위험 수준 상향 조정
         high_prob_mask = df['churn_probability'] >= 0.6
         df.loc[high_prob_mask & (df['risk_level'] == 'low'), 'risk_level'] = 'medium'
