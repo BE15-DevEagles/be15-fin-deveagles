@@ -37,7 +37,7 @@ jobs:
           mkdir -p be15_DevEagles_BE/src/main/resources
           cat > be15_DevEagles_BE/src/main/resources/application.yml.template <<EOL
           server:
-            port: 8080
+            port: 80
 
           spring:
             datasource:
