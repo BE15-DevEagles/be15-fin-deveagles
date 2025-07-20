@@ -88,10 +88,17 @@ jobs:
             api-key: \${SMS_API_KEY}
             secret-key: \${SMS_SECRET_API_KEY}
 
-          aws:
-            bucket: \${BUCKET}
-            access-key: \${ACCESSKEY}
-            secret-key: \${SECRETKEY}
+          cloud:
+            aws:
+              s3:
+                bucket: ${BUCKET}
+              region:
+                static: ap-northeast-2
+              stack:
+                auto: false
+              credentials:
+                access-key: ${ACCESSKEY}
+                secret-key: ${SECRETKEY}
 
           mongodb:
             uri: \${MONGODB_URI}
