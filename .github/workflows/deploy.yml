@@ -82,6 +82,8 @@ jobs:
 
             elasticsearch:
               uris: \${ELASTICSEARCH_URL}
+              username: \${ELASTICSEARCH_USERNAME}
+              password: \{$ELASTICSEARCH_PASSWORD}
               connection-timeout: \${ES_CONNECTION_TIMEOUT}
               socket-timeout: \${ES_SOCKET_TIMEOUT}
 
@@ -134,6 +136,8 @@ jobs:
           ELASTICSEARCH_URL: ${{ secrets.ELASTICSEARCH_URL }}
           ES_CONNECTION_TIMEOUT: ${{ secrets.ES_CONNECTION_TIMEOUT }}
           ES_SOCKET_TIMEOUT: ${{ secrets.ES_SOCKET_TIMEOUT }}
+          ELASTICSEARCH_USERNAME: ${{ secrets.ELASTICSEARCH_USERNAME }}
+          ELASTICSEARCH_PASSWORD: ${{ secrets.ELASTICSEARCH_PASSWORD }}
           AES_SECRET_KEY: ${{ secrets.AES_SECRET_KEY }}
           AES_IV: ${{ secrets.AES_IV }}
           SMS_API_KEY: ${{ secrets.SMS_API_KEY }}
