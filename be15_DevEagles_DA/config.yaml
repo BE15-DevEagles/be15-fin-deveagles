@@ -1,9 +1,11 @@
-# Development Environment Configuration
+# DevEagles Analytics Configuration
+# Environment variables override these settings
+
 app:
-  name: "DevEagles Analytics - Development"
+  name: "DevEagles Analytics"
   version: "0.1.0"
   debug: true
-  log_level: "DEBUG"
+  log_level: "INFO"
 
 server:
   host: "0.0.0.0"
@@ -13,30 +15,31 @@ server:
 
 database:
   crm:
-    # 기본 연결 URL (auth plugin 포함)
+    # Environment variables override these defaults
     url: "mysql+pymysql://swcamp:swcamp@localhost:3306/beautifly?charset=utf8mb4"
-    # 대안 연결 URLs (필요시 코드에서 사용)
     backup_urls:
       - "mysql+pymysql://swcamp:swcamp@localhost:3306/beautifly"
       - "mysql+pymysql://swcamp:swcamp@127.0.0.1:3306/beautifly"
+      - "mysql+pymysql://swcamp:swcamp@host.docker.internal:3306/beautifly"
     pool_size: 5
     max_overflow: 10
+    
   analytics:
-    url: "data/analytics_local.db" # 모든 환경에서 동일한 DB 사용
-    pool_size: 4 # threads로 사용
+    url: "data/analytics.duckdb"
+    pool_size: 4
     max_overflow: 0
 
 etl:
   batch_size: 1000
   incremental: true
-  timestamp_file: "data/last_etl_local.txt"
+  timestamp_file: "data/last_etl.txt"
 
 ml:
-  model_storage_path: "models_local"
+  model_storage_path: "models"
   retrain_threshold: 0.1
   feature_columns:
     - "age"
-    - "frequency"
+    - "frequency" 
     - "avg_monetary"
     - "lifecycle_days"
     - "service_variety"
@@ -44,11 +47,12 @@ ml:
     - "visits_3m"
 
 scheduling:
-  jobstore_url: "sqlite:///data/scheduler_local.db"
+  jobstore_url: "sqlite:///data/scheduler.db"
   etl_schedule_hour: 2
   tagging_schedule_hour: 3
   training_schedule_day: "sun"
   training_schedule_hour: 4
+  
   # 고객 이탈분석 및 세그먼트 업데이트 스케줄
   churn_analysis:
     enabled: true
@@ -58,14 +62,12 @@ scheduling:
     max_retries: 3
     retry_delay_minutes: 30
     dry_run: false
-    # 세그먼트 업데이트 방식: "api" (백엔드 API 호출) 또는 "direct" (직접 DB 접근)
     segment_update_method: "api"
-    # 분석 후 자동 세그먼트 적용 여부
     auto_apply_segments: true
-    # 알림 설정
+    
     notification:
-      enabled: true
-      webhook_url: "${CHURN_ANALYSIS_WEBHOOK_URL}"
+      enabled: false
+      webhook_url: null
       on_success: true
       on_failure: true
       include_summary: true
@@ -89,23 +91,24 @@ api:
   openapi_url: "/openapi.json"
 
 security:
-  secret_key: "${SECRET_KEY}"
+  secret_key: "dev-secret-key-please-change-in-production"
   access_token_expire_minutes: 60
   algorithm: "HS256"
 
 monitoring:
-  enable_metrics: true
+  enable_metrics: false
   metrics_path: "/metrics"
-  enable_tracing: true
+  enable_tracing: false
 
 external_services:
-  workflow_service_url: "${WORKFLOW_SERVICE_URL}"
-  notification_webhook_url: "${NOTIFICATION_WEBHOOK_URL}"
+  workflow_service_url: null
+  notification_webhook_url: null
   be_api_url: "http://localhost:8080"
   be_api_timeout: 30
 
+# Development-specific settings (activated when DEBUG=true)
 local_dev:
   auto_reload_templates: true
-  enable_debug_toolbar: true
-  mock_external_apis: true
+  enable_debug_toolbar: false
+  mock_external_apis: false
   sample_data_size: 1000
