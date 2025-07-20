@@ -26,9 +26,10 @@ USER airflow
 # Copy requirements first for better Docker layer caching
 COPY requirements.txt /tmp/requirements.txt
 
-# Install Python dependencies
+# Install Python dependencies (excluding apache-airflow to avoid conflicts)
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r /tmp/requirements.txt
+    grep -v "^apache-airflow" /tmp/requirements.txt > /tmp/requirements_filtered.txt && \
+    pip install --no-cache-dir -r /tmp/requirements_filtered.txt
 
 # Production stage
 FROM base AS production
