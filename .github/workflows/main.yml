@@ -78,3 +78,4 @@ jobs:
           version_label: ${{ github.sha }}
           region: ${{ secrets.AWS_REGION }}
           deployment_package: be15_DevEagles_DA/Dockerrun.aws.json
+          use_existing_version_if_available: true
