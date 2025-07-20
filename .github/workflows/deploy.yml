@@ -58,22 +58,22 @@ jobs:
                   '[format_sql]': true
 
             mail:
-            host: \${EMAIL_HOST}
-            port: 587
-            username: \${EMAIL_ADDRESS}
-            password: \${EMAIL_PASSWORD}
-            properties:
-              mail:
-                smtp:
-                  auth: true
-                  starttls:
-                    enable: true
-                    required: true
-                  connectiontimeout: 5000
-                  timeout: 5000
-                  writetimeout: 5000
-              auth-code-expiration-millis: 1800000
-            pwd-url: \${PWD-URL}
+              host: \${EMAIL_HOST}
+              port: 587
+              username: \${EMAIL_ADDRESS}
+              password: \${EMAIL_PASSWORD}
+              properties:
+                mail:
+                  smtp:
+                    auth: true
+                    starttls:
+                      enable: true
+                      required: true
+                    connectiontimeout: 5000
+                    timeout: 5000
+                    writetimeout: 5000
+                auth-code-expiration-millis: 1800000
+              pwd-url: \${PWD-URL}
             
           jwt:
             secret: \${JWT_SECRET}
