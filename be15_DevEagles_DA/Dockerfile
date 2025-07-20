@@ -38,7 +38,7 @@ USER root
 
 # Copy application code and necessary scripts/configs
 COPY --chown=airflow:root src/ /opt/airflow/src/
-COPY --chown=airflow:root config/ /opt/airflow/config/
+COPY --chown=airflow:root config.yaml /opt/airflow/config.yaml
 COPY --chown=airflow:root supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY --chown=airflow:root scripts/ /opt/airflow/scripts/
 COPY --chown=airflow:root run_dashboard.py /opt/airflow/
