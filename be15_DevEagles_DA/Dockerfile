@@ -25,7 +25,6 @@ USER airflow
 
 # Copy requirements first for better Docker layer caching
 COPY requirements.txt /tmp/requirements.txt
-COPY etl_requirements.txt /tmp/etl_requirements.txt
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
