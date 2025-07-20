@@ -81,9 +81,9 @@ jobs:
               pwd_url: \${PWD_URL}
 
             elasticsearch:
-              uris: ${ELASTICSEARCH_URL:'http://localhost:9200'}
-              connection-timeout: ${ES_CONNECTION_TIMEOUT:10s}
-              socket-timeout: ${ES_SOCKET_TIMEOUT:30s}
+              uris: \${ELASTICSEARCH_URL}
+              connection-timeout: \${ES_CONNECTION_TIMEOUT}
+              socket-timeout: \${ES_SOCKET_TIMEOUT}
 
           jwt:
             secret: \${JWT_SECRET}
@@ -101,14 +101,14 @@ jobs:
           cloud:
             aws:
               s3:
-                bucket: ${BUCKET}
+                bucket: \${BUCKET}
               region:
                 static: ap-northeast-2
               stack:
                 auto: false
               credentials:
-                access-key: ${ACCESSKEY}
-                secret-key: ${SECRETKEY}
+                access-key: \${ACCESSKEY}
+                secret-key: \${SECRETKEY}
 
           webhook:
             ai-url: \${AI_CHAT_WEBHOOK}
@@ -144,6 +144,8 @@ jobs:
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           PWD_URL: ${{ secrets.PWD_URL }}
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          ES_CONNECTION_TIMEOUT: ${{ secrets.ES_CONNECTION_TIMEOUT }}
+          ES_SOCKET_TIMEOUT: ${{ secrets.ES_SOCKET_TIMEOUT }}
           AI_CHAT_WEBHOOK: ${{ secrets.AI_CHAT_WEBHOOK }}
           REDIRECT_URL: ${{ secrets.REDIRECT_URL }}
 

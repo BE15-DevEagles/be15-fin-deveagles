@@ -187,9 +187,9 @@ aws-build: ## Build production images for AWS
 
 aws-push: ## Push images to AWS ECR (requires ECR setup)
 	@echo "Pushing to AWS ECR..."
-	# aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin <your-ecr-uri>
-	# docker tag deveagles-analytics:latest <your-ecr-uri>/deveagles-analytics:latest
-	# docker push <your-ecr-uri>/deveagles-analytics:latest
+	aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 686255985190.dkr.ecr.ap-northeast-2.amazonaws.com
+	docker tag deveagles-analytics:latest 686255985190.dkr.ecr.ap-northeast-2.amazonaws.com/deveagles-analytics:latest
+	docker push 686255985190.dkr.ecr.ap-northeast-2.amazonaws.com/deveagles-analytics:latest
 
 deploy-staging: ## Deploy to staging environment
 	@echo "Deploying to staging..."
