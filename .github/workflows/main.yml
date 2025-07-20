@@ -1,11 +1,12 @@
 name: Deploy Python Server to DockerHub and AWS Elastic Beanstalk
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
     paths:
-      - 'be15_DevEagles_DA/**'
+      - "be15_DevEagles_DA/**"
 
 jobs:
   build-and-push:
@@ -50,7 +51,7 @@ jobs:
 
       - name: Update Dockerrun.aws.json
         run: |
-          sed -i "s|your-dockerhub-username/your-repo-name|${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPONAME }}|g" be15_DevEagles_DA/Dockerrun.aws.json
+          sed -i "s|64etuor/deveagles-da|${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPONAME }}|g" be15_DevEagles_DA/Dockerrun.aws.json
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v21
