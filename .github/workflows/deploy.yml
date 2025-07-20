@@ -101,14 +101,17 @@ jobs:
                 access-key: ${ACCESSKEY}
                 secret-key: ${SECRETKEY}
 
-          mongodb:
-            uri: \${MONGODB_URI}
+          spring:
+            data:
+              mongodb:
+                uri: \${MONGODB_URI}
+                auto-index-creation: true
 
-          ai:
-            chat-webhook: \${AI_CHAT_WEBHOOK}
-
-          redirect:
-            url: \${REDIRECT_URL}
+          webhook:
+            ai-url: \${AI_CHAT_WEBHOOK}
+          app:
+            tracking:
+              base-url: \${REDIRECT_URL}
           EOL
 
       - name: Set Yaml
