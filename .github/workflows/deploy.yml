@@ -52,6 +52,10 @@ jobs:
                 host: \${REDIS_HOST}
                 port: \${REDIS_PORT}
 
+              mongodb:
+                uri: \${MONGODB_URI}
+                auto-index-creation: true
+
             jpa:
               show-sql: true
               properties:
@@ -76,11 +80,7 @@ jobs:
                 auth-code-expiration-millis: 1800000
               pwd_url: \${PWD_URL}
             
-            data:
-              mongodb:
-                uri: \${MONGODB_URI}
-                auto-index-creation: true
-            
+
           jwt:
             secret: \${JWT_SECRET}
             expiration: 1800000
