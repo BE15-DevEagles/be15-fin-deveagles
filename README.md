@@ -36,6 +36,22 @@ deveagles-fin-repo/
 
 <br><br>
 
+### 🔗 문서 링크
+
+ - [요구사항 명세서](https://docs.google.com/spreadsheets/d/1QsbQNKa9EMI_HvH0SSB9mqT7v0UMyPQ9jpQerkvcixg/edit?gid=0#gid=0) 
+ - [WBS](https://docs.google.com/spreadsheets/d/1961AfrJP8OabgMbm27YaTH3RrsD5D1Qp9p9z-w2splY/edit?gid=901636027#gid=901636027)
+ - [화면기능명세서](https://docs.google.com/presentation/d/1HQyAsLoTswNbl2u6PCYlA3Vwb7IoGB2Y/edit?slide=id.p1#slide=id.p1)
+ - [CI/CD 계획서](https://github.com/BE15-DevEagles/be15-fin-deveagles-beautifly/wiki/B4.-CI-CD)
+ - [GitHub Actions 워크플로우 가이드](https://github.com/BE15-DevEagles/be15-fin-deveagles-beautifly/wiki/B3.-Github-Actions)
+ - [DDL](https://github.com/BE15-DevEagles/be15-fin-deveagles-beautifly/wiki/D6.-DDL-Script)
+ - [Swagger](https://64etuor.github.io/700_studies/2501-2507-%ED%95%9C%ED%99%94beyond-sw%EC%BA%A0%ED%94%84/1_%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/%EC%B5%9C%EC%A2%85-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/dist/index.html)
+ - [백엔드 단위테스트](https://64etuor.github.io/700_studies/2501-2507-%ED%95%9C%ED%99%94beyond-sw%EC%BA%A0%ED%94%84/1_%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/%EC%B5%9C%EC%A2%85-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/jacoco/test/test/index.html)
+ - [프론트엔드 단위테스트](https://docs.google.com/spreadsheets/d/1FzMi2wAkGpdgU23Jc0TpxOCsrnXXxjCKGR8KUUb6x08/edit?gid=0#gid=0)
+ - [커버리지리포트(JACOCO)](https://64etuor.github.io/700_studies/2501-2507-%ED%95%9C%ED%99%94beyond-sw%EC%BA%A0%ED%94%84/1_%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/%EC%B5%9C%EC%A2%85-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/jacoco/test/html/index.html)
+
+ 
+<br><br>
+
 ## 💻 Beautifly 개요
 
 📑 <a href="#1">1. 프로젝트 기획</a>
@@ -64,9 +80,11 @@ deveagles-fin-repo/
 
 🛠️ <a href="#5">5. 단위 테스트 </a>
 
- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#5-1">5-1. 백엔드 단위 테스트 결과 (swagger API) </a>
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#5-1">5-1. Swagger API 문서 </a>
+
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#5-2">5-2. 백엔드 단위 테스트 결과 </a>
  
- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#5-2">5-2. 프론트엔드 단위 테스트 결과 </a>
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#5-3">5-3. 프론트엔드 단위 테스트 결과 </a>
 
 🗒️ <a href="#6">6. 프로젝트 아키텍처 구조 </a>
 
@@ -167,7 +185,6 @@ deveagles-fin-repo/
 <br>
 
 ### <p id="1-5"> 1-5. 요구사항 명세서 </p>
-🔗 요구사항 명세서 정리 문서 : [요구사항 명세서](https://docs.google.com/spreadsheets/d/1QsbQNKa9EMI_HvH0SSB9mqT7v0UMyPQ9jpQerkvcixg/edit?gid=0#gid=0)
 
 <details>
   <summary> 🔍 요구사항 명세서 열기 </summary>
@@ -176,13 +193,19 @@ deveagles-fin-repo/
   ![요구사항명세서2](https://github.com/user-attachments/assets/6436bbd7-b592-4ef8-b1a1-9ead497de9a7)
   ![요구사항명세서3](https://github.com/user-attachments/assets/c15bb46c-d17c-4e13-af25-7d0d3e85e113)
   
-  
 </details>
 
 
 ### <p id="1-6"> 1-6. WBS </p>
-🔗 WBS 정리 문서 : [WBS](https://docs.google.com/spreadsheets/d/1961AfrJP8OabgMbm27YaTH3RrsD5D1Qp9p9z-w2splY/edit?gid=901636027#gid=901636027)
 
+<details>
+  <summary> 🔍 WBS 열기 </summary>
+
+  ![WBS1](https://github.com/user-attachments/assets/823015d9-b496-4f07-8a38-490a12612fe2)
+  ![WBS2](https://github.com/user-attachments/assets/439627f6-e362-4ba8-bb6c-9ab5cbfa8f11)
+  ![WBS3](https://github.com/user-attachments/assets/c4aea648-95d5-4137-a993-6ba7cd0000e7)
+
+</details>
 
 <br><br>
 
@@ -191,13 +214,9 @@ deveagles-fin-repo/
 ![논리/물리 모델](https://github.com/user-attachments/assets/f1f85936-54dd-4968-8cc6-be72d3786d21)
 
 ### <p id="2-2"> 2-2. DDL </p>
-🔗 SCRIPT : [DDL](https://github.com/BE15-DevEagles/be15-fin-deveagles-beautifly/wiki/D6.-DDL-Script)
 
-<br><br>
 
 ## <p id="3"> 📲 3. 화면 설계</p>
-
-🔗 화면 설계 문서 : [화면기능명세서](https://docs.google.com/presentation/d/1HQyAsLoTswNbl2u6PCYlA3Vwb7IoGB2Y/edit?slide=id.p1#slide=id.p1)
 
 <details>
   <summary> 회원 / 직원 </summary>
@@ -250,10 +269,7 @@ deveagles-fin-repo/
 
 ##  <p id="5"> 🛠️ 5. 단위 테스트 </p>
 
-
 ### <p id="5-1"> 5-1. Swagger API 문서 
-
-🔗 API 문서 : [Swagger](https://64etuor.github.io/700_studies/2501-2507-%ED%95%9C%ED%99%94beyond-sw%EC%BA%A0%ED%94%84/1_%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/%EC%B5%9C%EC%A2%85-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/dist/index.html) 
 
 <details>
   <summary> 🔍 Swagger API 열기 </summary>
@@ -266,8 +282,6 @@ deveagles-fin-repo/
 
 ### <p id="5-2"> 5-2. 백엔드 단위 테스트 결과 </p>
 
-🔗 테스트 결과서 : [백엔드 단위테스트](https://64etuor.github.io/700_studies/2501-2507-%ED%95%9C%ED%99%94beyond-sw%EC%BA%A0%ED%94%84/1_%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/%EC%B5%9C%EC%A2%85-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/jacoco/test/test/index.html)
-
 <details>
   <summary> 🔍 백엔드 단위 테스트 열기 </summary>
   
@@ -277,8 +291,7 @@ deveagles-fin-repo/
 
 <br>
 
-### <p id="5-2"> 5-2. 프론트엔드 단위 테스트 결과 </p>
-🔗 테스트 결과서 : [프론트엔드 단위테스트](https://docs.google.com/spreadsheets/d/1FzMi2wAkGpdgU23Jc0TpxOCsrnXXxjCKGR8KUUb6x08/edit?gid=0#gid=0)
+### <p id="5-3"> 5-3. 프론트엔드 단위 테스트 결과 </p>
 
 #### 프론트엔드 시연 GIF
 <details>
@@ -529,8 +542,6 @@ feat: JWT 토큰 발급 로직 추가 #123
 |**이슈번호**|연결할 GitHub 이슈 번호|`#123`|
 |**body**|변경 내용, 이유와 상세 설명 (무엇을, 왜 변경했는지)|`JWT 토큰 만료 로직 추가, 테스트 시나리오 보강`|
 
-🔗 워크플로우 자동화 : [GitHub Actions 워크플로우 가이드](https://github.com/BE15-DevEagles/be15-fin-deveagles-beautifly/wiki/B3.-Github-Actions)
-
 <br><br>
 
 ##  <p id="9"> 🐞 9. 트러블슈팅</p>
@@ -604,13 +615,3 @@ feat: JWT 토큰 발급 로직 추가 #123
 <br><br>
 
 ##  <p id="10"> 🧑‍💻 10. 팀원 회고</p>
-
-## 주요 산출물
-
-- [[프로젝트 기획서]](https://github.com/BE15-DevEagles/be15-fin-deveagles/wiki/P6.-%EB%B7%B0%ED%8B%B0%EC%83%B5-CRM-%EA%B8%B0%ED%9A%8D%EC%84%9C)
-- [[요구사항 명세서]](https://docs.google.com/spreadsheets/d/1de8mq1fLxvG3lpLMdgieSpFL43okKb8f5VAxNtNWPLE/edit?gid=1549221980#gid=1549221980)
-- [[화면 기능 명세서]](https://docs.google.com/presentation/d/1HQyAsLoTswNbl2u6PCYlA3Vwb7IoGB2Y/edit?usp=sharing&ouid=114008940664253191654&rtpof=true&sd=true)
-- [[WBS]](https://docs.google.com/spreadsheets/d/1961AfrJP8OabgMbm27YaTH3RrsD5D1Qp9p9z-w2splY/edit?usp=sharing)
-- [[와이어 프레임]](https://www.figma.com/board/7oXTmpeg0jRH39mmhHy8f3/CRM?node-id=479-28220&t=PIuiS7WXftFfBhEt-1)
-- [[시스템 아키텍쳐]](https://github.com/BE15-DevEagles/be15-fin-deveagles/wiki/A2.-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%95%84%ED%82%A4%ED%85%8D%EC%B3%90)
-- [[ERD]](https://github.com/BE15-DevEagles/be15-fin-deveagles/wiki/A3.-ERD)
