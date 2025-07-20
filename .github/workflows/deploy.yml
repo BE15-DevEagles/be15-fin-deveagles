@@ -81,9 +81,9 @@ jobs:
               pwd_url: \${PWD_URL}
 
             elasticsearch:
-              uris: \${ELASTICSEARCH_URL:'http://localhost:9200'}
-              connection-timeout: \${ES_CONNECTION_TIMEOUT:10s}
-              socket-timeout: \${ES_SOCKET_TIMEOUT:30s}
+              uris: \${ELASTICSEARCH_URL}
+              connection-timeout: \${ES_CONNECTION_TIMEOUT}
+              socket-timeout: \${ES_SOCKET_TIMEOUT}
 
           jwt:
             secret: \${JWT_SECRET}
@@ -132,6 +132,8 @@ jobs:
           REDIS_HOST: ${{ secrets.REDIS_HOST }}
           REDIS_PORT: ${{ secrets.REDIS_PORT }}
           ELASTICSEARCH_URL: ${{ secrets.ELASTICSEARCH_URL }}
+          ES_CONNECTION_TIMEOUT: ${{ secrets.ES_CONNECTION_TIMEOUT }}
+          ES_SOCKET_TIMEOUT: ${{ secrets.ES_SOCKET_TIMEOUT }}
           AES_SECRET_KEY: ${{ secrets.AES_SECRET_KEY }}
           AES_IV: ${{ secrets.AES_IV }}
           SMS_API_KEY: ${{ secrets.SMS_API_KEY }}
