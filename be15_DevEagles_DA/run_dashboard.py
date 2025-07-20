@@ -20,7 +20,7 @@ def main():
     print("=" * 60)
     
     try:
-        from analytics.dashboard import BusinessIntelligenceDashboard
+        from analytics.dashboard.bi_dashboard import BusinessIntelligenceDashboard
         
         # 대시보드 인스턴스 생성
         dashboard = BusinessIntelligenceDashboard()

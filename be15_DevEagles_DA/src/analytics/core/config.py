@@ -7,7 +7,19 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# pydantic v1/v2 호환성을 위한 조건부 임포트
+try:
+    # pydantic v2에서는 pydantic-settings 패키지 사용
+    from pydantic_settings import BaseSettings
+    PYDANTIC_V2 = True
+except ImportError:
+    try:
+        # pydantic v1에서는 pydantic에서 직접 임포트
+        from pydantic import BaseSettings
+        PYDANTIC_V2 = False
+    except ImportError:
+        raise ImportError("BaseSettings not found in either pydantic or pydantic-settings")
 
 
 class DatabaseConfig(BaseModel):
@@ -140,13 +152,23 @@ class LocalDevConfig(BaseModel):
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-        env_prefix="",  # No prefix to match .env format
-    )
+    if PYDANTIC_V2:
+        # pydantic v2 스타일 설정
+        model_config = {
+            "env_file": ".env",
+            "env_file_encoding": "utf-8",
+            "case_sensitive": False,
+            "extra": "ignore",
+            "env_prefix": "",  # No prefix to match .env format
+        }
+    else:
+        # pydantic v1 스타일 설정
+        class Config:
+            env_file = ".env"
+            env_file_encoding = "utf-8"
+            case_sensitive = False
+            extra = "ignore"
+            env_prefix = ""  # No prefix to match .env format
 
     # Environment
     environment: str = Field(default="development", description="Environment name")

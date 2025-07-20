@@ -1,4 +1,4 @@
-# Core dependencies for DevEagles Analytics (unified with pyproject.toml)
+# Core dependencies for DevEagles Analytics (compatible with Airflow 2.7.0)
 fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
 
@@ -14,32 +14,32 @@ plotly==5.15.0
 dash>=2.14.0
 dash-bootstrap-components>=1.5.2
 
-# Database & Storage
+# Database & Storage (Airflow compatible versions)
 duckdb==0.8.1
-sqlalchemy>=2.0.0
+sqlalchemy>=1.4.0,<2.0.0
 pymysql==1.1.0
 pyarrow==10.0.1
 psycopg2-binary==2.9.9
 cryptography==41.0.7
 
-# ETL & Workflow
-apache-airflow==2.7.0
-apache-airflow-providers-common-sql>=1.7.1
-apache-airflow-providers-mysql>=5.4.0
-apache-airflow-providers-postgres>=5.7.0
-apache-airflow-providers-smtp>=2.1.0
+# ETL & Workflow - Airflow packages are already installed in base image
+# apache-airflow==2.7.0
+# apache-airflow-providers-common-sql>=1.7.1
+# apache-airflow-providers-mysql>=5.4.0
+# apache-airflow-providers-postgres>=5.7.0
+# apache-airflow-providers-smtp>=2.1.0
 
 # Scheduling & Monitoring
 apscheduler>=3.10.4
 schedule>=1.2.2
 prometheus-client>=0.18.0
 
-# Utilities
+# Utilities (Airflow compatible versions)
 requests>=2.31.0
 pytz>=2023.3
 pyyaml>=6.0.1
 python-multipart>=0.0.6
-pydantic>=2.5.0
-pydantic-settings>=2.1.0
+pydantic>=1.10.0,<2.0.0
+# pydantic-settings - conditionally imported in code for v1/v2 compatibility
 python-dateutil>=2.8.2
 click>=8.1.0

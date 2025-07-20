@@ -44,8 +44,9 @@ COPY --chown=airflow:root scripts/ /opt/airflow/scripts/
 COPY --chown=airflow:root run_dashboard.py /opt/airflow/
 COPY --chown=airflow:root segment_update.py /opt/airflow/
 
-# Make scripts executable
-RUN chmod +x /opt/airflow/scripts/*.sh
+# Make scripts executable and create log directories
+RUN chmod +x /opt/airflow/scripts/*.sh && \
+    mkdir -p /opt/airflow/logs
 
 USER airflow
 

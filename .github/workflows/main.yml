@@ -68,6 +68,31 @@ jobs:
                ]
              }' be15_DevEagles_DA/Dockerrun.aws.json > temp.json && mv temp.json be15_DevEagles_DA/Dockerrun.aws.json
 
+      - name: Check and rebuild Elastic Beanstalk environment if needed
+        run: |
+          # Check environment health
+          ENV_STATUS=$(aws elasticbeanstalk describe-environments \
+            --environment-names ${{ secrets.AWS_ENVIRONMENT_NAME }} \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'Environments[0].Status' \
+            --output text)
+          
+          echo "Current environment status: $ENV_STATUS"
+          
+          if [ "$ENV_STATUS" = "Ready" ]; then
+            echo "Environment is ready for deployment"
+          else
+            echo "Environment is not ready. Rebuilding environment..."
+            aws elasticbeanstalk rebuild-environment \
+              --environment-name ${{ secrets.AWS_ENVIRONMENT_NAME }} \
+              --region ${{ secrets.AWS_REGION }}
+            
+            echo "Waiting for environment to be ready..."
+            aws elasticbeanstalk wait environment-updated \
+              --environment-names ${{ secrets.AWS_ENVIRONMENT_NAME }} \
+              --region ${{ secrets.AWS_REGION }}
+          fi
+
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v21
         with:
