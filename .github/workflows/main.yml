@@ -68,29 +68,62 @@ jobs:
                ]
              }' be15_DevEagles_DA/Dockerrun.aws.json > temp.json && mv temp.json be15_DevEagles_DA/Dockerrun.aws.json
 
-      - name: Check and rebuild Elastic Beanstalk environment if needed
+      - name: Handle failed Elastic Beanstalk environment
         run: |
-          # Check environment health
-          ENV_STATUS=$(aws elasticbeanstalk describe-environments \
+          echo "Checking environment status..."
+          
+          # Get environment details
+          ENV_DETAILS=$(aws elasticbeanstalk describe-environments \
             --environment-names ${{ secrets.AWS_ENVIRONMENT_NAME }} \
             --region ${{ secrets.AWS_REGION }} \
-            --query 'Environments[0].Status' \
-            --output text)
+            --output json)
           
-          echo "Current environment status: $ENV_STATUS"
+          ENV_STATUS=$(echo "$ENV_DETAILS" | jq -r '.Environments[0].Status // "NotFound"')
+          ENV_HEALTH=$(echo "$ENV_DETAILS" | jq -r '.Environments[0].Health // "Unknown"')
           
-          if [ "$ENV_STATUS" = "Ready" ]; then
-            echo "Environment is ready for deployment"
+          echo "Environment Status: $ENV_STATUS"
+          echo "Environment Health: $ENV_HEALTH"
+          
+          # Check if environment is in failed state
+          if [[ "$ENV_STATUS" == "Ready" && "$ENV_HEALTH" == "Ok" ]]; then
+            echo "✅ Environment is healthy and ready for deployment"
           else
-            echo "Environment is not ready. Rebuilding environment..."
+            echo "❌ Environment is in failed state. Attempting to rebuild..."
+            
+            # Force rebuild environment
+            echo "Rebuilding environment..."
             aws elasticbeanstalk rebuild-environment \
               --environment-name ${{ secrets.AWS_ENVIRONMENT_NAME }} \
-              --region ${{ secrets.AWS_REGION }}
+              --region ${{ secrets.AWS_REGION }} || {
+              echo "Rebuild failed. Trying to terminate and recreate..."
+              
+              # If rebuild fails, terminate and recreate
+              aws elasticbeanstalk terminate-environment \
+                --environment-name ${{ secrets.AWS_ENVIRONMENT_NAME }} \
+                --region ${{ secrets.AWS_REGION }} \
+                --terminate-resources
+              
+              echo "Waiting for environment termination..."
+              aws elasticbeanstalk wait environment-terminated \
+                --environment-names ${{ secrets.AWS_ENVIRONMENT_NAME }} \
+                --region ${{ secrets.AWS_REGION }}
+              
+              echo "Creating new environment..."
+              aws elasticbeanstalk create-environment \
+                --application-name ${{ secrets.AWS_APPLICATION_NAME }} \
+                --environment-name ${{ secrets.AWS_ENVIRONMENT_NAME }} \
+                --solution-stack-name "64bit Amazon Linux 2 v3.4.19 running Docker" \
+                --region ${{ secrets.AWS_REGION }}
+            }
             
             echo "Waiting for environment to be ready..."
             aws elasticbeanstalk wait environment-updated \
               --environment-names ${{ secrets.AWS_ENVIRONMENT_NAME }} \
-              --region ${{ secrets.AWS_REGION }}
+              --region ${{ secrets.AWS_REGION }} \
+              --cli-read-timeout 1800 \
+              --cli-connect-timeout 60
+            
+            echo "✅ Environment is now ready"
           fi
 
       - name: Deploy to Elastic Beanstalk
