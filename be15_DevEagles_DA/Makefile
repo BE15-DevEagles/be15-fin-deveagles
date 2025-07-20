@@ -79,17 +79,38 @@ docker-build-dev: ## Build development Docker image
 docker-run: ## Run Docker container
 	docker run -p 8000:8000 $(IMAGE_NAME)
 
-docker-dev: ## Start development environment with Docker Compose
-	$(DOCKER_COMPOSE) up --build
+docker-dev: ## Start development environment (all services + CRM DB)
+	$(DOCKER_COMPOSE) --profile dev up --build
 
-docker-prod: ## Start production environment with Docker Compose
-	$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml up --build
+docker-prod: ## Start production environment
+	DOCKER_TARGET=production $(DOCKER_COMPOSE) up --build
+
+docker-airflow-only: ## Start only Airflow services
+	$(DOCKER_COMPOSE) up postgres airflow-init airflow-webserver airflow-scheduler --build
+
+docker-dashboard-only: ## Start only dashboard service
+	$(DOCKER_COMPOSE) up postgres analytics-dashboard --build
+
+docker-monitoring: ## Start with monitoring services
+	$(DOCKER_COMPOSE) --profile monitoring up --build
 
 stop: ## Stop Docker containers
 	$(DOCKER_COMPOSE) down
 
+stop-all: ## Stop all containers and remove volumes
+	$(DOCKER_COMPOSE) down -v
+
 logs: ## Show Docker logs
 	$(DOCKER_COMPOSE) logs -f
+
+logs-airflow: ## Show Airflow logs
+	$(DOCKER_COMPOSE) logs -f airflow-webserver airflow-scheduler
+
+logs-dashboard: ## Show Dashboard logs
+	$(DOCKER_COMPOSE) logs -f analytics-dashboard
+
+logs-scheduler: ## Show Segment Scheduler logs
+	$(DOCKER_COMPOSE) logs -f segment-scheduler
 
 # Database
 db-setup: ## Setup development database
@@ -154,14 +175,78 @@ build: ## Build package
 
 build-docker: docker-build ## Build Docker image
 
-# Deploy (example commands)
+# AWS/Production Deployment Commands
+aws-setup: ## Setup AWS environment variables and dependencies
+	@echo "Setting up AWS environment..."
+	@echo "Please ensure AWS CLI is configured and Docker is running"
+	aws --version
+	docker --version
+
+aws-build: ## Build production images for AWS
+	DOCKER_TARGET=production $(DOCKER_COMPOSE) build
+
+aws-push: ## Push images to AWS ECR (requires ECR setup)
+	@echo "Pushing to AWS ECR..."
+	# aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin <your-ecr-uri>
+	# docker tag deveagles-analytics:latest <your-ecr-uri>/deveagles-analytics:latest
+	# docker push <your-ecr-uri>/deveagles-analytics:latest
+
 deploy-staging: ## Deploy to staging environment
 	@echo "Deploying to staging..."
-	# Add staging deployment commands here
+	DOCKER_TARGET=production $(DOCKER_COMPOSE) up -d
 
 deploy-prod: ## Deploy to production environment
 	@echo "Deploying to production..."
-	# Add production deployment commands here
+	DOCKER_TARGET=production $(DOCKER_COMPOSE) up -d
+
+# Environment setup for different stages
+setup-env-dev: ## Setup development environment
+	cp .env.example .env
+	@echo "Development environment configured. Please edit .env file as needed."
+
+setup-env-prod: ## Setup production environment variables
+	@echo "Setting up production environment..."
+	@echo "Please configure production database URLs and AWS credentials in .env file"
+	@echo ""
+	@echo "Required AWS RDS settings:"
+	@echo "  CRM_DATABASE_URL=mysql+pymysql://user:pass@your-rds-endpoint.region.rds.amazonaws.com:3306/beautifly"
+	@echo "  AWS_DEFAULT_REGION=ap-northeast-2"
+	@echo "  SSL_CA_CERT_PATH=/opt/ssl/rds-ca-2019-root.pem"
+
+# AWS Health Checks
+health-check: ## Run comprehensive health check
+	python3 health_check.py
+
+health-check-json: ## Run health check with JSON output
+	python3 health_check.py --json
+
+# AWS RDS specific commands
+test-rds-connection: ## Test RDS connection
+	@echo "Testing RDS connection..."
+	@if [ -z "$$CRM_DATABASE_URL" ]; then \
+		echo "❌ CRM_DATABASE_URL not set"; \
+		exit 1; \
+	fi
+	$(DOCKER_COMPOSE) run --rm analytics-dashboard python3 -c "\
+		import sys; sys.path.append('/opt/airflow/src'); \
+		from analytics.core.database import get_crm_db; \
+		engine = get_crm_db(); \
+		with engine.connect() as conn: \
+			result = conn.execute('SELECT @@version, @@hostname'); \
+			print('✅ RDS Connection Success:', result.fetchone())"
+
+validate-aws-env: ## Validate AWS environment variables
+	@echo "Validating AWS environment..."
+	@required_vars="AWS_DEFAULT_REGION CRM_DATABASE_URL"; \
+	for var in $$required_vars; do \
+		if [ -z "$$(eval echo \$$$$var)" ]; then \
+			echo "❌ Missing required variable: $$var"; \
+			exit 1; \
+		else \
+			echo "✅ $$var is set"; \
+		fi; \
+	done
+	@echo "🎉 AWS environment validation passed!"
 
 # Development workflow
 dev-setup: install-dev db-setup ## Complete development setup

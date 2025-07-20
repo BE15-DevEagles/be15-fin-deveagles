@@ -22,10 +22,20 @@ class DatabaseManager:
         self._analytics_conn: duckdb.DuckDBPyConnection | None = None
 
     def get_crm_engine(self) -> Engine:
-        """Get SQLAlchemy engine for CRM database (MariaDB)."""
+        """Get SQLAlchemy engine for CRM database (MariaDB/RDS)."""
         if self._crm_engine is None:
-            logger.info("Creating CRM DA database engine")
+            logger.info("Creating CRM database engine")
             
+            import os
+            
+            # AWS RDS 환경 확인
+            is_aws_rds = any([
+                "rds.amazonaws.com" in settings.crm_database_url,
+                os.getenv("AWS_DEFAULT_REGION"),
+                os.getenv("RDS_ENDPOINT")
+            ])
+            
+            # 기본 연결 설정
             connect_args = {
                 "charset": "utf8mb4",
                 "autocommit": True,
@@ -34,61 +44,82 @@ class DatabaseManager:
                 "write_timeout": 60,
             }
             
-            try:
-                url = settings.crm_database_url
-                if "?" in url:
-                    url += "&auth_plugin_map=auth_gssapi_client:mysql_native_password"
+            # AWS RDS SSL 설정
+            if is_aws_rds:
+                ssl_ca_path = os.getenv("SSL_CA_CERT_PATH")
+                if ssl_ca_path and os.path.exists(ssl_ca_path):
+                    connect_args.update({
+                        "ssl_ca": ssl_ca_path,
+                        "ssl_verify_cert": os.getenv("SSL_VERIFY_CERT", "false").lower() == "true",
+                        "ssl_verify_identity": False,  # RDS는 보통 False
+                    })
+                    logger.info("Using SSL connection for RDS")
                 else:
-                    url += "?auth_plugin_map=auth_gssapi_client:mysql_native_password"
-                
-                self._crm_engine = create_engine(
-                    url,
-                    pool_size=settings.crm_pool_size,
-                    max_overflow=settings.crm_max_overflow,
-                    pool_pre_ping=True,
-                    echo=settings.debug,
-                    connect_args=connect_args,
-                    pool_recycle=3600,  # 1시간마다 연결 재활용
-                    pool_timeout=30,
-                )
-                
-                # 연결 테스트
-                with self._crm_engine.connect() as conn:
-                    conn.execute("SELECT 1")
-                    logger.info("CRM database connection test successful")
-                    
-            except Exception as e:
-                logger.error(f"Failed to create CRM engine: {e}")
-                backup_url = settings.crm_database_url.split('?')[0]  # 파라미터 제거
-                logger.info(f"Trying backup connection without auth plugin: {backup_url}")
-                
+                    # SSL 인증서가 없어도 RDS는 기본적으로 SSL 지원
+                    connect_args["ssl_disabled"] = False
+                    logger.info("Using default SSL for RDS")
+            
+            # 연결 시도
+            connection_attempts = [
+                # 1차: 원본 URL 그대로
+                settings.crm_database_url,
+                # 2차: auth plugin 추가
+                self._add_auth_plugin(settings.crm_database_url),
+                # 3차: 파라미터 제거 후 재시도
+                self._clean_url_and_add_auth(settings.crm_database_url)
+            ]
+            
+            last_error = None
+            
+            for attempt, url in enumerate(connection_attempts, 1):
                 try:
-                    if "?" in backup_url:
-                        backup_url += "&auth_plugin_map=auth_gssapi_client:mysql_native_password"
-                    else:
-                        backup_url += "?auth_plugin_map=auth_gssapi_client:mysql_native_password"
+                    logger.info(f"Database connection attempt {attempt}")
                     
                     self._crm_engine = create_engine(
-                        backup_url,
+                        url,
                         pool_size=settings.crm_pool_size,
                         max_overflow=settings.crm_max_overflow,
                         pool_pre_ping=True,
                         echo=settings.debug,
-                        connect_args={"charset": "utf8mb4"},
-                        pool_recycle=3600,
+                        connect_args=connect_args,
+                        pool_recycle=3600,  # AWS RDS 권장: 1시간
                         pool_timeout=30,
+                        # AWS RDS 최적화
+                        pool_reset_on_return="commit" if is_aws_rds else "rollback",
                     )
                     
-                    # 백업 연결 테스트
+                    # 연결 테스트
                     with self._crm_engine.connect() as conn:
-                        conn.execute("SELECT 1")
-                        logger.info("CRM database backup connection successful")
+                        result = conn.execute("SELECT 1 as test, @@version as version")
+                        row = result.fetchone()
+                        logger.info(f"CRM database connection successful: {row}")
+                        return self._crm_engine
                         
-                except Exception as backup_error:
-                    logger.error(f"Backup connection also failed: {backup_error}")
-                    raise backup_error
+                except Exception as e:
+                    last_error = e
+                    logger.warning(f"Connection attempt {attempt} failed: {e}")
+                    if self._crm_engine:
+                        self._crm_engine.dispose()
+                        self._crm_engine = None
+            
+            # 모든 시도 실패
+            logger.error(f"All connection attempts failed. Last error: {last_error}")
+            raise last_error
                     
         return self._crm_engine
+    
+    def _add_auth_plugin(self, url: str) -> str:
+        """Add auth plugin to URL if not present."""
+        if "auth_plugin_map" in url:
+            return url
+        
+        separator = "&" if "?" in url else "?"
+        return f"{url}{separator}auth_plugin_map=auth_gssapi_client:mysql_native_password"
+    
+    def _clean_url_and_add_auth(self, url: str) -> str:
+        """Clean URL parameters and add auth plugin."""
+        base_url = url.split('?')[0]
+        return f"{base_url}?charset=utf8mb4&auth_plugin_map=auth_gssapi_client:mysql_native_password"
 
     def get_analytics_connection(self) -> duckdb.DuckDBPyConnection:
         """Get DuckDB connection for analytics database."""

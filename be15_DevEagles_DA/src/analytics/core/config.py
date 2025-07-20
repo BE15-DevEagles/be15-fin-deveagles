@@ -145,7 +145,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        env_prefix="ANALYTICS_",
+        env_prefix="",  # No prefix to match .env format
     )
 
     # Environment
@@ -172,28 +172,34 @@ class Settings(BaseSettings):
         self._apply_env_vars_final()
 
     def _load_yaml_config(self) -> None:
-        """Load configuration from YAML files."""
-        # config 디렉토리 경로를 상대적으로 찾기
+        """Load configuration from unified config.yaml file."""
+        # Find config.yaml file - try project root first
         current_dir = Path(__file__).parent
-        config_dir = current_dir.parent.parent / "config"
-        if not config_dir.exists():
-            config_dir = Path("config")  # fallback
+        project_root = current_dir.parent.parent.parent  # src/analytics/core -> project root
         
-        # 환경별 설정 파일 경로
-        env_config_file = config_dir / f"{self.environment}.yaml"
-        local_config_file = config_dir / "local.yaml"
+        config_paths = [
+            project_root / "config.yaml",  # Project root
+            Path("config.yaml"),           # Current directory
+            current_dir / "config.yaml"    # Same directory as this file
+        ]
         
-        # 기본 설정부터 로드
-        if env_config_file.exists():
-            with open(env_config_file, 'r', encoding='utf-8') as f:
-                config_data = yaml.safe_load(f)
-                self._update_from_dict(config_data)
+        config_file = None
+        for path in config_paths:
+            if path.exists():
+                config_file = path
+                break
         
-        # 로컬 설정으로 오버라이드 (개발자별 설정)
-        if local_config_file.exists():
-            with open(local_config_file, 'r', encoding='utf-8') as f:
-                local_config = yaml.safe_load(f)
-                self._update_from_dict(local_config)
+        if config_file:
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config_data = yaml.safe_load(f)
+                    if config_data:
+                        self._update_from_dict(config_data)
+                        print(f"Loaded config from: {config_file}")  # Debug info
+            except Exception as e:
+                print(f"Error loading config from {config_file}: {e}")
+        else:
+            print("No config.yaml found, using defaults")  # Debug info
 
     def _update_from_dict(self, config_data: Dict[str, Any]) -> None:
         """Update configuration from dictionary."""
@@ -224,11 +230,48 @@ class Settings(BaseSettings):
                     substituted_value = self._substitute_env_vars_recursive(value)
                     setattr(self, key, substituted_value)
 
-    def _substitute_env_vars(self, value: str) -> str:
-        """환경변수 치환 (${VAR_NAME} 형식)."""
-        if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
-            env_var_name = value[2:-1]
-            return os.getenv(env_var_name, value)
+    def _substitute_env_vars(self, value: Any) -> Any:
+        """환경변수 치환 (${VAR_NAME:-default} 형식 지원)."""
+        if not isinstance(value, str):
+            return value
+            
+        if value.startswith("${") and value.endswith("}"):
+            # ${VAR_NAME:-default} 형식 파싱
+            env_expr = value[2:-1]  # ${ } 제거
+            
+            if ":-" in env_expr:
+                env_var_name, default_value = env_expr.split(":-", 1)
+                result = os.getenv(env_var_name, default_value)
+            else:
+                env_var_name = env_expr
+                result = os.getenv(env_var_name, value)
+            
+            # 타입 자동 변환 시도
+            return self._convert_type(result)
+        
+        return value
+    
+    def _convert_type(self, value: str) -> Any:
+        """문자열을 적절한 타입으로 변환."""
+        if not isinstance(value, str):
+            return value
+            
+        # Boolean 변환
+        if value.lower() in ("true", "1", "yes", "on"):
+            return True
+        elif value.lower() in ("false", "0", "no", "off"):
+            return False
+        
+        # 숫자 변환 시도
+        try:
+            if "." in value:
+                return float(value)
+            else:
+                return int(value)
+        except ValueError:
+            pass
+        
+        # 그대로 문자열 반환
         return value
 
     def _substitute_env_vars_recursive(self, obj: Any) -> Any:
@@ -245,7 +288,7 @@ class Settings(BaseSettings):
     def _apply_env_vars_final(self) -> None:
         """환경변수를 최종적으로 적용하여 최고 우선순위 보장."""
         # CRM Database URL 환경변수 직접 적용
-        crm_url_env = os.getenv("ANALYTICS_CRM_DATABASE_URL")
+        crm_url_env = os.getenv("CRM_DATABASE_URL")
         if crm_url_env and "crm" in self.database:
             self.database["crm"].url = crm_url_env
         elif crm_url_env:
@@ -254,10 +297,30 @@ class Settings(BaseSettings):
                 self.database = {}
             self.database["crm"] = DatabaseConfig(url=crm_url_env)
         
+        # Analytics DB Path 환경변수 적용
+        analytics_db_env = os.getenv("ANALYTICS_DB_PATH")
+        if analytics_db_env:
+            if "analytics" in self.database:
+                self.database["analytics"].url = analytics_db_env
+            else:
+                if not hasattr(self, 'database') or not self.database:
+                    self.database = {}
+                self.database["analytics"] = DatabaseConfig(url=analytics_db_env)
+        
         # 다른 중요한 환경변수들도 최종 적용
-        secret_key_env = os.getenv("ANALYTICS_SECRET_KEY")
+        secret_key_env = os.getenv("SECRET_KEY")
         if secret_key_env:
             self.security.secret_key = secret_key_env
+            
+        # Debug 모드 환경변수 적용
+        debug_env = os.getenv("DEBUG")
+        if debug_env is not None:
+            self.app.debug = debug_env.lower() in ("true", "1", "yes")
+            
+        # Log level 환경변수 적용
+        log_level_env = os.getenv("LOG_LEVEL")
+        if log_level_env:
+            self.app.log_level = log_level_env
 
     # 호환성 프로퍼티
     @property
@@ -297,8 +360,12 @@ class Settings(BaseSettings):
         if "crm" in self.database:
             url = self.database["crm"].url
             return self._substitute_env_vars(url)
-        # 기본값을 올바른 자격증명으로 변경
-        return "mysql+pymysql://swcamp:swcamp@localhost:3306/beautifly"
+        # 환경변수에서 직접 가져오기
+        env_url = os.getenv("CRM_DATABASE_URL")
+        if env_url:
+            return env_url
+        # 기본값 - Docker 환경 고려
+        return "mysql+pymysql://swcamp:swcamp@host.docker.internal:3306/beautifly"
 
     @property
     def crm_pool_size(self) -> int:
@@ -313,18 +380,25 @@ class Settings(BaseSettings):
         from pathlib import Path
         import os
         
-        # 프로젝트 루트 절대 경로 계산 (src/../.. = be15_DevEagles_DA)
-        project_root = Path(__file__).parent.parent.parent.parent
+        # 환경변수에서 직접 가져오기 (최우선)
+        env_path = os.getenv("ANALYTICS_DB_PATH")
+        if env_path:
+            if not os.path.isabs(env_path):
+                project_root = Path(__file__).parent.parent.parent.parent
+                return str(project_root / env_path)
+            return env_path
         
+        # config.yaml에서 가져오기
         if "analytics" in self.database:
             db_url = self.database["analytics"].url
-            # 상대경로인 경우 절대경로로 변환
             if not os.path.isabs(db_url):
+                project_root = Path(__file__).parent.parent.parent.parent
                 return str(project_root / db_url)
             return db_url
         
-        # 기본값: 항상 프로젝트 루트의 data 폴더 사용
-        return str(project_root / "data" / "analytics_local.db")
+        # 기본값: 프로젝트 루트의 data 폴더
+        project_root = Path(__file__).parent.parent.parent.parent
+        return str(project_root / "data" / "analytics.duckdb")
 
     @property
     def analytics_db_threads(self) -> int:
