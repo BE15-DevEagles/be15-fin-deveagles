@@ -1,7 +1,7 @@
 {
   "AWSEBDockerrunVersion": "1",
   "Image": {
-    "Name": "your-dockerhub-username/your-repo-name:latest",
+    "Name": "64etuor/deveagles:latest",
     "Update": "true"
   },
   "Ports": [
