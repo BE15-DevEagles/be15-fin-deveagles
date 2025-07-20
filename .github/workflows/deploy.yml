@@ -79,7 +79,11 @@ jobs:
                     writetimeout: 5000
                 auth-code-expiration-millis: 1800000
               pwd_url: \${PWD_URL}
-            
+
+            elasticsearch:
+              uris: ${https://vpc-beautifly-elasticsearch-vbs7vl5j3ghlaylzsvgbrprdhe.ap-northeast-2.es.amazonaws.com:http://localhost:9200}
+              connection-timeout: ${ES_CONNECTION_TIMEOUT:10s}
+              socket-timeout: ${ES_SOCKET_TIMEOUT:30s}
 
           jwt:
             secret: \${JWT_SECRET}
