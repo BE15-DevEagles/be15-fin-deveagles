@@ -86,7 +86,7 @@ jobs:
             key: \${AES_SECRET_KEY}
             iv: \${AES_IV}
 
-          sms:
+          coolsms:
             api-key: \${SMS_API_KEY}
             secret-key: \${SMS_SECRET_API_KEY}
 
