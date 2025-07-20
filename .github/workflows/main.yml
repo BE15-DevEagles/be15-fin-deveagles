@@ -32,6 +32,7 @@ jobs:
           context: ./be15_DevEagles_DA
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPONAME }}:latest
+          no-cache: true
 
   deploy:
     name: Deploy Python Server to AWS Elastic Beanstalk
