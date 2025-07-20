@@ -63,6 +63,7 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(
                         HttpMethod.GET,
+                        "/",
                         "/shops/get-industry",
                         "/schedules/reservation/settings/{shopId}",
                         "/shops/p/{shopId}",
