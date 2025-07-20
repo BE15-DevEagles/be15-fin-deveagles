@@ -81,7 +81,7 @@ jobs:
               pwd_url: \${PWD_URL}
 
             elasticsearch:
-              uris: ${https://vpc-beautifly-elasticsearch-vbs7vl5j3ghlaylzsvgbrprdhe.ap-northeast-2.es.amazonaws.com:http://localhost:9200}
+              uris: ${ES_URIS:http://localhost:9200}
               connection-timeout: ${ES_CONNECTION_TIMEOUT:10s}
               socket-timeout: ${ES_SOCKET_TIMEOUT:30s}
 
@@ -131,6 +131,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           REDIS_HOST: ${{ secrets.REDIS_HOST }}
           REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          ES_URIS: ${{ secrets.ES_URIS }}
           AES_SECRET_KEY: ${{ secrets.AES_SECRET_KEY }}
           AES_IV: ${{ secrets.AES_IV }}
           SMS_API_KEY: ${{ secrets.SMS_API_KEY }}
