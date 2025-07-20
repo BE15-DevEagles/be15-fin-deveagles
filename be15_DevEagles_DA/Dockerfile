@@ -25,7 +25,6 @@ USER airflow
 
 # Copy requirements first for better Docker layer caching
 COPY requirements.txt /tmp/requirements.txt
-COPY etl_requirements.txt /tmp/etl_requirements.txt
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -38,7 +37,7 @@ USER root
 
 # Copy application code and necessary scripts/configs
 COPY --chown=airflow:root src/ /opt/airflow/src/
-COPY --chown=airflow:root config/ /opt/airflow/config/
+COPY --chown=airflow:root config.yaml /opt/airflow/config.yaml
 COPY --chown=airflow:root supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY --chown=airflow:root scripts/ /opt/airflow/scripts/
 COPY --chown=airflow:root run_dashboard.py /opt/airflow/
