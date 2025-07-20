@@ -56,6 +56,7 @@
       v-if="modalType === 'reservation'"
       :id="selectedReservation"
       v-model="isModalOpen"
+      @closed="fetchSchedules"
     />
 
     <PlanDetailModal
@@ -64,6 +65,7 @@
       :model-value="isModalOpen"
       :type="selectedReservation?.type"
       @update:model-value="isModalOpen = false"
+      @closed="fetchSchedules"
     />
 
     <LeaveDetailModal
@@ -72,9 +74,14 @@
       :model-value="isModalOpen"
       :type="selectedReservation?.type"
       @update:model-value="isModalOpen = false"
+      @closed="fetchSchedules"
     />
 
-    <ScheduleRegistModal v-if="handleClickScheduleRegist" v-model="handleClickScheduleRegist" />
+    <ScheduleRegistModal
+      v-if="handleClickScheduleRegist"
+      v-model="handleClickScheduleRegist"
+      @closed="fetchSchedules"
+    />
   </div>
 </template>
 

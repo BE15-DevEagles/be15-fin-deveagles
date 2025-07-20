@@ -175,6 +175,7 @@
       v-if="isRegistModalOpen"
       v-model="isRegistModalOpen"
       :default-tab="'reservation'"
+      @closed="fetchReservations"
     />
   </div>
 </template>
@@ -202,7 +203,7 @@
   const isConfirmDialogOpen = ref(false);
   const confirmTarget = ref(null);
   const searchText = ref('');
-  const selectedDate = ref('thisWeek');
+  const selectedDate = ref('today');
   const selectedStatus = ref('');
   const isModalOpen = ref(false);
   const isRegistModalOpen = ref(false);
