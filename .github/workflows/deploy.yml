@@ -76,6 +76,11 @@ jobs:
                 auth-code-expiration-millis: 1800000
               pwd_url: \${PWD_URL}
             
+            data:
+              mongodb:
+                uri: \${MONGODB_URI}
+                auto-index-creation: true
+            
           jwt:
             secret: \${JWT_SECRET}
             expiration: 1800000
@@ -100,12 +105,6 @@ jobs:
               credentials:
                 access-key: ${ACCESSKEY}
                 secret-key: ${SECRETKEY}
-
-          spring:
-            data:
-              mongodb:
-                uri: \${MONGODB_URI}
-                auto-index-creation: true
 
           webhook:
             ai-url: \${AI_CHAT_WEBHOOK}
