@@ -16,7 +16,7 @@ dash-bootstrap-components>=1.5.2
 
 # Database & Storage
 duckdb==0.8.1
-sqlalchemy==1.4.53
+sqlalchemy>=2.0.0
 pymysql==1.1.0
 pyarrow==10.0.1
 psycopg2-binary==2.9.9
