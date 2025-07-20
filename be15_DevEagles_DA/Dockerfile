@@ -65,5 +65,6 @@ EXPOSE 8080 8050 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Entrypoint: Start supervisord to manage all services
+# Override the default airflow entrypoint and start supervisord
+ENTRYPOINT []
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
