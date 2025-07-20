@@ -10,6 +10,7 @@ on:
   push:
     branches:
       - "main"
+  
 
 jobs:
   build:
@@ -73,7 +74,7 @@ jobs:
                     timeout: 5000
                     writetimeout: 5000
                 auth-code-expiration-millis: 1800000
-              pwd-url: \${PWD-URL}
+              pwd_url: \${PWD_URL}
             
           jwt:
             secret: \${JWT_SECRET}
@@ -84,7 +85,7 @@ jobs:
             key: \${AES_SECRET_KEY}
             iv: \${AES_IV}
 
-          sms:
+          coolsms:
             api-key: \${SMS_API_KEY}
             secret-key: \${SMS_SECRET_API_KEY}
 
