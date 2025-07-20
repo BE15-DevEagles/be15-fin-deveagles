@@ -81,7 +81,7 @@ jobs:
               pwd_url: \${PWD_URL}
 
             elasticsearch:
-              uris: ${ELASTICSEARCH_URL:'http://localhost:9200'}
+              uris: ${ELASTICSEARCH_URL:http://localhost:9200}
               connection-timeout: ${ES_CONNECTION_TIMEOUT:10s}
               socket-timeout: ${ES_SOCKET_TIMEOUT:30s}
 
