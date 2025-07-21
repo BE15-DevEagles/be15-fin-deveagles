@@ -168,9 +168,9 @@ jobs:
         run: |
           mkdir -p deploy
           cp be15_DevEagles_BE/build/libs/*.jar deploy/application.jar
-          cp Procfile deploy/Procfile
-          cp -r .ebextensions deploy/.ebextensions
-          cp -r .platform deploy/.platform
+          cp be15_DevEagles_BE/Procfile deploy/Procfile
+          cp -r be15_DevEagles_BE/.ebextensions deploy/.ebextensions
+          cp -r be15_DevEagles_BE/.platform deploy/.platform
           cd deploy && zip -r deploy.zip .    
 
       - name: Beanstalk Deploy
